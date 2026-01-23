@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <curl/curl.h>
 #include <filesystem>
 #include <sstream>
@@ -77,33 +78,150 @@ namespace {
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
         return ext == ".xci" || ext == ".xcz";
     }
+
+    bool ContainsHtml(const std::string& body)
+    {
+        std::string lower = body;
+        std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
+        return lower.find("<!doctype html") != std::string::npos || lower.find("<html") != std::string::npos;
+    }
+
+    bool IsLoginUrl(const char* effectiveUrl)
+    {
+        if (!effectiveUrl)
+            return false;
+        std::string url = effectiveUrl;
+        return url.find("/login") != std::string::npos;
+    }
+
+    std::string BuildFullUrl(const std::string& baseUrl, const std::string& urlPath)
+    {
+        if (urlPath.rfind("http://", 0) == 0 || urlPath.rfind("https://", 0) == 0)
+            return urlPath;
+        if (!urlPath.empty() && urlPath[0] == '/')
+            return baseUrl + urlPath;
+        return baseUrl + "/" + urlPath;
+    }
+
+    bool TryParseHexU64(const std::string& value, std::uint64_t& out)
+    {
+        if (value.empty())
+            return false;
+        char* end = nullptr;
+        unsigned long long parsed = std::strtoull(value.c_str(), &end, 16);
+        if (end == value.c_str() || (end && *end != '\0'))
+            return false;
+        out = static_cast<std::uint64_t>(parsed);
+        return true;
+    }
+
+    bool TryParseTitleId(const nlohmann::json& entry, std::uint64_t& out)
+    {
+        if (!entry.contains("title_id"))
+            return false;
+        const auto& value = entry["title_id"];
+        if (value.is_number_unsigned()) {
+            out = value.get<std::uint64_t>();
+            return true;
+        }
+        if (value.is_string()) {
+            std::string text = value.get<std::string>();
+            text.erase(0, text.find_first_not_of(" \t\r\n"));
+            text.erase(text.find_last_not_of(" \t\r\n") + 1);
+            return TryParseHexU64(text, out);
+        }
+        return false;
+    }
+
+    bool TryParseAppVersion(const nlohmann::json& entry, std::uint32_t& out)
+    {
+        if (!entry.contains("app_version"))
+            return false;
+        const auto& value = entry["app_version"];
+        if (value.is_number_unsigned()) {
+            out = value.get<std::uint32_t>();
+            return true;
+        }
+        if (value.is_number_integer()) {
+            int parsed = value.get<int>();
+            if (parsed < 0)
+                return false;
+            out = static_cast<std::uint32_t>(parsed);
+            return true;
+        }
+        if (value.is_string()) {
+            std::string text = value.get<std::string>();
+            text.erase(0, text.find_first_not_of(" \t\r\n"));
+            text.erase(text.find_last_not_of(" \t\r\n") + 1);
+            char* end = nullptr;
+            unsigned long long parsed = std::strtoull(text.c_str(), &end, 10);
+            if (end == nullptr || *end != '\0')
+                return false;
+            out = static_cast<std::uint32_t>(parsed);
+            return true;
+        }
+        return false;
+    }
+
+    bool TryParseAppType(const nlohmann::json& entry, std::int32_t& out)
+    {
+        if (!entry.contains("app_type"))
+            return false;
+        const auto& value = entry["app_type"];
+        if (value.is_number_integer()) {
+            out = value.get<std::int32_t>();
+            return true;
+        }
+        if (value.is_number_unsigned()) {
+            out = static_cast<std::int32_t>(value.get<std::uint32_t>());
+            return true;
+        }
+        if (value.is_string()) {
+            std::string type = value.get<std::string>();
+            type.erase(0, type.find_first_not_of(" \t\r\n"));
+            type.erase(type.find_last_not_of(" \t\r\n") + 1);
+            std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+            if (type == "base") {
+                out = NcmContentMetaType_Application;
+                return true;
+            }
+            if (type == "upd" || type == "update" || type == "patch") {
+                out = NcmContentMetaType_Patch;
+                return true;
+            }
+            if (type == "dlc" || type == "addon") {
+                out = NcmContentMetaType_AddOnContent;
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 namespace shopInstStuff {
-    std::vector<ShopItem> FetchShop(const std::string& shopUrl, const std::string& user, const std::string& pass, std::string& error)
+    struct FetchResult {
+        std::string body;
+        long responseCode = 0;
+        std::string effectiveUrl;
+        std::string contentType;
+        std::string error;
+    };
+
+    FetchResult FetchShopResponse(const std::string& url, const std::string& user, const std::string& pass)
     {
-        std::vector<ShopItem> items;
-        error.clear();
-
-        std::string baseUrl = NormalizeShopUrl(shopUrl);
-        if (baseUrl.empty()) {
-            error = "Shop URL is empty.";
-            return items;
-        }
-
+        FetchResult result;
         CURL* curl = curl_easy_init();
         if (!curl) {
-            error = "Failed to initialize curl.";
-            return items;
+            result.error = "Failed to initialize curl.";
+            return result;
         }
 
-        std::string body;
-        curl_easy_setopt(curl, CURLOPT_URL, baseUrl.c_str());
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, "tinfoil");
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteToString);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result.body);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 15000L);
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 5000L);
 
@@ -122,22 +240,65 @@ namespace shopInstStuff {
         }
 
         CURLcode rc = curl_easy_perform(curl);
+        long responseCode = 0;
+        char* effectiveUrl = nullptr;
+        char* contentType = nullptr;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &responseCode);
+        curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrl);
+        curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &contentType);
         if (headerList)
             curl_slist_free_all(headerList);
         curl_easy_cleanup(curl);
 
+        result.responseCode = responseCode;
+        result.effectiveUrl = effectiveUrl ? effectiveUrl : "";
+        result.contentType = contentType ? contentType : "";
+
         if (rc != CURLE_OK) {
-            error = curl_easy_strerror(rc);
+            result.error = curl_easy_strerror(rc);
+        }
+
+        return result;
+    }
+
+    bool ValidateShopResponse(const FetchResult& fetch, std::string& error)
+    {
+        if (!fetch.error.empty()) {
+            error = fetch.error;
+            return false;
+        }
+        if (fetch.responseCode == 401 || fetch.responseCode == 403) {
+            error = "Shop requires authentication. Check credentials or enable public shop in Ownfoil.";
+            return false;
+        }
+        if (IsLoginUrl(fetch.effectiveUrl.c_str()) || (!fetch.contentType.empty() && fetch.contentType.find("text/html") != std::string::npos) || ContainsHtml(fetch.body)) {
+            error = "Ownfoil returned the login page. Check shop URL, username, and password, or enable public shop.";
+            return false;
+        }
+        if (fetch.body.rfind("TINFOIL", 0) == 0) {
+            error = "Encrypted shop responses are not supported. Disable Encrypt shop in Ownfoil settings.";
+            return false;
+        }
+        return true;
+    }
+
+    std::vector<ShopItem> FetchShop(const std::string& shopUrl, const std::string& user, const std::string& pass, std::string& error)
+    {
+        std::vector<ShopItem> items;
+        error.clear();
+
+        std::string baseUrl = NormalizeShopUrl(shopUrl);
+        if (baseUrl.empty()) {
+            error = "Shop URL is empty.";
             return items;
         }
 
-        if (body.rfind("TINFOIL", 0) == 0) {
-            error = "Encrypted shop responses are not supported. Disable Encrypt shop in Ownfoil settings.";
+        FetchResult fetch = FetchShopResponse(baseUrl, user, pass);
+        if (!ValidateShopResponse(fetch, error))
             return items;
-        }
 
         try {
-            nlohmann::json shop = nlohmann::json::parse(body);
+            nlohmann::json shop = nlohmann::json::parse(fetch.body);
             if (shop.contains("error")) {
                 error = shop["error"].get<std::string>();
                 return items;
@@ -175,11 +336,13 @@ namespace shopInstStuff {
                 std::string name;
                 if (!fragment.empty())
                     name = DecodeUrlSegment(fragment);
-                else
+                else {
                     name = inst::util::formatUrlString(fullUrl);
+                }
 
-                if (!fullUrl.empty() && !name.empty())
-                    items.push_back({name, fullUrl, size});
+                if (!fullUrl.empty() && !name.empty()) {
+                    items.push_back({name, fullUrl, "", "", size});
+                }
             }
         }
         catch (...) {
@@ -191,6 +354,119 @@ namespace shopInstStuff {
             return inst::util::ignoreCaseCompare(a.name, b.name);
         });
         return items;
+    }
+
+    std::vector<ShopSection> FetchShopSections(const std::string& shopUrl, const std::string& user, const std::string& pass, std::string& error)
+    {
+        std::vector<ShopSection> sections;
+        error.clear();
+
+        std::string baseUrl = NormalizeShopUrl(shopUrl);
+        if (baseUrl.empty()) {
+            error = "Shop URL is empty.";
+            return sections;
+        }
+
+        std::string sectionsUrl = baseUrl + "/api/shop/sections";
+        FetchResult fetch = FetchShopResponse(sectionsUrl, user, pass);
+        if (fetch.responseCode == 404) {
+            std::vector<ShopItem> items = FetchShop(shopUrl, user, pass, error);
+            if (!items.empty()) {
+                sections.push_back({"all", "All", items});
+            }
+            return sections;
+        }
+
+        if (!ValidateShopResponse(fetch, error))
+            return sections;
+
+        try {
+            nlohmann::json shop = nlohmann::json::parse(fetch.body);
+            if (!shop.contains("sections") || !shop["sections"].is_array()) {
+                error = "Shop response missing sections.";
+                return sections;
+            }
+
+            for (const auto& section : shop["sections"]) {
+                if (!section.contains("items") || !section["items"].is_array())
+                    continue;
+                ShopSection parsed;
+                parsed.id = section.value("id", "all");
+                parsed.title = section.value("title", "All");
+                for (const auto& entry : section["items"]) {
+                    if (!entry.contains("url"))
+                        continue;
+                    std::string url = entry["url"].get<std::string>();
+                    std::uint64_t size = 0;
+                    if (entry.contains("size") && entry["size"].is_number()) {
+                        size = entry["size"].get<std::uint64_t>();
+                    }
+
+                    std::string fragment;
+                    std::string urlPath = url;
+                    auto hashPos = urlPath.find('#');
+                    if (hashPos != std::string::npos) {
+                        fragment = urlPath.substr(hashPos + 1);
+                        urlPath = urlPath.substr(0, hashPos);
+                    }
+
+                    std::string fullUrl = BuildFullUrl(baseUrl, urlPath);
+
+                    std::string name;
+                    if (entry.contains("name")) {
+                        name = entry["name"].get<std::string>();
+                    } else if (!fragment.empty()) {
+                        name = DecodeUrlSegment(fragment);
+                    } else {
+                        name = inst::util::formatUrlString(fullUrl);
+                    }
+
+                    if (!fullUrl.empty() && !name.empty()) {
+                        ShopItem item{name, fullUrl, "", "", size};
+                        std::uint64_t titleId = 0;
+                        std::uint32_t appVersion = 0;
+                        std::int32_t appType = -1;
+                        if (TryParseTitleId(entry, titleId)) {
+                            item.titleId = titleId;
+                            item.hasTitleId = true;
+                        }
+                        if (TryParseAppVersion(entry, appVersion)) {
+                            item.appVersion = appVersion;
+                            item.hasAppVersion = true;
+                        }
+                        if (TryParseAppType(entry, appType))
+                            item.appType = appType;
+                        if (entry.contains("app_id") && entry["app_id"].is_string()) {
+                            item.appId = entry["app_id"].get<std::string>();
+                            item.hasAppId = !item.appId.empty();
+                        }
+                        if (entry.contains("icon_url") && entry["icon_url"].is_string()) {
+                            std::string iconUrl = entry["icon_url"].get<std::string>();
+                            if (!iconUrl.empty()) {
+                                item.iconUrl = BuildFullUrl(baseUrl, iconUrl);
+                                item.hasIconUrl = true;
+                            }
+                        } else if (entry.contains("iconUrl") && entry["iconUrl"].is_string()) {
+                            std::string iconUrl = entry["iconUrl"].get<std::string>();
+                            if (!iconUrl.empty()) {
+                                item.iconUrl = BuildFullUrl(baseUrl, iconUrl);
+                                item.hasIconUrl = true;
+                            }
+                        }
+                        parsed.items.push_back(item);
+                    }
+                }
+
+                if (!parsed.items.empty())
+                    sections.push_back(parsed);
+            }
+        }
+        catch (...) {
+            error = "Invalid shop response.";
+            return {};
+        }
+
+        return sections;
     }
 
     void installTitleShop(const std::vector<ShopItem>& items, int storage, const std::string& sourceLabel)

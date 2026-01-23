@@ -23,6 +23,8 @@ SOFTWARE.
 #include "util/title_util.hpp"
 
 #include <machine/endian.h>
+#include <vector>
+#include <switch.h>
 #include "util/error.hpp"
 
 namespace tin::util
@@ -130,5 +132,37 @@ namespace tin::util
         }
 
         return titleName;
+    }
+
+    bool IsTitleInstalled(u64 titleId)
+    {
+        NsApplicationControlData appControlData;
+        u64 sizeRead = 0;
+        Result rc = nsGetApplicationControlData(NsApplicationControlSource_Storage, titleId, &appControlData, sizeof(NsApplicationControlData), &sizeRead);
+        return R_SUCCEEDED(rc) && sizeRead >= sizeof(appControlData.nacp);
+    }
+
+    bool GetInstalledUpdateVersion(u64 baseTitleId, u32& outVersion)
+    {
+        outVersion = 0;
+        s32 count = 0;
+        Result rc = nsCountApplicationContentMeta(baseTitleId, &count);
+        if (R_FAILED(rc) || count <= 0)
+            return false;
+
+        std::vector<NsApplicationContentMetaStatus> list(count);
+        s32 outCount = 0;
+        rc = nsListApplicationContentMetaStatus(baseTitleId, 0, list.data(), count, &outCount);
+        if (R_FAILED(rc) || outCount <= 0)
+            return false;
+
+        for (s32 i = 0; i < outCount; i++) {
+            if (list[i].meta_type == NcmContentMetaType_Patch) {
+                if (list[i].version > outVersion)
+                    outVersion = list[i].version;
+            }
+        }
+
+        return true;
     }
 }

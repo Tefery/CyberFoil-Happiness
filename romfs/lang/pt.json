@@ -1,5 +1,5 @@
 {
-    "main":{
+    "main": {
         "menu": {
             "sd": "Instalar através do cartão SD",
             "net": "Instalar através da LAN ou da Internet",
@@ -28,7 +28,7 @@
             "title": "Modo applet não suportado",
             "desc": "Poderá ter problemas se usar o Awoo Installer em modo Applet. Se\ntiver problemas, execute o Awoo Installer através de um título\ninstalado (mantenha R primido enquanto inicia um jogo)!"
         },
-        "buttons": "\ue0e0 Selecionar    \ue0e1 Sair"
+        "buttons": " Selecionar     Sair"
     },
     "inst": {
         "net": {
@@ -56,8 +56,8 @@
             "failed": "A instalação remota falhou!",
             "transfer_interput": "Ocorreu um erro ao tranferir os dados. Verifique a sua ligação à rede.",
             "source_string": " através de rede local",
-            "buttons": "\ue0e3 Instalar através da Internet    \ue0e2 Ajuda    \ue0e1 Cancelar",
-            "buttons1": "\ue0e0 Selecionar Ficheiro    \ue0e3 Selecionar Todos    \ue0ef Instalar Ficheiro(s)    \ue0e1 Cancelar"
+            "buttons": " Instalar através da Internet     Ajuda     Cancelar",
+            "buttons1": " Selecionar Ficheiro     Selecionar Todos     Instalar Ficheiro(s)     Cancelar"
         },
         "shop": {
             "loading": "Loading shop list...",
@@ -65,8 +65,12 @@
             "failed": "Failed to load shop",
             "empty": "Shop has no files.",
             "source_string": " from Ownfoil shop",
-            "buttons_loading": "\ue0e1 Cancelar",
-            "buttons": "\ue0e0 Selecionar Ficheiro    \ue0e3 Selecionar Todos    \ue0ef Instalar Ficheiro(s)    \ue0e2 Atualizar    \ue0e1 Cancelar"
+            "buttons_loading": " Cancelar",
+            "buttons": " Selecionar Ficheiro     Selecionar Todos     Instalar Ficheiro(s)     Atualizar    / Section     Cancelar",
+            "buttons_all": " Selecionar Ficheiro     Selecionar Todos     Instalar Ficheiro(s)     Atualizar    / Section     Search     Cancelar",
+            "search_hint": "Search all titles",
+            "update_prompt_title": "Install updates?",
+            "update_prompt_desc": "Include available updates for selected titles? Updates found: "
         },
         "sd": {
             "help": {
@@ -78,7 +82,7 @@
             "delete_info": " instalado! Eliminar do cartão SD?",
             "delete_info_multi": " instalados com sucesso! Eliminar do cartão SD?",
             "delete_desc": "Os ficheiros originais não são necessários depois de instalados",
-            "buttons": "\ue0e0 Selecionar Ficheiro    \ue0e3 Selecionar Todos    \ue0ef Instalar Ficheiro(s)    \ue0e2 Ajuda    \ue0e1 Cancelar"
+            "buttons": " Selecionar Ficheiro     Selecionar Todos     Instalar Ficheiro(s)     Ajuda     Cancelar"
         },
         "usb": {
             "help": {
@@ -89,8 +93,8 @@
             "top_info2": "Selecione os ficheiros que deseja instalar através do USB, depois pressione o botão Mais!",
             "error": "A transferência USB expirou ou falhou",
             "source_string": " através do USB",
-            "buttons": "\ue0e2 (Manter primido) Ajuda    \ue0e1 (Manter primido) Cancelar",
-            "buttons2": "\ue0e0 Selecionar Ficheiro    \ue0e3 Selecionar Todos    \ue0ef Instalar Ficheiro(s)    \ue0e1 Cancelar"
+            "buttons": " (Manter primido) Ajuda     (Manter primido) Cancelar",
+            "buttons2": " Selecionar Ficheiro     Selecionar Todos     Instalar Ficheiro(s)     Cancelar"
         },
         "target": {
             "desc0": "Onde será o ",
@@ -162,6 +166,7 @@
             "shop_url": "URL Ownfoil: ",
             "shop_user": "Utilizador Ownfoil: ",
             "shop_pass": "Palavra-passe Ownfoil: ",
+            "shop_remember": "Remember last shop selection",
             "language": "Idioma: ",
             "check_update": "Procurar atualizações do Awoo Installer",
             "credits": "Créditos"
@@ -201,7 +206,7 @@
             "system_language": "Sistema"
         },
         "title": "Alteração de deifinições do Awoo Installer!",
-        "buttons": "\ue0e0 Selecionar/Alterar    \ue0e1 Cancelar"
+        "buttons": " Selecionar/Alterar     Cancelar"
     },
     "common": {
         "ok": "OK",

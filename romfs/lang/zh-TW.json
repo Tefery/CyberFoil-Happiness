@@ -1,5 +1,5 @@
 {
-    "main":{
+    "main": {
         "menu": {
             "sd": "通過SD卡安裝",
             "net": "通過網路安裝",
@@ -26,11 +26,10 @@
         },
         "applet": {
             "title": "不支援Applet模式",
-            "desc": "您可以嘗試在“Applet模式”下使用本程式,但如果出現問題請切換到“非Applet模式”再運行。\n切換方法：\n 退回系統桌面選中任意一個遊戲，按住\ue0e5後點\ue0e0進入遊戲，直到跳回hbmenu界面再鬆開按鈕!\n然後再選擇Awoo Installer，屆時將不會彈出此對話框！"
+            "desc": "您可以嘗試在“Applet模式”下使用本程式,但如果出現問題請切換到“非Applet模式”再運行。\n切換方法：\n 退回系統桌面選中任意一個遊戲，按住後點進入遊戲，直到跳回hbmenu界面再鬆開按鈕!\n然後再選擇Awoo Installer，屆時將不會彈出此對話框！"
         },
-        "buttons": "\ue0e0 選擇 \ue0e1 退出"
+        "buttons": " 選擇  退出"
     },
-    
     "inst": {
         "net": {
             "help": {
@@ -52,13 +51,13 @@
                 "alt_name": "谷歌網盤文件",
                 "source_string": " 從谷歌網盤"
             },
-            "top_info": "選擇您要安裝的文件，然後按下 \ue0ef 號",
+            "top_info": "選擇您要安裝的文件，然後按下  號",
             "top_info1": "等待連接中... 您的Switch主機IP是: ",
             "failed": "遠程安裝失敗！",
             "transfer_interput": "傳輸過程中產生了一個錯誤，請您檢查網路連接是否正常！",
             "source_string": " 通過局域網安裝",
-            "buttons": "\ue0e3 通過Internet \ue0e2 幫助 \ue0e1 取消",
-            "buttons1": "\ue0e0 選擇文件 \ue0e3 全選 \ue0ef 安裝選中的文件 \ue0e1 返回"
+            "buttons": " 通過Internet  幫助  取消",
+            "buttons1": " 選擇文件  全選  安裝選中的文件  返回"
         },
         "shop": {
             "loading": "Loading shop list...",
@@ -66,20 +65,24 @@
             "failed": "Failed to load shop",
             "empty": "Shop has no files.",
             "source_string": " from Ownfoil shop",
-            "buttons_loading": "\ue0e1 取消",
-            "buttons": "\ue0e0 選擇文件 \ue0e3 全選 \ue0ef 安裝選中的文件 \ue0e2 刷新 \ue0e1 取消"
+            "buttons_loading": " 取消",
+            "buttons": " 選擇文件  全選  安裝選中的文件  刷新 / Section  取消",
+            "buttons_all": " 選擇文件  全選  安裝選中的文件  刷新 / Section  Search  取消",
+            "search_hint": "Search all titles",
+            "update_prompt_title": "Install updates?",
+            "update_prompt_desc": "Include available updates for selected titles? Updates found: "
         },
         "sd": {
             "help": {
                 "title": "幫助",
-                "desc": "複製您的 NSP, NSZ, XCI, XCZ 文件到SD卡, \n選擇想要安裝的文件，然後按 \ue0ef 安裝！"
+                "desc": "複製您的 NSP, NSZ, XCI, XCZ 文件到SD卡, \n選擇想要安裝的文件，然後按  安裝！"
             },
-            "top_info": "選擇想要安裝的文件，然後按 \ue0ef 安裝！",
+            "top_info": "選擇想要安裝的文件，然後按  安裝！",
             "source_string": " 從SD卡",
             "delete_info": " 安裝完成！要將原文件從SD卡刪除嗎？",
             "delete_info_multi": " 所有文件已安裝！要把所有原文件從SD卡刪除嗎？",
             "delete_desc": "安裝成功後已經不需要原文件。",
-            "buttons": "\ue0e0 選擇文件 \ue0e3 全選 \ue0ef 安裝 \ue0e2 幫助 \ue0e1 取消"
+            "buttons": " 選擇文件  全選  安裝  幫助  取消"
         },
         "usb": {
             "help": {
@@ -87,11 +90,11 @@
                 "desc": "文件可以通過NS-USBloader遠程安裝。\n也可以選擇輸入URL地址安裝。\n如果您的遠程工具對某種文件格式不支援，您可以嘗試修改文件的擴展名再選擇它，安裝的時候Awoo並不在意擴展名！\n如果還是搞不懂，那就使用SD卡安裝方式吧！"
             },
             "top_info": "USB連接成功! 正在接收文件列表...",
-            "top_info2": "選擇您想通過USB安裝的文件, 然後按 \ue0ef 安裝",
+            "top_info2": "選擇您想通過USB安裝的文件, 然後按  安裝",
             "error": "USB傳輸超時...",
             "source_string": " 通過USB",
-            "buttons": "\ue0e2 (按住) 幫助 \ue0e1 (按住) 取消",
-            "buttons2": "\ue0e0 選擇文件 \ue0e3 全選 \ue0ef 安裝文件 \ue0e1 取消"
+            "buttons": " (按住) 幫助  (按住) 取消",
+            "buttons2": " 選擇文件  全選  安裝文件  取消"
         },
         "target": {
             "desc0": "將 ",
@@ -163,6 +166,7 @@
             "shop_url": "Ownfoil URL: ",
             "shop_user": "Ownfoil 用戶: ",
             "shop_pass": "Ownfoil 密碼: ",
+            "shop_remember": "Remember last shop selection",
             "language": "語言： ",
             "check_update": "檢測更新",
             "credits": "致谢"
@@ -198,11 +202,11 @@
         },
         "language": {
             "title": "選擇語言",
-            "desc": "更改語言後本程式將關閉，請重新打開， 或按 \ue0e1 返回。",
+            "desc": "更改語言後本程式將關閉，請重新打開， 或按  返回。",
             "system_language": "系統默認"
         },
         "title": "更改 Awoo 安裝器的設置！",
-        "buttons": "\ue0e0 選擇/更改 \ue0e1 取消"
+        "buttons": " 選擇/更改  取消"
     },
     "common": {
         "ok": "確定",
@@ -210,6 +214,6 @@
         "close": "關閉",
         "yes": "是",
         "no": "否",
-        "cancel_desc": "按 \ue0e1 取消"
+        "cancel_desc": "按  取消"
     }
 }

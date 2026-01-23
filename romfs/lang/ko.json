@@ -1,5 +1,5 @@
 {
-    "main":{
+    "main": {
         "menu": {
             "sd": "SD 카드에서 설치",
             "net": "LAN 또는 인터넷을 통해 설치",
@@ -28,7 +28,7 @@
             "title": "애플릿 모드가 지원되지 않습니다.",
             "desc": "애플릿 모드에서 Awoo 설치 프로그램을 사용시 문제가 발생할 수 있습니다.\n문제가 있는 경우 설치된 타이틀 위에 Awoo 설치 프로그램을 실행하는 것으로\n전환하십시오(게임을 시작하는 동안 R 버튼을 누르세요)!"
         },
-        "buttons": "\ue0e0 선택    \ue0e1 종료"
+        "buttons": " 선택     종료"
     },
     "inst": {
         "net": {
@@ -56,8 +56,8 @@
             "failed": "원격 설치를 수행하지 못했습니다!",
             "transfer_interput": "데이터 전송 중에 오류가 발생했습니다. 네트워크 연결을 확인하세요.",
             "source_string": " 로컬 네트워크를 통해",
-            "buttons": "\ue0e3 인터넷을 통해 설치    \ue0e2 도움말    \ue0e1 취소",
-            "buttons1": "\ue0e0 파일 선택    \ue0e3 모두 선택    \ue0ef 파일 설치    \ue0e1 취소"
+            "buttons": " 인터넷을 통해 설치     도움말     취소",
+            "buttons1": " 파일 선택     모두 선택     파일 설치     취소"
         },
         "shop": {
             "loading": "Loading shop list...",
@@ -65,8 +65,12 @@
             "failed": "Failed to load shop",
             "empty": "Shop has no files.",
             "source_string": " from Ownfoil shop",
-            "buttons_loading": "\ue0e1 취소",
-            "buttons": "\ue0e0 파일 선택    \ue0e3 모두 선택    \ue0ef 파일 설치    \ue0e2 새로고침    \ue0e1 취소"
+            "buttons_loading": " 취소",
+            "buttons": " 파일 선택     모두 선택     파일 설치     새로고침    / Section     취소",
+            "buttons_all": " 파일 선택     모두 선택     파일 설치     새로고침    / Section     Search     취소",
+            "search_hint": "Search all titles",
+            "update_prompt_title": "Install updates?",
+            "update_prompt_desc": "Include available updates for selected titles? Updates found: "
         },
         "sd": {
             "help": {
@@ -78,7 +82,7 @@
             "delete_info": " 설치되었습니다! SD 카드에서 삭제하겠습니까?",
             "delete_info_multi": " 파일이 성공적으로 설치되었습니다! SD 카드에서 삭제하겠습니까?",
             "delete_desc": "원본 파일은 설치 후 더 이상 필요하지 않습니다.",
-            "buttons": "\ue0e0 파일 선택    \ue0e3 모두 선택    \ue0ef 파일 설치    \ue0e2 도움말    \ue0e1 취소"
+            "buttons": " 파일 선택     모두 선택     파일 설치     도움말     취소"
         },
         "usb": {
             "help": {
@@ -89,8 +93,8 @@
             "top_info2": "USB를 통해 설치할 파일을 선택한 다음 플러스 버튼을 누르세요!",
             "error": "USB 전송 시간 초과 또는 실패하였습니다.",
             "source_string": " USB를 통해서",
-            "buttons": "\ue0e2 (홀드) 도움말    \ue0e1 (홀드) 취소",
-            "buttons2": "\ue0e0 파일 선택    \ue0e3 모두 선택    \ue0ef 파일 설치    \ue0e1 취소"
+            "buttons": " (홀드) 도움말     (홀드) 취소",
+            "buttons2": " 파일 선택     모두 선택     파일 설치     취소"
         },
         "target": {
             "desc0": "어디에 ",
@@ -162,6 +166,7 @@
             "shop_url": "Ownfoil URL: ",
             "shop_user": "Ownfoil 사용자 이름: ",
             "shop_pass": "Ownfoil 비밀번호: ",
+            "shop_remember": "Remember last shop selection",
             "language": "언어: ",
             "check_update": "Awoo 설치 프로그램에 대한 업데이트 확인",
             "credits": "크레딧"
@@ -201,7 +206,7 @@
             "system_language": "시스템"
         },
         "title": "Awoo 설치 프로그램의 설정을 변경하십시오!",
-        "buttons": "\ue0e0 선택/변경    \ue0e1 취소"
+        "buttons": " 선택/변경     취소"
     },
     "common": {
         "ok": "확인",

@@ -38,4 +38,6 @@ namespace tin::util
     u64 GetBaseTitleId(u64 titleId, NcmContentMetaType contentMetaType);
     std::string GetBaseTitleName(u64 baseTitleId);
     std::string GetTitleName(u64 titleId, NcmContentMetaType contentMetaType);
+    bool IsTitleInstalled(u64 titleId);
+    bool GetInstalledUpdateVersion(u64 baseTitleId, u32& outVersion);
 }

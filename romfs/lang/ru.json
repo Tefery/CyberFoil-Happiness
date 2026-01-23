@@ -1,5 +1,5 @@
 {
-    "main":{
+    "main": {
         "menu": {
             "sd": "Установка из SD-карты",
             "net": "Установка по сети",
@@ -28,7 +28,7 @@
             "title": "Applet Mode не поддерживается",
             "desc": "В Awoo Installer могут возникнуть проблемы когда и если он запущен в режиме апплета.\nЕсли у вас есть трудности, пожалуйста запустите приложение через установленную игру\n(зажмите R при запуске)!"
         },
-        "buttons": "\ue0e0 Выбрать    \ue0e1 Выход"
+        "buttons": " Выбрать     Выход"
     },
     "inst": {
         "net": {
@@ -56,8 +56,8 @@
             "failed": "Не удалось выполнить установку из удалённого источника!",
             "transfer_interput": "Во время передачи возникла ошибка. Проверьте ваши настройки сети.",
             "source_string": " по локальной сети",
-            "buttons": "\ue0e3 Установка через интернет    \ue0e2 Помощь    \ue0e1 Отмена",
-            "buttons1": "\ue0e0 Выбрать файл    \ue0e3 Выбрать всё    \ue0ef Установить файл(ы)    \ue0e1 Отмена"
+            "buttons": " Установка через интернет     Помощь     Отмена",
+            "buttons1": " Выбрать файл     Выбрать всё     Установить файл(ы)     Отмена"
         },
         "shop": {
             "loading": "Loading shop list...",
@@ -65,8 +65,12 @@
             "failed": "Failed to load shop",
             "empty": "Shop has no files.",
             "source_string": " from Ownfoil shop",
-            "buttons_loading": "\ue0e1 Отмена",
-            "buttons": "\ue0e0 Выбрать файл    \ue0e3 Выбрать всё    \ue0ef Установить файл(ы)    \ue0e2 Обновить    \ue0e1 Отмена"
+            "buttons_loading": " Отмена",
+            "buttons": " Выбрать файл     Выбрать всё     Установить файл(ы)     Обновить    / Section     Отмена",
+            "buttons_all": " Выбрать файл     Выбрать всё     Установить файл(ы)     Обновить    / Section     Search     Отмена",
+            "search_hint": "Search all titles",
+            "update_prompt_title": "Install updates?",
+            "update_prompt_desc": "Include available updates for selected titles? Updates found: "
         },
         "sd": {
             "help": {
@@ -78,7 +82,7 @@
             "delete_info": " установлен! Удалить файл с SD-карты?",
             "delete_info_multi": " файлов успешно установлено! Удалить их из SD-карты?",
             "delete_desc": "После того, как файлы установлены, они больше не требуются.",
-            "buttons": "\ue0e0 Выбрать файл   \ue0e3 Выбрать всё   \ue0ef Установить файл(ы)   \ue0e2 Помощь   \ue0e1 Отмена "
+            "buttons": " Выбрать файл    Выбрать всё    Установить файл(ы)    Помощь    Отмена "
         },
         "usb": {
             "help": {
@@ -89,8 +93,8 @@
             "top_info2": "Выберите какие файлы вы хотите установить через USB и нажмите \"+\"!",
             "error": "Передача через USB провалилась из-за ошибки или превышения времини ожидания",
             "source_string": " через USB",
-            "buttons": "\ue0e2 (Удерж.) Помощь    \ue0e1 (Удерж.) Отмена",
-            "buttons2": "\ue0e0 Выбрать файл    \ue0e3 Выбрать всё    \ue0ef Установить файл(ы)    \ue0e1 Отмена"
+            "buttons": " (Удерж.) Помощь     (Удерж.) Отмена",
+            "buttons2": " Выбрать файл     Выбрать всё     Установить файл(ы)     Отмена"
         },
         "target": {
             "desc0": "Куда установить ",
@@ -162,6 +166,7 @@
             "shop_url": "URL Ownfoil: ",
             "shop_user": "Ownfoil пользователь: ",
             "shop_pass": "Ownfoil пароль: ",
+            "shop_remember": "Remember last shop selection",
             "language": "Язык: ",
             "check_update": "Проверить наличие обновлений Awoo Installer",
             "credits": "Благодарности"
@@ -196,12 +201,12 @@
             "desc": "- HookedBehemoth for A LOT of contributions\n- Adubbz and other contributors for Tinfoil\n- XorTroll for Plutonium and Goldleaf\n- blawar (wife strangulator) and nicoboss for NSZ support\n- The kind folks at the AtlasNX Discuck (or at least some of them)\n- The also kind folks at the RetroNX Discuck (of no direct involvement)\n- namako8982 for the Momiji art\n- TheXzoron for being a baka"
         },
         "language": {
-        "title": "Выбор языка",
-        "desc": "После изменения языка приложение будет закрыто. Нажмите \"B\" для отмены.",
-        "system_language": "Системный"
+            "title": "Выбор языка",
+            "desc": "После изменения языка приложение будет закрыто. Нажмите \"B\" для отмены.",
+            "system_language": "Системный"
         },
         "title": "Изменение настроек Awoo Installer!",
-        "buttons": "\ue0e0 Выбрать/Изменить    \ue0e1 Отмена"
+        "buttons": " Выбрать/Изменить     Отмена"
     },
     "common": {
         "ok": "OK",

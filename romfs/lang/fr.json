@@ -1,5 +1,5 @@
 {
-    "main":{
+    "main": {
         "menu": {
             "sd": "Installer à partir de la carte SD",
             "net": "Installer à partir d'un LAN ou d'internet",
@@ -28,7 +28,7 @@
             "title": "Le mode Applet n'est pas compatible",
             "desc": "Vous pouvez rencontrer des problèmes en utilisant Awoo Installer en mode Applet.\n\n Si vous avez des problèmes, veuillez lancer Awoo en mode 'non-Applet' (Maintenez R pendant le démarrage d'un jeu)!"
         },
-        "buttons": "\ue0e0 Select    \ue0e1 Quitter"
+        "buttons": " Select     Quitter"
     },
     "inst": {
         "net": {
@@ -56,8 +56,8 @@
             "failed": "Echec de l'installation à distance !",
             "transfer_interput": "Une erreur s'est produite pendant le transfert des données. Vérifiez votre connexion réseau.",
             "source_string": " à partir du réseau local",
-            "buttons": "\ue0e3 Installer via Internet    \ue0e2 Aide    \ue0e1 Annuler",
-            "buttons1": "\ue0e0 Sélectionnez un fichier    \ue0e3 Tout sélectionner   \ue0ef Installer un/des fichier(s)    \ue0e1 Annuler"
+            "buttons": " Installer via Internet     Aide     Annuler",
+            "buttons1": " Sélectionnez un fichier     Tout sélectionner    Installer un/des fichier(s)     Annuler"
         },
         "shop": {
             "loading": "Loading shop list...",
@@ -65,8 +65,12 @@
             "failed": "Failed to load shop",
             "empty": "Shop has no files.",
             "source_string": " from Ownfoil shop",
-            "buttons_loading": "\ue0e1 Annuler",
-            "buttons": "\ue0e0 Sélectionnez un fichier    \ue0e3 Tout sélectionner   \ue0ef Installer un/des fichier(s)    \ue0e2 Actualiser    \ue0e1 Annuler"
+            "buttons_loading": " Annuler",
+            "buttons": " Sélectionnez un fichier     Tout sélectionner    Installer un/des fichier(s)     Actualiser    / Section     Annuler",
+            "buttons_all": " Sélectionnez un fichier     Tout sélectionner    Installer un/des fichier(s)     Actualiser    / Section     Search     Annuler",
+            "search_hint": "Search all titles",
+            "update_prompt_title": "Install updates?",
+            "update_prompt_desc": "Include available updates for selected titles? Updates found: "
         },
         "sd": {
             "help": {
@@ -78,7 +82,7 @@
             "delete_info": " Installation réussie! Supprimer de la carte SD?",
             "delete_info_multi": " fichiers installés avec succès ! Les supprimer de la carte SD ?",
             "delete_desc": "Les fichiers originaux ne sont plus nécessaires une fois qu'ils ont été installés.",
-            "buttons": "\ue0e0 Sélectionnez un fichier    \ue0e3 Tout sélectionner    \ue0ef Installer un/des fichier(s)    \ue0e2 Aide    \ue0e1 Annuler"
+            "buttons": " Sélectionnez un fichier     Tout sélectionner     Installer un/des fichier(s)     Aide     Annuler"
         },
         "usb": {
             "help": {
@@ -89,8 +93,8 @@
             "top_info2": "Sélectionnez les fichiers que vous voulez installer par USB, puis appuyez sur le bouton Plus !",
             "error": "Le transfert USB a été interrompu ou a échoué",
             "source_string": " à partir d'un périphèrique USB",
-            "buttons": "\ue0e2 (Maintenir) Aide    \ue0e1 (Maintenir) Annuler",
-            "buttons2": "\ue0e0 Sélectionnez un fichier    \ue0e3 Tout sélectionner    \ue0ef Installer un/des fichier(s)    \ue0e1 Annuler"
+            "buttons": " (Maintenir) Aide     (Maintenir) Annuler",
+            "buttons2": " Sélectionnez un fichier     Tout sélectionner     Installer un/des fichier(s)     Annuler"
         },
         "target": {
             "desc0": "Où ",
@@ -162,6 +166,7 @@
             "shop_url": "URL Ownfoil: ",
             "shop_user": "Utilisateur Ownfoil: ",
             "shop_pass": "Mot de passe Ownfoil: ",
+            "shop_remember": "Remember last shop selection",
             "language": "Langage: ",
             "check_update": "Vérifiez les mises à jour de l'installateur Awoo",
             "credits": "Crédits"
@@ -201,7 +206,7 @@
             "system_language": "Système"
         },
         "title": "Modifiez les paramètres de Awoo Installler !",
-        "buttons": "\ue0e0 Sélectionner/Modifier    \ue0e1 Annuler"
+        "buttons": " Sélectionner/Modifier     Annuler"
     },
     "common": {
         "ok": "OK",

@@ -1,5 +1,5 @@
 {
-    "main":{
+    "main": {
         "menu": {
             "sd": "SDカードからインストール",
             "net": "ネットワーク経由でインストール",
@@ -28,7 +28,7 @@
             "title": "アプレットモードはサポートされていません",
             "desc": "アプレットモードでAwoo Installerを使用すると問題が発生する場合があります。\n問題が発生した場合は、インストール済みのタイトルでAwoo Installerを実行するように切り替えてください\n(ゲームの開始中にRを押したままにしてください)!"
         },
-        "buttons": "\ue0e0 選択    \ue0e1 終了"
+        "buttons": " 選択     終了"
     },
     "inst": {
         "net": {
@@ -56,8 +56,8 @@
             "failed": "リモートインストールを実行できませんでした！",
             "transfer_interput": "データ転送中にエラーが発生しました。ネットワーク接続を確認してください。",
             "source_string": " ローカルネットワーク経由",
-            "buttons": "\ue0e3 インターネット経由でインストールする    \ue0e2 ヘルプ    \ue0e1 キャンセル",
-            "buttons1": "\ue0e0 ファイルを選択    \ue0e3 すべて選択    \ue0ef ファイルをインストール    \ue0e1 キャンセル"
+            "buttons": " インターネット経由でインストールする     ヘルプ     キャンセル",
+            "buttons1": " ファイルを選択     すべて選択     ファイルをインストール     キャンセル"
         },
         "shop": {
             "loading": "Loading shop list...",
@@ -65,8 +65,12 @@
             "failed": "Failed to load shop",
             "empty": "Shop has no files.",
             "source_string": " from Ownfoil shop",
-            "buttons_loading": "\ue0e1 キャンセル",
-            "buttons": "\ue0e0 ファイルを選択    \ue0e3 すべて選択    \ue0ef ファイルをインストール    \ue0e2 更新    \ue0e1 キャンセル"
+            "buttons_loading": " キャンセル",
+            "buttons": " ファイルを選択     すべて選択     ファイルをインストール     更新    / Section     キャンセル",
+            "buttons_all": " ファイルを選択     すべて選択     ファイルをインストール     更新    / Section     Search     キャンセル",
+            "search_hint": "Search all titles",
+            "update_prompt_title": "Install updates?",
+            "update_prompt_desc": "Include available updates for selected titles? Updates found: "
         },
         "sd": {
             "help": {
@@ -78,7 +82,7 @@
             "delete_info": " インストール完了！ SDカードから削除しますか？",
             "delete_info_multi": " ファイルが正常にインストールされました！ SDカードから削除しますか？",
             "delete_desc": "元のファイルはインストール後に不要になりました",
-            "buttons": "\ue0e0 ファイルを選択    \ue0e3 すべて選択    \ue0ef ファイルをインストール    \ue0e2 ヘルプ    \ue0e1 キャンセル"
+            "buttons": " ファイルを選択     すべて選択     ファイルをインストール     ヘルプ     キャンセル"
         },
         "usb": {
             "help": {
@@ -89,8 +93,8 @@
             "top_info2": "USB経由でインストールするファイルを選択し、＋ボタンを押します！",
             "error": "USB転送がタイムアウトまたは失敗した",
             "source_string": " USB経由",
-            "buttons": "\ue0e2 (押す) ヘルプ    \ue0e1 (押す) キャンセル",
-            "buttons2": "\ue0e0 ファイルを選択    \ue0e3 すべて選択    \ue0ef ファイルをインストール    \ue0e1 キャンセル"
+            "buttons": " (押す) ヘルプ     (押す) キャンセル",
+            "buttons2": " ファイルを選択     すべて選択     ファイルをインストール     キャンセル"
         },
         "target": {
             "desc0": "どこに ",
@@ -162,6 +166,7 @@
             "shop_url": "Ownfoil URL: ",
             "shop_user": "Ownfoil ユーザー名: ",
             "shop_pass": "Ownfoil パスワード: ",
+            "shop_remember": "Remember last shop selection",
             "language": "言語: ",
             "check_update": "Awoo Installerのアップデートを確認",
             "credits": "クレジット"
@@ -201,7 +206,7 @@
             "system_language": "システム"
         },
         "title": "Awoo Installerの設定を変更する",
-        "buttons": "\ue0e0 選択/変更    \ue0e1 キャンセル"
+        "buttons": " 選択/変更     キャンセル"
     },
     "common": {
         "ok": "OK",

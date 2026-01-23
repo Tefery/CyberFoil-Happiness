@@ -153,6 +153,10 @@ namespace inst::ui {
         auto shopPassOption = pu::ui::elm::MenuItem::New("options.menu_items.shop_pass"_lang + shopPassDisplay);
         shopPassOption->SetColor(COLOR("#FFFFFFFF"));
         this->menu->AddItem(shopPassOption);
+        auto shopRememberOption = pu::ui::elm::MenuItem::New("options.menu_items.shop_remember"_lang);
+        shopRememberOption->SetColor(COLOR("#FFFFFFFF"));
+        shopRememberOption->SetIcon(this->getMenuOptionIcon(inst::config::shopRememberSelection));
+        this->menu->AddItem(shopRememberOption);
         auto languageOption = pu::ui::elm::MenuItem::New("options.menu_items.language"_lang + this->getMenuLanguage(inst::config::languageSetting));
         languageOption->SetColor(COLOR("#FFFFFFFF"));
         this->menu->AddItem(languageOption);
@@ -276,6 +280,14 @@ namespace inst::ui {
                     }
                     break;
                 case 10:
+                    inst::config::shopRememberSelection = !inst::config::shopRememberSelection;
+                    if (!inst::config::shopRememberSelection) {
+                        inst::config::shopSelection.clear();
+                    }
+                    inst::config::setConfig();
+                    this->setMenuText();
+                    break;
+                case 11:
                     languageList = languageStrings;
                     languageList.push_back("options.language.system_language"_lang);
                     rc = inst::ui::mainApp->CreateShowDialog("options.language.title"_lang, "options.language.desc"_lang, languageList, false);
@@ -321,7 +333,7 @@ namespace inst::ui {
                     mainApp->FadeOut();
                     mainApp->Close();
                     break;
-                case 11:
+                case 12:
                     if (inst::util::getIPAddress() == "1.0.0.127") {
                         inst::ui::mainApp->CreateShowDialog("main.net.title"_lang, "main.net.desc"_lang, {"common.ok"_lang}, true);
                         break;
@@ -333,7 +345,7 @@ namespace inst::ui {
                     }
                     this->askToUpdate(downloadUrl);
                     break;
-                case 12:
+                case 13:
                     inst::ui::mainApp->CreateShowDialog("options.credits.title"_lang, "options.credits.desc"_lang, {"common.close"_lang}, true);
                     break;
                 default:

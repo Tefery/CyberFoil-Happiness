@@ -17,15 +17,33 @@ namespace inst::ui {
             Image::Ref titleImage;
             TextBlock::Ref appVersionText;
         private:
-            std::vector<shopInstStuff::ShopItem> shopItems;
+            std::vector<shopInstStuff::ShopSection> shopSections;
             std::vector<shopInstStuff::ShopItem> selectedItems;
+            std::vector<shopInstStuff::ShopItem> visibleItems;
+            std::vector<shopInstStuff::ShopItem> availableUpdates;
+            int selectedSectionIndex = 0;
+            std::string searchQuery;
+            std::string previewKey;
+            bool debugVisible = false;
             TextBlock::Ref butText;
             Rectangle::Ref topRect;
             Rectangle::Ref infoRect;
             Rectangle::Ref botRect;
             pu::ui::elm::Menu::Ref menu;
             Image::Ref infoImage;
+            Image::Ref previewImage;
+            TextBlock::Ref debugText;
             void drawMenuItems(bool clearItems);
             void selectTitle(int selectedIndex);
+            void updateRememberedSelection();
+            void updateSectionText();
+            void updateButtonsText();
+            void buildInstalledSection();
+            void cacheAvailableUpdates();
+            void filterOwnedSections();
+            void updatePreview();
+            void updateDebug();
+            const std::vector<shopInstStuff::ShopItem>& getCurrentItems() const;
+            bool isAllSection() const;
     };
 }

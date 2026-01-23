@@ -10,6 +10,8 @@ namespace inst::config {
     std::string shopUrl;
     std::string shopUser;
     std::string shopPass;
+    bool shopRememberSelection;
+    std::vector<std::string> shopSelection;
     std::vector<std::string> updateInfo;
     int languageSetting;
     bool autoUpdate;
@@ -35,7 +37,9 @@ namespace inst::config {
             {"lastNetUrl", lastNetUrl},
             {"shopUrl", shopUrl},
             {"shopUser", shopUser},
-            {"shopPass", shopPass}
+            {"shopPass", shopPass},
+            {"shopRememberSelection", shopRememberSelection},
+            {"shopSelection", shopSelection}
         };
         std::ofstream file(inst::config::configPath);
         file << std::setw(4) << j << std::endl;
@@ -56,6 +60,8 @@ namespace inst::config {
         shopUrl.clear();
         shopUser.clear();
         shopPass.clear();
+        shopRememberSelection = false;
+        shopSelection.clear();
 
         try {
             std::ifstream file(inst::config::configPath);
@@ -75,6 +81,8 @@ namespace inst::config {
             if (j.contains("shopUrl")) shopUrl = j["shopUrl"].get<std::string>();
             if (j.contains("shopUser")) shopUser = j["shopUser"].get<std::string>();
             if (j.contains("shopPass")) shopPass = j["shopPass"].get<std::string>();
+            if (j.contains("shopRememberSelection")) shopRememberSelection = j["shopRememberSelection"].get<bool>();
+            if (j.contains("shopSelection")) shopSelection = j["shopSelection"].get<std::vector<std::string>>();
         }
         catch (...) {
             // If loading values from the config fails, we just load the defaults and overwrite the old config

@@ -1,5 +1,5 @@
 {
-    "main":{
+    "main": {
         "menu": {
             "sd": "Install from SD card",
             "net": "Install over LAN or internet",
@@ -28,7 +28,7 @@
             "title": "Applet Mode not supported",
             "desc": "You may experience issues using Awoo Installer in Applet Mode. If you do\nhave problems, please switch to running Awoo Installer over an installed\ntitle (hold R while starting a game)!"
         },
-        "buttons": "\ue0e0 Select    \ue0e1 Exit"
+        "buttons": " Select     Exit"
     },
     "inst": {
         "net": {
@@ -56,17 +56,21 @@
             "failed": "Failed to perform remote install!",
             "transfer_interput": "An error occured during data transfer. Check your network connection.",
             "source_string": " over local network",
-            "buttons": "\ue0e3 Install Over Internet    \ue0e2 Help    \ue0e1 Cancel",
-            "buttons1": "\ue0e0 Select File    \ue0e3 Select All    \ue0ef Install File(s)    \ue0e1 Cancel"
+            "buttons": " Install Over Internet     Help     Cancel",
+            "buttons1": " Select File     Select All     Install File(s)     Cancel"
         },
         "shop": {
-            "loading": "Loading shop list...",
-            "top_info": "Select what files you want to install from the shop, then press the Plus button!",
+            "loading": "Loading eShop list...",
+            "top_info": "Select what files you want to install from the shop, then press the Plus button! Section:",
             "failed": "Failed to load shop",
             "empty": "Shop has no files.",
             "source_string": " from Ownfoil shop",
-            "buttons_loading": "\ue0e1 Cancel",
-            "buttons": "\ue0e0 Select File    \ue0e3 Select All    \ue0ef Install File(s)    \ue0e2 Refresh    \ue0e1 Cancel"
+            "buttons_loading": " Cancel",
+            "buttons": " Select File     Select All     Install File(s)     Refresh    / Section     Cancel",
+            "buttons_all": " Select File     Select All     Install File(s)     Refresh    / Section     Search     Cancel",
+            "search_hint": "Search all titles",
+            "update_prompt_title": "Install updates?",
+            "update_prompt_desc": "Include available updates for selected titles? Updates found: "
         },
         "sd": {
             "help": {
@@ -78,7 +82,7 @@
             "delete_info": " installed! Delete it from the SD card?",
             "delete_info_multi": " files installed successfully! Delete them from the SD card?",
             "delete_desc": "The original files aren't needed anymore after they've been installed",
-            "buttons": "\ue0e0 Select File    \ue0e3 Select All    \ue0ef Install File(s)    \ue0e2 Help    \ue0e1 Cancel"
+            "buttons": " Select File     Select All     Install File(s)     Help     Cancel"
         },
         "usb": {
             "help": {
@@ -89,8 +93,8 @@
             "top_info2": "Select what files you want to install over USB, then press the Plus button!",
             "error": "USB transfer timed out or failed",
             "source_string": " over USB",
-            "buttons": "\ue0e2 (Hold) Help    \ue0e1 (Hold) Cancel",
-            "buttons2": "\ue0e0 Select File    \ue0e3 Select All    \ue0ef Install File(s)    \ue0e1 Cancel"
+            "buttons": " (Hold) Help     (Hold) Cancel",
+            "buttons2": " Select File     Select All     Install File(s)     Cancel"
         },
         "target": {
             "desc0": "Where should ",
@@ -162,6 +166,7 @@
             "shop_url": "Ownfoil shop URL: ",
             "shop_user": "Ownfoil username: ",
             "shop_pass": "Ownfoil password: ",
+            "shop_remember": "Remember last shop selection",
             "language": "Language: ",
             "check_update": "Check for updates to Awoo Installer",
             "credits": "Credits"
@@ -201,7 +206,7 @@
             "system_language": "System"
         },
         "title": "Change Awoo Installer's settings!",
-        "buttons": "\ue0e0 Select/Change    \ue0e1 Cancel"
+        "buttons": " Select/Change     Cancel"
     },
     "common": {
         "ok": "OK",

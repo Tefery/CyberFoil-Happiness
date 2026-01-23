@@ -1,5 +1,5 @@
 {
-    "main":{
+    "main": {
         "menu": {
             "sd": "Von SD-Karte installieren",
             "net": "Über LAN oder Internet installieren",
@@ -28,7 +28,7 @@
             "title": "Applet-Modus wird nicht unterstützt",
             "desc": "Es kann zu Problemen bei der Verwendung des Awoo Installer im Applet-Modus kommen.\nWenn du Probleme hast, starte den Awoo Installer über einen installierten Titel (halte R gedrückt, während du ein Spiel startest)!"
         },
-        "buttons": "\ue0e0 Auswählen    \ue0e1 Beenden"
+        "buttons": " Auswählen     Beenden"
     },
     "inst": {
         "net": {
@@ -51,13 +51,13 @@
                 "alt_name": "Google Drive Datei",
                 "source_string": " von Google Drive"
             },
-            "top_info": "Wähle Dateien zur Installation vom Server aus und drücke dann \ue0b3 !",
+            "top_info": "Wähle Dateien zur Installation vom Server aus und drücke dann  !",
             "top_info1": "Warte auf eine Verbindung... Die IP Adresse deiner Switch ist: ",
             "failed": "Ferninstallation fehlgeschlagen!",
             "transfer_interput": "Bei der Dateiübertragung ist ein Fehler aufgetreten.",
             "source_string": " über das lokale Netzwerk",
-            "buttons": "\ue0e3 Installation über das Internet    \ue0e2 Hilfe    \ue0e1 Abbrechen",
-            "buttons1": "\ue0e0 Datei auswählen    \ue0e3 Alle auswählen    \ue0ef Datei(en) installieren    \ue0e1 Abbrechen"
+            "buttons": " Installation über das Internet     Hilfe     Abbrechen",
+            "buttons1": " Datei auswählen     Alle auswählen     Datei(en) installieren     Abbrechen"
         },
         "shop": {
             "loading": "Loading shop list...",
@@ -65,20 +65,24 @@
             "failed": "Failed to load shop",
             "empty": "Shop has no files.",
             "source_string": " from Ownfoil shop",
-            "buttons_loading": "\ue0e1 Abbrechen",
-            "buttons": "\ue0e0 Datei auswählen    \ue0e3 Alle auswählen    \ue0ef Datei(en) installieren    \ue0e2 Aktualisieren    \ue0e1 Abbrechen"
+            "buttons_loading": " Abbrechen",
+            "buttons": " Datei auswählen     Alle auswählen     Datei(en) installieren     Aktualisieren    / Section     Abbrechen",
+            "buttons_all": " Datei auswählen     Alle auswählen     Datei(en) installieren     Aktualisieren    / Section     Search     Abbrechen",
+            "search_hint": "Search all titles",
+            "update_prompt_title": "Install updates?",
+            "update_prompt_desc": "Include available updates for selected titles? Updates found: "
         },
         "sd": {
             "help": {
                 "title": "Hilfe",
-                "desc": "Kopiere NSP, NSZ, XCI oder XCZ Dateien auf deine SD Karte,\nsuche nach ihnen und wähle die zu installierenden Titel aus und drücke dann \ue0b3."
+                "desc": "Kopiere NSP, NSZ, XCI oder XCZ Dateien auf deine SD Karte,\nsuche nach ihnen und wähle die zu installierenden Titel aus und drücke dann ."
             },
-            "top_info": "Wähle Dateien zur Installation aus und drücke dann \ue0b3!",
+            "top_info": "Wähle Dateien zur Installation aus und drücke dann !",
             "source_string": " von der SD Karte",
             "delete_info": " installiert! Soll es von der SD-Karte gelöscht werden?",
             "delete_info_multi": " Dateien erfolgreich installiert! Sollen diese von der SD-Karte gelöscht werden?",
             "delete_desc": "Die originalen Dateien werden nach der Installation nicht mehr benötigt",
-            "buttons": "\ue0e0 Datei auswählen    \ue0e3 Alle auswählen    \ue0ef Datei(en) installieren    \ue0e1 Abbrechen"
+            "buttons": " Datei auswählen     Alle auswählen     Datei(en) installieren     Abbrechen"
         },
         "usb": {
             "help": {
@@ -86,11 +90,11 @@
                 "desc": "Dateien können mit Tools, wie NS-USBloader im Tinfoil-Modus\nvon anderen Geräten aus installiert werden.\nUm Dateien an deine Switch zu senden, öffne\neins dieser Programme auf deinem PC oder mobilen Gerät, wähle die Dateien\naus und übertrage sie dann auf die Konsole!\n\nLeider erfordern USB-Installationen auf einigen Plattformen ein spezielles\nSetup und können manchmal ziemlich fehlerhaft sein. Falls das nicht klappt,\nversuche es mit LAN/Internet Installation oder kopiere deine Dateien auf\ndeine SD-Karte und versuche die Option \"Von SD-Karte installieren\" im Hauptmenü!"
             },
             "top_info": "USB verbunden! Warte auf die Dateiliste...",
-            "top_info2": "Wähle Dateien zur Installation aus und drücke dann \ue0b3 !",
+            "top_info2": "Wähle Dateien zur Installation aus und drücke dann  !",
             "error": "USB Übertragung ist zeitlich abgelaufen oder fehlgeschlagen",
             "source_string": " über USB",
-            "buttons": "\ue0e2 (Halten) Hilfe    \ue0e1 (Halte) Abbrechen",
-            "buttons2": "\ue0e0 Datei auswählen    \ue0e3 Alle auswählen    \ue0ef Datei(en) installieren    \ue0e1 Abbrechen"
+            "buttons": " (Halten) Hilfe     (Halte) Abbrechen",
+            "buttons2": " Datei auswählen     Alle auswählen     Datei(en) installieren     Abbrechen"
         },
         "target": {
             "desc0": "Wo soll ",
@@ -162,6 +166,7 @@
             "shop_url": "Ownfoil Shop-URL: ",
             "shop_user": "Ownfoil Benutzername: ",
             "shop_pass": "Ownfoil Passwort: ",
+            "shop_remember": "Remember last shop selection",
             "language": "Sprache: ",
             "check_update": "Suche nach Updates für Awoo Installer",
             "credits": "Anerkennung"
@@ -201,7 +206,7 @@
             "system_language": "System"
         },
         "title": "Ändere Awoo Installer Einstellungen!",
-        "buttons": "\ue0e0 Auswählen/Ändern    \ue0e1 Abbrechen "
+        "buttons": " Auswählen/Ändern     Abbrechen "
     },
     "common": {
         "ok": "OK",
@@ -209,6 +214,6 @@
         "close": "Schließen",
         "yes": "Ja",
         "no": "Nein",
-        "cancel_desc": "Drücke \ue0e1 zum Abbrechen "
+        "cancel_desc": "Drücke  zum Abbrechen "
     }
 }

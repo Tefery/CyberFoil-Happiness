@@ -2,6 +2,8 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <cstring>
+#include <filesystem>
 #include "util/curl.hpp"
 #include "util/config.hpp"
 #include "util/error.hpp"
@@ -63,6 +65,89 @@ namespace inst::curl {
             LOG_DEBUG(curl_easy_strerror(result));
             return false;
         }
+    }
+
+    bool downloadFileWithAuth(const std::string ourUrl, const char *pagefilename, const std::string& user, const std::string& pass, long timeout) {
+        CURL *curl_handle;
+        CURLcode result;
+        FILE *pagefile;
+
+        curl_global_init(CURL_GLOBAL_ALL);
+        curl_handle = curl_easy_init();
+
+        curl_easy_setopt(curl_handle, CURLOPT_URL, ourUrl.c_str());
+        curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "Awoo-Installer");
+        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYHOST, 0L);
+        curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
+        curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, timeout);
+        curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS, timeout);
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataFile);
+
+        if (!user.empty() || !pass.empty()) {
+            std::string authValue = user + ":" + pass;
+            curl_easy_setopt(curl_handle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+            curl_easy_setopt(curl_handle, CURLOPT_USERPWD, authValue.c_str());
+        }
+
+        pagefile = fopen(pagefilename, "wb");
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);
+        result = curl_easy_perform(curl_handle);
+
+        curl_easy_cleanup(curl_handle);
+        curl_global_cleanup();
+        fclose(pagefile);
+
+        if (result == CURLE_OK) return true;
+        else {
+            LOG_DEBUG(curl_easy_strerror(result));
+            return false;
+        }
+    }
+
+    bool downloadImageWithAuth(const std::string ourUrl, const char *pagefilename, const std::string& user, const std::string& pass, long timeout) {
+        CURL *curl_handle;
+        CURLcode result;
+        FILE *pagefile;
+        long responseCode = 0;
+        char* contentType = nullptr;
+
+        curl_global_init(CURL_GLOBAL_ALL);
+        curl_handle = curl_easy_init();
+
+        curl_easy_setopt(curl_handle, CURLOPT_URL, ourUrl.c_str());
+        curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "Awoo-Installer");
+        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYHOST, 0L);
+        curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
+        curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, timeout);
+        curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS, timeout);
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataFile);
+
+        if (!user.empty() || !pass.empty()) {
+            std::string authValue = user + ":" + pass;
+            curl_easy_setopt(curl_handle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+            curl_easy_setopt(curl_handle, CURLOPT_USERPWD, authValue.c_str());
+        }
+
+        pagefile = fopen(pagefilename, "wb");
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);
+        result = curl_easy_perform(curl_handle);
+        curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &responseCode);
+        curl_easy_getinfo(curl_handle, CURLINFO_CONTENT_TYPE, &contentType);
+
+        curl_easy_cleanup(curl_handle);
+        curl_global_cleanup();
+        fclose(pagefile);
+
+        bool ok = (result == CURLE_OK) && (responseCode >= 200 && responseCode < 300) && (contentType != nullptr) && (std::strncmp(contentType, "image/", 6) == 0);
+        if (!ok && std::filesystem::exists(pagefilename))
+            std::filesystem::remove(pagefilename);
+        if (!ok)
+            LOG_DEBUG(curl_easy_strerror(result));
+        return ok;
     }
 
     std::string downloadToBuffer (const std::string ourUrl, int firstRange, int secondRange, long timeout) {

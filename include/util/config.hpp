@@ -13,6 +13,8 @@ namespace inst::config {
     extern std::string shopUrl;
     extern std::string shopUser;
     extern std::string shopPass;
+    extern bool shopRememberSelection;
+    extern std::vector<std::string> shopSelection;
     extern std::vector<std::string> updateInfo;
     extern int languageSetting;
     extern bool ignoreReqVers;
