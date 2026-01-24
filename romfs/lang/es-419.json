@@ -70,7 +70,12 @@
             "buttons_all": " Selecionar Archivo     Seleccionar Todos     Instalar Archivo(s)     Actualizar    / Section     Search     Cancelar",
             "search_hint": "Search all titles",
             "update_prompt_title": "Install updates?",
-            "update_prompt_desc": "Include available updates for selected titles? Updates found: "
+            "update_prompt_desc": "Include available updates for selected titles? Updates found: ",
+            "motd_title": "Message of the day",
+            "buttons_installed": " Details     Refresh    / Section     Cancel",
+            "detail_type": "Type: ",
+            "detail_titleid": "Title ID: ",
+            "detail_version": "Version: "
         },
         "sd": {
             "help": {

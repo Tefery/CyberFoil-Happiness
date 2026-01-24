@@ -16,6 +16,16 @@
 #define COLOR(hex) pu::ui::Color::FromHex(hex)
 
 namespace {
+    constexpr int kGridCols = 8;
+    constexpr int kGridRows = 3;
+    constexpr int kGridTileWidth = 140;
+    constexpr int kGridTileHeight = 140;
+    constexpr int kGridGap = 6;
+    constexpr int kGridWidth = (kGridCols * kGridTileWidth) + ((kGridCols - 1) * kGridGap);
+    constexpr int kGridStartX = (1280 - kGridWidth) / 2;
+    constexpr int kGridStartY = 170;
+    constexpr int kGridItemsPerPage = kGridCols * kGridRows;
+
     std::string NormalizeHex(std::string hex)
     {
         std::string out;
@@ -137,6 +147,19 @@ namespace inst::ui {
         this->previewImage = Image::New(900, 230, "romfs:/images/awoos/7d8a05cddfef6da4901b20d2698d5a71.png");
         this->previewImage->SetWidth(320);
         this->previewImage->SetHeight(320);
+        this->gridHighlight = Rectangle::New(0, 0, kGridTileWidth + 8, kGridTileHeight + 8, COLOR("#FFFFFF33"));
+        this->gridHighlight->SetVisible(false);
+        this->gridImages.reserve(kGridItemsPerPage);
+        for (int i = 0; i < kGridItemsPerPage; i++) {
+            auto img = Image::New(0, 0, "romfs:/images/awoos/7d8a05cddfef6da4901b20d2698d5a71.png");
+            img->SetWidth(kGridTileWidth);
+            img->SetHeight(kGridTileHeight);
+            img->SetVisible(false);
+            this->gridImages.push_back(img);
+        }
+        this->gridTitleText = TextBlock::New(10, 634, "", 24);
+        this->gridTitleText->SetColor(COLOR("#FFFFFFFF"));
+        this->gridTitleText->SetVisible(false);
         this->debugText = TextBlock::New(10, 620, "", 18);
         this->debugText->SetColor(COLOR("#FFFFFFFF"));
         this->debugText->SetVisible(false);
@@ -150,6 +173,10 @@ namespace inst::ui {
         this->Add(this->menu);
         this->Add(this->infoImage);
         this->Add(this->previewImage);
+        for (auto& img : this->gridImages)
+            this->Add(img);
+        this->Add(this->gridHighlight);
+        this->Add(this->gridTitleText);
         this->Add(this->debugText);
     }
 
@@ -159,6 +186,14 @@ namespace inst::ui {
         if (this->selectedSectionIndex < 0 || this->selectedSectionIndex >= (int)this->shopSections.size())
             return false;
         return this->shopSections[this->selectedSectionIndex].id == "all";
+    }
+
+    bool shopInstPage::isInstalledSection() const {
+        if (this->shopSections.empty())
+            return false;
+        if (this->selectedSectionIndex < 0 || this->selectedSectionIndex >= (int)this->shopSections.size())
+            return false;
+        return this->shopSections[this->selectedSectionIndex].id == "installed";
     }
 
     const std::vector<shopInstStuff::ShopItem>& shopInstPage::getCurrentItems() const {
@@ -184,7 +219,9 @@ namespace inst::ui {
     }
 
     void shopInstPage::updateButtonsText() {
-        if (this->isAllSection())
+        if (this->isInstalledSection())
+            this->butText->SetText("inst.shop.buttons_installed"_lang);
+        else if (this->isAllSection())
             this->butText->SetText("inst.shop.buttons_all"_lang);
         else
             this->butText->SetText("inst.shop.buttons"_lang);
@@ -351,6 +388,11 @@ namespace inst::ui {
     }
 
     void shopInstPage::updatePreview() {
+        if (this->isInstalledSection()) {
+            this->previewImage->SetVisible(false);
+            this->previewKey.clear();
+            return;
+        }
         if (this->visibleItems.empty()) {
             this->previewImage->SetVisible(false);
             this->previewKey.clear();
@@ -472,7 +514,7 @@ namespace inst::ui {
             return;
         }
 
-        int selectedIndex = this->menu->GetSelectedIndex();
+        int selectedIndex = this->isInstalledSection() ? this->gridSelectedIndex : this->menu->GetSelectedIndex();
         if (selectedIndex < 0 || selectedIndex >= (int)this->visibleItems.size())
             return;
         const auto& item = this->visibleItems[selectedIndex];
@@ -533,6 +575,20 @@ namespace inst::ui {
             this->visibleItems = items;
         }
 
+        if (this->isInstalledSection()) {
+            this->menu->SetVisible(false);
+            this->previewImage->SetVisible(false);
+            if (this->gridSelectedIndex >= (int)this->visibleItems.size())
+                this->gridSelectedIndex = 0;
+            this->updateInstalledGrid();
+            return;
+        }
+
+        for (auto& img : this->gridImages)
+            img->SetVisible(false);
+        this->gridHighlight->SetVisible(false);
+        this->menu->SetVisible(true);
+
         for (const auto& item : this->visibleItems) {
             std::string itm = inst::util::shortenString(item.name, 56, true);
             auto entry = pu::ui::elm::MenuItem::New(itm);
@@ -545,6 +601,106 @@ namespace inst::ui {
                 }
             }
             this->menu->AddItem(entry);
+        }
+    }
+
+    void shopInstPage::updateInstalledGrid() {
+        if (!this->isInstalledSection()) {
+            for (auto& img : this->gridImages)
+                img->SetVisible(false);
+            this->gridHighlight->SetVisible(false);
+            this->gridTitleText->SetVisible(false);
+            this->gridPage = -1;
+            return;
+        }
+
+        if (this->visibleItems.empty()) {
+            for (auto& img : this->gridImages)
+                img->SetVisible(false);
+            this->gridHighlight->SetVisible(false);
+            this->gridTitleText->SetVisible(false);
+            this->gridPage = -1;
+            return;
+        }
+
+        if (this->gridSelectedIndex < 0)
+            this->gridSelectedIndex = 0;
+        if (this->gridSelectedIndex >= (int)this->visibleItems.size())
+            this->gridSelectedIndex = (int)this->visibleItems.size() - 1;
+
+        int page = this->gridSelectedIndex / kGridItemsPerPage;
+        int pageStart = page * kGridItemsPerPage;
+        int maxIndex = (int)this->visibleItems.size();
+
+        if (page != this->gridPage) {
+            bool nsReady = R_SUCCEEDED(nsInitialize());
+            for (int i = 0; i < kGridItemsPerPage; i++) {
+                int itemIndex = pageStart + i;
+                int row = i / kGridCols;
+                int col = i % kGridCols;
+                int x = kGridStartX + (col * (kGridTileWidth + kGridGap));
+                int y = kGridStartY + (row * (kGridTileHeight + kGridGap));
+                this->gridImages[i]->SetX(x);
+                this->gridImages[i]->SetY(y);
+
+                if (itemIndex >= maxIndex) {
+                    this->gridImages[i]->SetVisible(false);
+                    continue;
+                }
+
+                const auto& item = this->visibleItems[itemIndex];
+                bool applied = false;
+                if (nsReady && item.hasTitleId) {
+                    u64 baseId = tin::util::GetBaseTitleId(item.titleId, static_cast<NcmContentMetaType>(item.appType));
+                    NsApplicationControlData appControlData;
+                    u64 sizeRead = 0;
+                    if (R_SUCCEEDED(nsGetApplicationControlData(NsApplicationControlSource_Storage, baseId, &appControlData, sizeof(NsApplicationControlData), &sizeRead))) {
+                        u64 iconSize = 0;
+                        if (sizeRead > sizeof(appControlData.nacp))
+                            iconSize = sizeRead - sizeof(appControlData.nacp);
+                        if (iconSize > 0) {
+                            this->gridImages[i]->SetJpegImage(appControlData.icon, iconSize);
+                            this->gridImages[i]->SetWidth(kGridTileWidth);
+                            this->gridImages[i]->SetHeight(kGridTileHeight);
+                            applied = true;
+                        }
+                    }
+                }
+
+                if (!applied) {
+                    this->gridImages[i]->SetImage("romfs:/images/awoos/7d8a05cddfef6da4901b20d2698d5a71.png");
+                    this->gridImages[i]->SetWidth(kGridTileWidth);
+                    this->gridImages[i]->SetHeight(kGridTileHeight);
+                }
+
+                this->gridImages[i]->SetVisible(true);
+            }
+            if (nsReady)
+                nsExit();
+            this->gridPage = page;
+        }
+
+        int slot = this->gridSelectedIndex - pageStart;
+        if (slot >= 0 && slot < kGridItemsPerPage) {
+            int row = slot / kGridCols;
+            int col = slot % kGridCols;
+            int x = kGridStartX + (col * (kGridTileWidth + kGridGap)) - 4;
+            int y = kGridStartY + (row * (kGridTileHeight + kGridGap)) - 4;
+            this->gridHighlight->SetX(x);
+            this->gridHighlight->SetY(y);
+            this->gridHighlight->SetWidth(kGridTileWidth + 8);
+            this->gridHighlight->SetHeight(kGridTileHeight + 8);
+            this->gridHighlight->SetVisible(true);
+        } else {
+            this->gridHighlight->SetVisible(false);
+        }
+
+        if (this->gridSelectedIndex >= 0 && this->gridSelectedIndex < (int)this->visibleItems.size()) {
+            std::string title = inst::util::shortenString(this->visibleItems[this->gridSelectedIndex].name, 70, true);
+            this->gridTitleText->SetText(title);
+            this->gridTitleText->SetVisible(true);
+        } else {
+            this->gridTitleText->SetVisible(false);
         }
     }
 
@@ -575,7 +731,7 @@ namespace inst::ui {
         inst::config::setConfig();
     }
 
-    void shopInstPage::startShop() {
+    void shopInstPage::startShop(bool forceRefresh) {
         this->butText->SetText("inst.shop.buttons_loading"_lang);
         this->menu->SetVisible(false);
         this->menu->ClearItems();
@@ -597,7 +753,7 @@ namespace inst::ui {
         }
 
         std::string error;
-        this->shopSections = shopInstStuff::FetchShopSections(shopUrl, inst::config::shopUser, inst::config::shopPass, error);
+        this->shopSections = shopInstStuff::FetchShopSections(shopUrl, inst::config::shopUser, inst::config::shopPass, error, !forceRefresh);
         if (!error.empty()) {
             mainApp->CreateShowDialog("inst.shop.failed"_lang, error, {"common.ok"_lang}, true);
             mainApp->LoadLayout(mainApp->mainPage);
@@ -609,11 +765,17 @@ namespace inst::ui {
             return;
         }
 
+        std::string motd = shopInstStuff::FetchShopMotd(shopUrl, inst::config::shopUser, inst::config::shopPass);
+        if (!motd.empty())
+            mainApp->CreateShowDialog("inst.shop.motd_title"_lang, motd, {"common.ok"_lang}, true);
+
         this->buildInstalledSection();
         this->cacheAvailableUpdates();
         this->filterOwnedSections();
 
         this->selectedSectionIndex = 0;
+        this->gridSelectedIndex = 0;
+        this->gridPage = -1;
         this->updateSectionText();
         this->updateButtonsText();
         this->selectedItems.clear();
@@ -699,15 +861,21 @@ namespace inst::ui {
             mainApp->LoadLayout(mainApp->mainPage);
         }
         if ((Down & HidNpadButton_A) || (Up & TouchPseudoKey)) {
-            this->selectTitle(this->menu->GetSelectedIndex());
-            if (this->menu->GetItems().size() == 1 && this->selectedItems.size() == 1) {
-                this->startInstall();
+            if (this->isInstalledSection()) {
+                this->showInstalledDetails();
+            } else {
+                this->selectTitle(this->menu->GetSelectedIndex());
+                if (this->menu->GetItems().size() == 1 && this->selectedItems.size() == 1) {
+                    this->startInstall();
+                }
             }
         }
         if (Down & HidNpadButton_L) {
             if (this->shopSections.size() > 1) {
                 this->selectedSectionIndex = (this->selectedSectionIndex - 1 + (int)this->shopSections.size()) % (int)this->shopSections.size();
                 this->searchQuery.clear();
+                this->gridSelectedIndex = 0;
+                this->gridPage = -1;
                 this->updateSectionText();
                 this->updateButtonsText();
                 this->drawMenuItems(false);
@@ -717,6 +885,8 @@ namespace inst::ui {
             if (this->shopSections.size() > 1) {
                 this->selectedSectionIndex = (this->selectedSectionIndex + 1) % (int)this->shopSections.size();
                 this->searchQuery.clear();
+                this->gridSelectedIndex = 0;
+                this->gridPage = -1;
                 this->updateSectionText();
                 this->updateButtonsText();
                 this->drawMenuItems(false);
@@ -730,31 +900,88 @@ namespace inst::ui {
                 this->drawMenuItems(false);
             }
         }
+        if (this->isInstalledSection() && !this->visibleItems.empty()) {
+            int newIndex = this->gridSelectedIndex;
+            u64 dirKeys = Down & (HidNpadButton_Up | HidNpadButton_Down | HidNpadButton_Left | HidNpadButton_Right);
+            if (dirKeys & HidNpadButton_Up)
+                newIndex -= kGridCols;
+            if (dirKeys & HidNpadButton_Down)
+                newIndex += kGridCols;
+            if (dirKeys & HidNpadButton_Left)
+                newIndex -= 1;
+            if (dirKeys & HidNpadButton_Right)
+                newIndex += 1;
+
+            if (newIndex < 0)
+                newIndex = 0;
+            if (newIndex >= (int)this->visibleItems.size())
+                newIndex = (int)this->visibleItems.size() - 1;
+
+            if (newIndex != this->gridSelectedIndex) {
+                this->gridSelectedIndex = newIndex;
+                this->updateInstalledGrid();
+            }
+        }
         if (Down & HidNpadButton_ZL) {
             this->debugVisible = !this->debugVisible;
             this->updateDebug();
         }
         if (Down & HidNpadButton_Y) {
-            if (this->selectedItems.size() == this->menu->GetItems().size()) {
-                this->drawMenuItems(true);
-            } else {
-                for (long unsigned int i = 0; i < this->menu->GetItems().size(); i++) {
-                    if (this->menu->GetItems()[i]->GetIcon() == "romfs:/images/icons/check-box-outline.png") continue;
-                    this->selectTitle(i);
+            if (!this->isInstalledSection()) {
+                if (this->selectedItems.size() == this->menu->GetItems().size()) {
+                    this->drawMenuItems(true);
+                } else {
+                    for (long unsigned int i = 0; i < this->menu->GetItems().size(); i++) {
+                        if (this->menu->GetItems()[i]->GetIcon() == "romfs:/images/icons/check-box-outline.png") continue;
+                        this->selectTitle(i);
+                    }
+                    this->drawMenuItems(false);
                 }
-                this->drawMenuItems(false);
             }
         }
         if (Down & HidNpadButton_X) {
-            this->startShop();
+            this->startShop(true);
         }
         if (Down & HidNpadButton_Plus) {
-            if (this->selectedItems.empty()) {
-                this->selectTitle(this->menu->GetSelectedIndex());
+            if (!this->isInstalledSection()) {
+                if (this->selectedItems.empty()) {
+                    this->selectTitle(this->menu->GetSelectedIndex());
+                }
+                if (!this->selectedItems.empty()) this->startInstall();
             }
-            if (!this->selectedItems.empty()) this->startInstall();
         }
         this->updatePreview();
+        this->updateInstalledGrid();
         this->updateDebug();
+    }
+
+    void shopInstPage::showInstalledDetails() {
+        if (!this->isInstalledSection())
+            return;
+        if (this->gridSelectedIndex < 0 || this->gridSelectedIndex >= (int)this->visibleItems.size())
+            return;
+        const auto& item = this->visibleItems[this->gridSelectedIndex];
+
+        const char* typeLabel = "Base";
+        if (item.appType == NcmContentMetaType_Patch)
+            typeLabel = "Update";
+        else if (item.appType == NcmContentMetaType_AddOnContent)
+            typeLabel = "DLC";
+
+        char titleIdBuf[32] = {0};
+        if (item.hasTitleId)
+            std::snprintf(titleIdBuf, sizeof(titleIdBuf), "%016lx", static_cast<unsigned long>(item.titleId));
+        else
+            std::snprintf(titleIdBuf, sizeof(titleIdBuf), "unknown");
+
+        std::string body;
+        body += "inst.shop.detail_type"_lang + std::string(typeLabel) + "\n";
+        body += "inst.shop.detail_titleid"_lang + std::string(titleIdBuf) + "\n";
+        if (item.hasAppVersion)
+            body += "inst.shop.detail_version"_lang + std::to_string(item.appVersion);
+        else
+            body += "inst.shop.detail_version"_lang + "0";
+
+        mainApp->CreateShowDialog(item.name, body, {"common.ok"_lang}, true);
     }
 }

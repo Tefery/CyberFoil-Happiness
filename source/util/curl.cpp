@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include "util/curl.hpp"
 #include "util/config.hpp"
 #include "util/error.hpp"
@@ -12,6 +13,26 @@
 static size_t writeDataFile(void *ptr, size_t size, size_t nmemb, void *stream) {
   size_t written = fwrite(ptr, size, nmemb, (FILE *)stream);
   return written;
+}
+
+static bool isLikelyImageFile(const char *path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in)
+        return false;
+    unsigned char buf[12] = {};
+    in.read(reinterpret_cast<char *>(buf), sizeof(buf));
+    std::streamsize read = in.gcount();
+    if (read >= 3 && buf[0] == 0xFF && buf[1] == 0xD8 && buf[2] == 0xFF)
+        return true;
+    if (read >= 8 &&
+        buf[0] == 0x89 && buf[1] == 0x50 && buf[2] == 0x4E && buf[3] == 0x47 &&
+        buf[4] == 0x0D && buf[5] == 0x0A && buf[6] == 0x1A && buf[7] == 0x0A)
+        return true;
+    if (read >= 12 &&
+        buf[0] == 'R' && buf[1] == 'I' && buf[2] == 'F' && buf[3] == 'F' &&
+        buf[8] == 'W' && buf[9] == 'E' && buf[10] == 'B' && buf[11] == 'P')
+        return true;
+    return false;
 }
 
 size_t writeDataBuffer(char *ptr, size_t size, size_t nmemb, void *userdata) {
@@ -142,7 +163,13 @@ namespace inst::curl {
         curl_global_cleanup();
         fclose(pagefile);
 
-        bool ok = (result == CURLE_OK) && (responseCode >= 200 && responseCode < 300) && (contentType != nullptr) && (std::strncmp(contentType, "image/", 6) == 0);
+        bool ok = (result == CURLE_OK) && (responseCode >= 200 && responseCode < 300);
+        if (ok) {
+            bool typeOk = (contentType != nullptr) && (std::strncmp(contentType, "image/", 6) == 0);
+            if (!typeOk)
+                typeOk = isLikelyImageFile(pagefilename);
+            ok = typeOk;
+        }
         if (!ok && std::filesystem::exists(pagefilename))
             std::filesystem::remove(pagefilename);
         if (!ok)

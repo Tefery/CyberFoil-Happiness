@@ -45,6 +45,7 @@ INCLUDES	:=	include include/ui include/data include/install include/nx include/n
 APP_TITLE	:=	Awoo Installer
 APP_AUTHOR	:=	Huntereb & Behemoth
 APP_VERSION	:=	1.3.6
+ICON		:=	romfs/images/icon.jpg
 ROMFS		:=	romfs
 
 #---------------------------------------------------------------------------------

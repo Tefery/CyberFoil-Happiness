@@ -27,6 +27,7 @@ namespace shopInstStuff {
     };
 
     std::vector<ShopItem> FetchShop(const std::string& shopUrl, const std::string& user, const std::string& pass, std::string& error);
-    std::vector<ShopSection> FetchShopSections(const std::string& shopUrl, const std::string& user, const std::string& pass, std::string& error);
+    std::vector<ShopSection> FetchShopSections(const std::string& shopUrl, const std::string& user, const std::string& pass, std::string& error, bool allowCache = true);
+    std::string FetchShopMotd(const std::string& shopUrl, const std::string& user, const std::string& pass);
     void installTitleShop(const std::vector<ShopItem>& items, int storage, const std::string& sourceLabel);
 }

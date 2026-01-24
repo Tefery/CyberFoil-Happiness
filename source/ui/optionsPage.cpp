@@ -265,19 +265,15 @@ namespace inst::ui {
                     break;
                 case 8:
                     keyboardResult = inst::util::softwareKeyboard("options.shop.user_hint"_lang, inst::config::shopUser.c_str(), 100);
-                    if (keyboardResult.size() > 0) {
-                        inst::config::shopUser = keyboardResult;
-                        inst::config::setConfig();
-                        this->setMenuText();
-                    }
+                    inst::config::shopUser = keyboardResult;
+                    inst::config::setConfig();
+                    this->setMenuText();
                     break;
                 case 9:
                     keyboardResult = inst::util::softwareKeyboard("options.shop.pass_hint"_lang, inst::config::shopPass.c_str(), 100);
-                    if (keyboardResult.size() > 0) {
-                        inst::config::shopPass = keyboardResult;
-                        inst::config::setConfig();
-                        this->setMenuText();
-                    }
+                    inst::config::shopPass = keyboardResult;
+                    inst::config::setConfig();
+                    this->setMenuText();
                     break;
                 case 10:
                     inst::config::shopRememberSelection = !inst::config::shopRememberSelection;

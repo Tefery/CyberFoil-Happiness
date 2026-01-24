@@ -1,8 +1,10 @@
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdlib>
 #include <curl/curl.h>
 #include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <thread>
 #include "shopInstall.hpp"
@@ -103,6 +105,54 @@ namespace {
         return baseUrl + "/" + urlPath;
     }
 
+    constexpr int kShopCacheTtlSeconds = 300;
+
+    std::string GetShopCachePath(const std::string& baseUrl)
+    {
+        std::size_t hash = std::hash<std::string>{}(baseUrl);
+        return inst::config::appDir + "/shop_cache_" + std::to_string(hash) + ".json";
+    }
+
+    bool LoadShopCache(const std::string& baseUrl, std::string& body, bool& fresh)
+    {
+        fresh = false;
+        std::string path = GetShopCachePath(baseUrl);
+        if (!std::filesystem::exists(path))
+            return false;
+
+        std::ifstream in(path, std::ios::binary);
+        if (!in)
+            return false;
+        std::ostringstream ss;
+        ss << in.rdbuf();
+        body = ss.str();
+        if (body.empty())
+            return false;
+
+        auto ftime = std::filesystem::last_write_time(path);
+        auto now = std::chrono::system_clock::now();
+        auto ftime_sys = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+            ftime - std::filesystem::file_time_type::clock::now() + now);
+        auto age = std::chrono::duration_cast<std::chrono::seconds>(now - ftime_sys).count();
+        fresh = age >= 0 && age <= kShopCacheTtlSeconds;
+        return true;
+    }
+
+    void SaveShopCache(const std::string& baseUrl, const std::string& body)
+    {
+        if (body.empty())
+            return;
+        std::string path = GetShopCachePath(baseUrl);
+        std::ofstream out(path, std::ios::binary | std::ios::trunc);
+        if (!out)
+            return;
+        out << body;
+    }
+
+    bool TryParseTitleId(const nlohmann::json& entry, std::uint64_t& out);
+    bool TryParseAppVersion(const nlohmann::json& entry, std::uint32_t& out);
+    bool TryParseAppType(const nlohmann::json& entry, std::int32_t& out);
+
     bool TryParseHexU64(const std::string& value, std::uint64_t& out)
     {
         if (value.empty())
@@ -195,6 +245,98 @@ namespace {
             }
         }
         return false;
+    }
+
+    std::vector<shopInstStuff::ShopSection> ParseShopSectionsBody(const std::string& body, const std::string& baseUrl, std::string& error)
+    {
+        std::vector<shopInstStuff::ShopSection> sections;
+        try {
+            nlohmann::json shop = nlohmann::json::parse(body);
+            if (!shop.contains("sections") || !shop["sections"].is_array()) {
+                error = "Shop response missing sections.";
+                return sections;
+            }
+
+            for (const auto& section : shop["sections"]) {
+                if (!section.contains("items") || !section["items"].is_array())
+                    continue;
+                shopInstStuff::ShopSection parsed;
+                parsed.id = section.value("id", "all");
+                parsed.title = section.value("title", "All");
+                for (const auto& entry : section["items"]) {
+                    if (!entry.contains("url"))
+                        continue;
+                    std::string url = entry["url"].get<std::string>();
+                    std::uint64_t size = 0;
+                    if (entry.contains("size") && entry["size"].is_number()) {
+                        size = entry["size"].get<std::uint64_t>();
+                    }
+
+                    std::string fragment;
+                    std::string urlPath = url;
+                    auto hashPos = urlPath.find('#');
+                    if (hashPos != std::string::npos) {
+                        fragment = urlPath.substr(hashPos + 1);
+                        urlPath = urlPath.substr(0, hashPos);
+                    }
+
+                    std::string fullUrl = BuildFullUrl(baseUrl, urlPath);
+
+                    std::string name;
+                    if (entry.contains("name")) {
+                        name = entry["name"].get<std::string>();
+                    } else if (!fragment.empty()) {
+                        name = DecodeUrlSegment(fragment);
+                    } else {
+                        name = inst::util::formatUrlString(fullUrl);
+                    }
+
+                    if (!fullUrl.empty() && !name.empty()) {
+                        shopInstStuff::ShopItem item{name, fullUrl, "", "", size};
+                        std::uint64_t titleId = 0;
+                        std::uint32_t appVersion = 0;
+                        std::int32_t appType = -1;
+                        if (TryParseTitleId(entry, titleId)) {
+                            item.titleId = titleId;
+                            item.hasTitleId = true;
+                        }
+                        if (TryParseAppVersion(entry, appVersion)) {
+                            item.appVersion = appVersion;
+                            item.hasAppVersion = true;
+                        }
+                        if (TryParseAppType(entry, appType))
+                            item.appType = appType;
+                        if (entry.contains("app_id") && entry["app_id"].is_string()) {
+                            item.appId = entry["app_id"].get<std::string>();
+                            item.hasAppId = !item.appId.empty();
+                        }
+                        if (entry.contains("icon_url") && entry["icon_url"].is_string()) {
+                            std::string iconUrl = entry["icon_url"].get<std::string>();
+                            if (!iconUrl.empty()) {
+                                item.iconUrl = BuildFullUrl(baseUrl, iconUrl);
+                                item.hasIconUrl = true;
+                            }
+                        } else if (entry.contains("iconUrl") && entry["iconUrl"].is_string()) {
+                            std::string iconUrl = entry["iconUrl"].get<std::string>();
+                            if (!iconUrl.empty()) {
+                                item.iconUrl = BuildFullUrl(baseUrl, iconUrl);
+                                item.hasIconUrl = true;
+                            }
+                        }
+                        parsed.items.push_back(item);
+                    }
+                }
+
+                if (!parsed.items.empty())
+                    sections.push_back(parsed);
+            }
+        }
+        catch (...) {
+            error = "Invalid shop response.";
+            return {};
+        }
+
+        return sections;
     }
 }
 
@@ -356,7 +498,7 @@ namespace shopInstStuff {
         return items;
     }
 
-    std::vector<ShopSection> FetchShopSections(const std::string& shopUrl, const std::string& user, const std::string& pass, std::string& error)
+    std::vector<ShopSection> FetchShopSections(const std::string& shopUrl, const std::string& user, const std::string& pass, std::string& error, bool allowCache)
     {
         std::vector<ShopSection> sections;
         error.clear();
@@ -365,6 +507,19 @@ namespace shopInstStuff {
         if (baseUrl.empty()) {
             error = "Shop URL is empty.";
             return sections;
+        }
+
+        if (allowCache) {
+            std::string cachedBody;
+            bool fresh = false;
+            if (LoadShopCache(baseUrl, cachedBody, fresh) && fresh) {
+                std::string cacheError;
+                sections = ParseShopSectionsBody(cachedBody, baseUrl, cacheError);
+                if (!sections.empty()) {
+                    error.clear();
+                    return sections;
+                }
+            }
         }
 
         std::string sectionsUrl = baseUrl + "/api/shop/sections";
@@ -377,96 +532,52 @@ namespace shopInstStuff {
             return sections;
         }
 
-        if (!ValidateShopResponse(fetch, error))
+        if (!ValidateShopResponse(fetch, error)) {
+            if (allowCache) {
+                std::string cachedBody;
+                bool fresh = false;
+                if (LoadShopCache(baseUrl, cachedBody, fresh)) {
+                    std::string cacheError;
+                    sections = ParseShopSectionsBody(cachedBody, baseUrl, cacheError);
+                    if (!sections.empty()) {
+                        error.clear();
+                        return sections;
+                    }
+                }
+            }
             return sections;
+        }
+
+        sections = ParseShopSectionsBody(fetch.body, baseUrl, error);
+        if (!sections.empty())
+            SaveShopCache(baseUrl, fetch.body);
+        return sections;
+    }
+
+    std::string FetchShopMotd(const std::string& shopUrl, const std::string& user, const std::string& pass)
+    {
+        std::string baseUrl = NormalizeShopUrl(shopUrl);
+        if (baseUrl.empty())
+            return "";
+
+        FetchResult fetch = FetchShopResponse(baseUrl, user, pass);
+        if (fetch.responseCode == 401 || fetch.responseCode == 403)
+            return "";
+        if (!fetch.error.empty())
+            return "";
+        if (fetch.body.rfind("TINFOIL", 0) == 0)
+            return "";
 
         try {
             nlohmann::json shop = nlohmann::json::parse(fetch.body);
-            if (!shop.contains("sections") || !shop["sections"].is_array()) {
-                error = "Shop response missing sections.";
-                return sections;
-            }
-
-            for (const auto& section : shop["sections"]) {
-                if (!section.contains("items") || !section["items"].is_array())
-                    continue;
-                ShopSection parsed;
-                parsed.id = section.value("id", "all");
-                parsed.title = section.value("title", "All");
-                for (const auto& entry : section["items"]) {
-                    if (!entry.contains("url"))
-                        continue;
-                    std::string url = entry["url"].get<std::string>();
-                    std::uint64_t size = 0;
-                    if (entry.contains("size") && entry["size"].is_number()) {
-                        size = entry["size"].get<std::uint64_t>();
-                    }
-
-                    std::string fragment;
-                    std::string urlPath = url;
-                    auto hashPos = urlPath.find('#');
-                    if (hashPos != std::string::npos) {
-                        fragment = urlPath.substr(hashPos + 1);
-                        urlPath = urlPath.substr(0, hashPos);
-                    }
-
-                    std::string fullUrl = BuildFullUrl(baseUrl, urlPath);
-
-                    std::string name;
-                    if (entry.contains("name")) {
-                        name = entry["name"].get<std::string>();
-                    } else if (!fragment.empty()) {
-                        name = DecodeUrlSegment(fragment);
-                    } else {
-                        name = inst::util::formatUrlString(fullUrl);
-                    }
-
-                    if (!fullUrl.empty() && !name.empty()) {
-                        ShopItem item{name, fullUrl, "", "", size};
-                        std::uint64_t titleId = 0;
-                        std::uint32_t appVersion = 0;
-                        std::int32_t appType = -1;
-                        if (TryParseTitleId(entry, titleId)) {
-                            item.titleId = titleId;
-                            item.hasTitleId = true;
-                        }
-                        if (TryParseAppVersion(entry, appVersion)) {
-                            item.appVersion = appVersion;
-                            item.hasAppVersion = true;
-                        }
-                        if (TryParseAppType(entry, appType))
-                            item.appType = appType;
-                        if (entry.contains("app_id") && entry["app_id"].is_string()) {
-                            item.appId = entry["app_id"].get<std::string>();
-                            item.hasAppId = !item.appId.empty();
-                        }
-                        if (entry.contains("icon_url") && entry["icon_url"].is_string()) {
-                            std::string iconUrl = entry["icon_url"].get<std::string>();
-                            if (!iconUrl.empty()) {
-                                item.iconUrl = BuildFullUrl(baseUrl, iconUrl);
-                                item.hasIconUrl = true;
-                            }
-                        } else if (entry.contains("iconUrl") && entry["iconUrl"].is_string()) {
-                            std::string iconUrl = entry["iconUrl"].get<std::string>();
-                            if (!iconUrl.empty()) {
-                                item.iconUrl = BuildFullUrl(baseUrl, iconUrl);
-                                item.hasIconUrl = true;
-                            }
-                        }
-                        parsed.items.push_back(item);
-                    }
-                }
-
-                if (!parsed.items.empty())
-                    sections.push_back(parsed);
-            }
+            if (shop.contains("success") && shop["success"].is_string())
+                return shop["success"].get<std::string>();
         }
         catch (...) {
-            error = "Invalid shop response.";
-            return {};
+            return "";
         }
 
-        return sections;
+        return "";
     }
 
     void installTitleShop(const std::vector<ShopItem>& items, int storage, const std::string& sourceLabel)
