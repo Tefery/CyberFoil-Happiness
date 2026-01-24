@@ -18,12 +18,19 @@ namespace inst::ui {
     std::string sourceString = "";
 
     netInstPage::netInstPage() : Layout::Layout() {
-        this->SetBackgroundColor(COLOR("#670000FF"));
-        if (std::filesystem::exists(inst::config::appDir + "/background.png")) this->SetBackgroundImage(inst::config::appDir + "/background.png");
-        else this->SetBackgroundImage("romfs:/images/background.jpg");
-        this->topRect = Rectangle::New(0, 0, 1280, 94, COLOR("#170909FF"));
-        this->infoRect = Rectangle::New(0, 95, 1280, 60, COLOR("#17090980"));
-        this->botRect = Rectangle::New(0, 660, 1280, 60, COLOR("#17090980"));
+        if (inst::config::oledMode) {
+            this->SetBackgroundColor(COLOR("#000000FF"));
+        } else {
+            this->SetBackgroundColor(COLOR("#670000FF"));
+            if (std::filesystem::exists(inst::config::appDir + "/background.png")) this->SetBackgroundImage(inst::config::appDir + "/background.png");
+            else this->SetBackgroundImage("romfs:/images/background.jpg");
+        }
+        const auto topColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#170909FF");
+        const auto infoColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
+        const auto botColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
+        this->topRect = Rectangle::New(0, 0, 1280, 94, topColor);
+        this->infoRect = Rectangle::New(0, 95, 1280, 60, infoColor);
+        this->botRect = Rectangle::New(0, 660, 1280, 60, botColor);
         if (inst::config::gayMode) {
             this->titleImage = Image::New(-113, 0, "romfs:/images/logo.png");
             this->appVersionText = TextBlock::New(367, 49, "v" + inst::config::appVersion, 22);
@@ -38,8 +45,13 @@ namespace inst::ui {
         this->butText = TextBlock::New(10, 678, "", 24);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
         this->menu = pu::ui::elm::Menu::New(0, 156, 1280, COLOR("#FFFFFF00"), 84, (506 / 84));
-        this->menu->SetOnFocusColor(COLOR("#00000033"));
-        this->menu->SetScrollbarColor(COLOR("#17090980"));
+        if (inst::config::oledMode) {
+            this->menu->SetOnFocusColor(COLOR("#FFFFFF33"));
+            this->menu->SetScrollbarColor(COLOR("#FFFFFF66"));
+        } else {
+            this->menu->SetOnFocusColor(COLOR("#00000033"));
+            this->menu->SetScrollbarColor(COLOR("#17090980"));
+        }
         this->infoImage = Image::New(453, 292, "romfs:/images/icons/lan-connection-waiting.png");
         this->Add(this->topRect);
         this->Add(this->infoRect);

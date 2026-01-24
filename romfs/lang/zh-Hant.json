@@ -26,7 +26,7 @@
         },
         "applet": {
             "title": "不支援Applet模式",
-            "desc": "在Applet模式下執行Awoo Installer可能會產生安裝錯誤。\n請在hbmenu模式(啟動任何一個遊戲時按住R)，再執行Awoo Installer！"
+            "desc": "在Applet模式下執行CyberFoil可能會產生安裝錯誤。\n請在hbmenu模式(啟動任何一個遊戲時按住R)，再執行CyberFoil！"
         },
         "buttons": " 選擇     退出"
     },
@@ -34,7 +34,7 @@
         "net": {
             "help": {
                 "title": "說明",
-                "desc": "在Tinfoil模式下，檔案可透過NS-USBloader這類工具來進行遠端安裝。\n要將檔案上傳到你的Switch，請輸入Switch的IP位址 (按照畫面上顯示)，\n並從電腦或手機上選定要傳輸的檔案，點擊等待檔案傳輸完成即可。\n如果遠端傳輸工具不支援某些檔案格式，可以嘗試修改為可接受的副檔名，\n透過網路遠端進行安裝時，Awoo Installer並不會檢查副檔名。\n\n如果不確定如何遠端操作，可以將檔案複製到記憶卡，從程式主畫面執行\"使用SD卡進行安裝\""
+                "desc": "在Tinfoil模式下，檔案可透過NS-USBloader這類工具來進行遠端安裝。\n要將檔案上傳到你的Switch，請輸入Switch的IP位址 (按照畫面上顯示)，\n並從電腦或手機上選定要傳輸的檔案，點擊等待檔案傳輸完成即可。\n如果遠端傳輸工具不支援某些檔案格式，可以嘗試修改為可接受的副檔名，\n透過網路遠端進行安裝時，CyberFoil並不會檢查副檔名。\n\n如果不確定如何遠端操作，可以將檔案複製到記憶卡，從程式主畫面執行\"使用SD卡進行安裝\""
             },
             "src": {
                 "title": "要從什麼路徑來源進行安裝？",
@@ -122,7 +122,7 @@
         },
         "nca_verify": {
             "title": "偵測到無效的NCA簽名！",
-            "desc": "要安裝簽名驗證失敗的遊戲，檔案來源必須為可信任的。\n經過重新封裝或有合併更新檔與DLC的檔案，程序會顯示此訊息提醒。\n如需隱藏此提醒通知，可從Awoo Installer設定內取消勾選檢查。\n\n是否確認要繼續安裝？",
+            "desc": "要安裝簽名驗證失敗的遊戲，檔案來源必須為可信任的。\n經過重新封裝或有合併更新檔與DLC的檔案，程序會顯示此訊息提醒。\n如需隱藏此提醒通知，可從CyberFoil設定內取消勾選檢查。\n\n是否確認要繼續安裝？",
             "opt1": "好，我已瞭解可能的風險",
             "error": "必要的NCA簽名驗證失敗: "
         },
@@ -146,7 +146,7 @@
         "backup_failed": "無法備份Hekate的patches.ini！是否確認要繼續安裝？",
         "backup_failed_desc": "如果並未使用Hekate，可略過此提醒通知！",
         "download_failed": "無法下載簽名修補程式",
-        "download_failed_desc": "在Awoo Installer的設定內可能輸入了無效的來源，\n或者伺服器目前為離線狀態。",
+        "download_failed_desc": "在CyberFoil的設定內可能輸入了無效的來源，\n或者伺服器目前為離線狀態。",
         "version_text2": "已將簽名修補程式更新為適用HOS的版本",
         "install_complete": "安裝完成！",
         "complete_desc": "需要重新啟動主機以套用更新",
@@ -165,16 +165,17 @@
             "nca_verify": "進行安裝前驗證NCA簽名",
             "boost_mode": "在進行安裝時啟用\"超頻\"模式",
             "ask_delete": "在安裝完成後，詢問是否刪除原始檔案",
-            "auto_update": "自動檢查Awoo Installer的更新版本",
+            "auto_update": "自動檢查CyberFoil的更新版本",
             "gay_option": "移除程序介面的動漫圖案",
             "sig_url": "簽名修補程式來源URL: ",
             "shop_url": "Ownfoil URL: ",
             "shop_user": "Ownfoil 使用者: ",
             "shop_pass": "Ownfoil 密碼: ",
-            "shop_remember": "Remember last shop selection",
             "language": "介面語系： ",
-            "check_update": "檢查Awoo Installer的更新版本",
-            "credits": "感謝名單"
+            "check_update": "檢查CyberFoil的更新版本",
+            "credits": "感謝名單",
+            "sound": "Enable sounds",
+            "oled": "Enable OLED mode"
         },
         "nca_warn": {
             "title": "注意！",
@@ -189,28 +190,28 @@
         },
         "update": {
             "title": "有可用的更新版本",
-            "desc0": "Awoo Installer ",
+            "desc0": "CyberFoil ",
             "desc1": " 發佈了新版本！是否立刻進行更新？",
             "opt0": "更新",
-            "top_info": "正在更新Awoo Installer",
-            "bot_info": "正在下載Awoo Installer",
-            "bot_info2": "正在解壓Awoo Installer",
+            "top_info": "正在更新CyberFoil",
+            "bot_info": "正在下載CyberFoil",
+            "bot_info2": "正在解壓CyberFoil",
             "complete": "更新完成！",
             "failed": "更新失敗！",
             "end_desc": "本程式即將關閉！",
             "title_check_fail": "沒有更新版本",
-            "desc_check_fail": "目前使用的Awoo Installer是最新版本！"
+            "desc_check_fail": "目前使用的CyberFoil是最新版本！"
         },
         "credits": {
             "title": "感謝所有幫助過我們的人",
             "desc": "- HookedBehemoth for A LOT of contributions\n- Adubbz and other contributors for Tinfoil\n- XorTroll for Plutonium and Goldleaf\n- blawar (wife strangulator) and nicoboss for NSZ support\n- The kind folks at the AtlasNX Discuck (or at least some of them)\n- The also kind folks at the RetroNX Discuck (of no direct involvement)\n- namako8982 for the Momiji art\n- TheXzoron for being a baka"
         },
         "language": {
-            "title": "設定Awoo Installer的介面語系",
+            "title": "設定CyberFoil的介面語系",
             "desc": "當確認變更介面語系後，程式會結束並退出。按B鈕取消變更。",
             "system_language": "系統預設"
         },
-        "title": "變更Awoo Installer的設定！",
+        "title": "變更CyberFoil的設定！",
         "buttons": " 選擇/變更     取消"
     },
     "common": {

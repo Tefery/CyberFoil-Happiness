@@ -93,7 +93,7 @@ namespace nspInstStuff {
             inst::ui::instPage::setInstInfoText("inst.info_page.failed"_lang + inst::util::shortenString(ourTitleList[titleItr].filename().string(), 42, true));
             inst::ui::instPage::setInstBarPerc(0);
             std::string audioPath = "romfs:/audio/bark.wav";
-            if (inst::config::gayMode) audioPath = "";
+            if (!inst::config::soundEnabled) audioPath = "";
             if (std::filesystem::exists(inst::config::appDir + "/bark.wav")) audioPath = inst::config::appDir + "/bark.wav";
             std::thread audioThread(inst::util::playAudio,audioPath);
             inst::ui::mainApp->CreateShowDialog("inst.info_page.failed"_lang + inst::util::shortenString(ourTitleList[titleItr].filename().string(), 42, true) + "!", "inst.info_page.failed_desc"_lang + "\n\n" + (std::string)e.what(), {"common.ok"_lang}, true);
@@ -110,9 +110,9 @@ namespace nspInstStuff {
         if(nspInstalled) {
             inst::ui::instPage::setInstInfoText("inst.info_page.complete"_lang);
             inst::ui::instPage::setInstBarPerc(100);
-            std::string audioPath = "romfs:/audio/awoo.wav";
-            if (inst::config::gayMode) audioPath = "";
-            if (std::filesystem::exists(inst::config::appDir + "/awoo.wav")) audioPath = inst::config::appDir + "/awoo.wav";
+            std::string audioPath = "romfs:/audio/success.wav";
+            if (!inst::config::soundEnabled) audioPath = "";
+            if (std::filesystem::exists(inst::config::appDir + "/success.wav")) audioPath = inst::config::appDir + "/success.wav";
             std::thread audioThread(inst::util::playAudio,audioPath);
             if (ourTitleList.size() > 1) {
                 if (inst::config::deletePrompt) {

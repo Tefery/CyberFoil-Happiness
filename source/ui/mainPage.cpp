@@ -35,11 +35,17 @@ namespace inst::ui {
     }
 
     MainPage::MainPage() : Layout::Layout() {
-        this->SetBackgroundColor(COLOR("#670000FF"));
-        if (std::filesystem::exists(inst::config::appDir + "/background.png")) this->SetBackgroundImage(inst::config::appDir + "/background.png");
-        else this->SetBackgroundImage("romfs:/images/background.jpg");
-        this->topRect = Rectangle::New(0, 0, 1280, 94, COLOR("#170909FF"));
-        this->botRect = Rectangle::New(0, 659, 1280, 61, COLOR("#17090980"));
+        if (inst::config::oledMode) {
+            this->SetBackgroundColor(COLOR("#000000FF"));
+        } else {
+            this->SetBackgroundColor(COLOR("#670000FF"));
+            if (std::filesystem::exists(inst::config::appDir + "/background.png")) this->SetBackgroundImage(inst::config::appDir + "/background.png");
+            else this->SetBackgroundImage("romfs:/images/background.jpg");
+        }
+        const auto topColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#170909FF");
+        const auto botColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
+        this->topRect = Rectangle::New(0, 0, 1280, 94, topColor);
+        this->botRect = Rectangle::New(0, 659, 1280, 61, botColor);
         if (inst::config::gayMode) {
             this->titleImage = Image::New(-113, 0, "romfs:/images/logo.png");
             this->appVersionText = TextBlock::New(367, 49, "v" + inst::config::appVersion, 22);
@@ -52,8 +58,13 @@ namespace inst::ui {
         this->butText = TextBlock::New(10, 678, "main.buttons"_lang, 24);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
         this->optionMenu = pu::ui::elm::Menu::New(0, 95, 1280, COLOR("#67000000"), 94, 6);
-        this->optionMenu->SetOnFocusColor(COLOR("#00000033"));
-        this->optionMenu->SetScrollbarColor(COLOR("#170909FF"));
+        if (inst::config::oledMode) {
+            this->optionMenu->SetOnFocusColor(COLOR("#FFFFFF33"));
+            this->optionMenu->SetScrollbarColor(COLOR("#FFFFFF66"));
+        } else {
+            this->optionMenu->SetOnFocusColor(COLOR("#00000033"));
+            this->optionMenu->SetScrollbarColor(COLOR("#170909FF"));
+        }
         this->installMenuItem = pu::ui::elm::MenuItem::New("main.menu.sd"_lang);
         this->installMenuItem->SetColor(COLOR("#FFFFFFFF"));
         this->installMenuItem->SetIcon("romfs:/images/icons/micro-sd.png");
@@ -77,24 +88,21 @@ namespace inst::ui {
         this->exitMenuItem->SetIcon("romfs:/images/icons/exit-run.png");
         if (std::filesystem::exists(inst::config::appDir + "/awoo_main.png")) this->awooImage = Image::New(410, 190, inst::config::appDir + "/awoo_main.png");
         else this->awooImage = Image::New(410, 190, "romfs:/images/awoos/5bbdbcf9a5625cd307c9e9bc360d78bd.png");
-        this->eggImage = Image::New(410, 190, "romfs:/images/awoos/a8cb40e465dadaf9708c9b1896777ce6.png");
         this->Add(this->topRect);
         this->Add(this->botRect);
         this->Add(this->titleImage);
         this->Add(this->appVersionText);
         this->Add(this->butText);
+        this->optionMenu->AddItem(this->shopInstallMenuItem);
         this->optionMenu->AddItem(this->installMenuItem);
         this->optionMenu->AddItem(this->netInstallMenuItem);
-        this->optionMenu->AddItem(this->shopInstallMenuItem);
         this->optionMenu->AddItem(this->usbInstallMenuItem);
         this->optionMenu->AddItem(this->sigPatchesMenuItem);
         this->optionMenu->AddItem(this->settingsMenuItem);
         this->optionMenu->AddItem(this->exitMenuItem);
         this->Add(this->optionMenu);
         this->Add(this->awooImage);
-        this->Add(this->eggImage);
         this->awooImage->SetVisible(!inst::config::gayMode);
-        this->eggImage->SetVisible(false);
         this->AddThread(mainMenuThread);
     }
 
@@ -152,13 +160,13 @@ namespace inst::ui {
         if ((Down & HidNpadButton_A) || (Up & TouchPseudoKey)) {
             switch (this->optionMenu->GetSelectedIndex()) {
                 case 0:
-                    this->installMenuItem_Click();
+                    this->shopInstallMenuItem_Click();
                     break;
                 case 1:
-                    this->netInstallMenuItem_Click();
+                    this->installMenuItem_Click();
                     break;
                 case 2:
-                    this->shopInstallMenuItem_Click();
+                    this->netInstallMenuItem_Click();
                     break;
                 case 3:
                     MainPage::usbInstallMenuItem_Click();
@@ -175,14 +183,6 @@ namespace inst::ui {
                 default:
                     break;
             }
-        }
-        if (Down & HidNpadButton_X) {
-            this->awooImage->SetVisible(false);
-            this->eggImage->SetVisible(true);
-        }
-        if (Up & HidNpadButton_X) {
-            this->eggImage->SetVisible(false);
-            if (!inst::config::gayMode) this->awooImage->SetVisible(true);
         }
     }
 }

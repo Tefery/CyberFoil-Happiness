@@ -37,14 +37,14 @@ include $(DEVKITPRO)/libnx/switch_rules
 #   of a homebrew executable (.nro). This is intended to be used for sysmodules.
 #   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
-TARGET		:=	$(notdir $(CURDIR))
+TARGET		:=	cyberfoil
 BUILD		:=	build
 SOURCES		:=	source source/ui source/data source/install source/nx source/nx/ipc source/util
 DATA		:=	data
 INCLUDES	:=	include include/ui include/data include/install include/nx include/nx/ipc include/util include/Plutonium/Plutonium/Output-switch/include
-APP_TITLE	:=	Awoo Installer
-APP_AUTHOR	:=	Huntereb & Behemoth
-APP_VERSION	:=	1.3.6
+APP_TITLE	:=	CyberFoil
+APP_AUTHOR	:=	Huntereb & Behemoth & luketanti
+APP_VERSION	:=	1.3.7
 ICON		:=	romfs/images/icon.jpg
 ROMFS		:=	romfs
 

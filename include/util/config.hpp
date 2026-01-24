@@ -3,7 +3,7 @@
 #include <vector>
 
 namespace inst::config {
-    static const std::string appDir = "sdmc:/switch/Awoo-Installer";
+    static const std::string appDir = "sdmc:/switch/CyberFoil";
     static const std::string configPath = appDir + "/config.json";
     static const std::string appVersion = std::string(APP_VERSION);
 
@@ -13,8 +13,6 @@ namespace inst::config {
     extern std::string shopUrl;
     extern std::string shopUser;
     extern std::string shopPass;
-    extern bool shopRememberSelection;
-    extern std::vector<std::string> shopSelection;
     extern std::vector<std::string> updateInfo;
     extern int languageSetting;
     extern bool ignoreReqVers;
@@ -23,6 +21,8 @@ namespace inst::config {
     extern bool deletePrompt;
     extern bool autoUpdate;
     extern bool gayMode;
+    extern bool soundEnabled;
+    extern bool oledMode;
     extern bool usbAck;
 
     void setConfig();

@@ -9,11 +9,17 @@ namespace inst::ui {
     extern MainApplication *mainApp;
 
     instPage::instPage() : Layout::Layout() {
-        this->SetBackgroundColor(COLOR("#670000FF"));
-        if (std::filesystem::exists(inst::config::appDir + "/background.png")) this->SetBackgroundImage(inst::config::appDir + "/background.png");
-        else this->SetBackgroundImage("romfs:/images/background.jpg");
-        this->topRect = Rectangle::New(0, 0, 1280, 94, COLOR("#170909FF"));
-        this->infoRect = Rectangle::New(0, 95, 1280, 60, COLOR("#17090980"));
+        if (inst::config::oledMode) {
+            this->SetBackgroundColor(COLOR("#000000FF"));
+        } else {
+            this->SetBackgroundColor(COLOR("#670000FF"));
+            if (std::filesystem::exists(inst::config::appDir + "/background.png")) this->SetBackgroundImage(inst::config::appDir + "/background.png");
+            else this->SetBackgroundImage("romfs:/images/background.jpg");
+        }
+        const auto topColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#170909FF");
+        const auto infoColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
+        this->topRect = Rectangle::New(0, 0, 1280, 94, topColor);
+        this->infoRect = Rectangle::New(0, 95, 1280, 60, infoColor);
         if (inst::config::gayMode) {
             this->titleImage = Image::New(-113, 0, "romfs:/images/logo.png");
             this->appVersionText = TextBlock::New(367, 49, "v" + inst::config::appVersion, 22);

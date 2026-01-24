@@ -19,12 +19,19 @@ namespace inst::ui {
     std::vector<std::string> languageStrings = {"English", "日本語", "Français", "Deutsch", "Italiano", "Español", "Português", "한국어", "Русский", "簡体中文","繁體中文"};
 
     optionsPage::optionsPage() : Layout::Layout() {
-        this->SetBackgroundColor(COLOR("#670000FF"));
-        if (std::filesystem::exists(inst::config::appDir + "/background.png")) this->SetBackgroundImage(inst::config::appDir + "/background.png");
-        else this->SetBackgroundImage("romfs:/images/background.jpg");
-        this->topRect = Rectangle::New(0, 0, 1280, 94, COLOR("#170909FF"));
-        this->infoRect = Rectangle::New(0, 95, 1280, 60, COLOR("#17090980"));
-        this->botRect = Rectangle::New(0, 660, 1280, 60, COLOR("#17090980"));
+        if (inst::config::oledMode) {
+            this->SetBackgroundColor(COLOR("#000000FF"));
+        } else {
+            this->SetBackgroundColor(COLOR("#670000FF"));
+            if (std::filesystem::exists(inst::config::appDir + "/background.png")) this->SetBackgroundImage(inst::config::appDir + "/background.png");
+            else this->SetBackgroundImage("romfs:/images/background.jpg");
+        }
+        const auto topColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#170909FF");
+        const auto infoColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
+        const auto botColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
+        this->topRect = Rectangle::New(0, 0, 1280, 94, topColor);
+        this->infoRect = Rectangle::New(0, 95, 1280, 60, infoColor);
+        this->botRect = Rectangle::New(0, 660, 1280, 60, botColor);
         if (inst::config::gayMode) {
             this->titleImage = Image::New(-113, 0, "romfs:/images/logo.png");
             this->appVersionText = TextBlock::New(367, 49, "v" + inst::config::appVersion, 22);
@@ -39,8 +46,13 @@ namespace inst::ui {
         this->butText = TextBlock::New(10, 678, "options.buttons"_lang, 24);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
         this->menu = pu::ui::elm::Menu::New(0, 156, 1280, COLOR("#FFFFFF00"), 84, (506 / 84));
-        this->menu->SetOnFocusColor(COLOR("#00000033"));
-        this->menu->SetScrollbarColor(COLOR("#17090980"));
+        if (inst::config::oledMode) {
+            this->menu->SetOnFocusColor(COLOR("#FFFFFF33"));
+            this->menu->SetScrollbarColor(COLOR("#FFFFFF66"));
+        } else {
+            this->menu->SetOnFocusColor(COLOR("#00000033"));
+            this->menu->SetScrollbarColor(COLOR("#17090980"));
+        }
         this->Add(this->topRect);
         this->Add(this->infoRect);
         this->Add(this->botRect);
@@ -138,6 +150,14 @@ namespace inst::ui {
         gayModeOption->SetColor(COLOR("#FFFFFFFF"));
         gayModeOption->SetIcon(this->getMenuOptionIcon(inst::config::gayMode));
         this->menu->AddItem(gayModeOption);
+        auto soundOption = pu::ui::elm::MenuItem::New("options.menu_items.sound"_lang);
+        soundOption->SetColor(COLOR("#FFFFFFFF"));
+        soundOption->SetIcon(this->getMenuOptionIcon(inst::config::soundEnabled));
+        this->menu->AddItem(soundOption);
+        auto oledOption = pu::ui::elm::MenuItem::New("options.menu_items.oled"_lang);
+        oledOption->SetColor(COLOR("#FFFFFFFF"));
+        oledOption->SetIcon(this->getMenuOptionIcon(inst::config::oledMode));
+        this->menu->AddItem(oledOption);
         auto sigPatchesUrlOption = pu::ui::elm::MenuItem::New("options.menu_items.sig_url"_lang + inst::util::shortenString(inst::config::sigPatchesUrl, 42, false));
         sigPatchesUrlOption->SetColor(COLOR("#FFFFFFFF"));
         this->menu->AddItem(sigPatchesUrlOption);
@@ -153,10 +173,6 @@ namespace inst::ui {
         auto shopPassOption = pu::ui::elm::MenuItem::New("options.menu_items.shop_pass"_lang + shopPassDisplay);
         shopPassOption->SetColor(COLOR("#FFFFFFFF"));
         this->menu->AddItem(shopPassOption);
-        auto shopRememberOption = pu::ui::elm::MenuItem::New("options.menu_items.shop_remember"_lang);
-        shopRememberOption->SetColor(COLOR("#FFFFFFFF"));
-        shopRememberOption->SetIcon(this->getMenuOptionIcon(inst::config::shopRememberSelection));
-        this->menu->AddItem(shopRememberOption);
         auto languageOption = pu::ui::elm::MenuItem::New("options.menu_items.language"_lang + this->getMenuLanguage(inst::config::languageSetting));
         languageOption->SetColor(COLOR("#FFFFFFFF"));
         this->menu->AddItem(languageOption);
@@ -248,6 +264,33 @@ namespace inst::ui {
                     this->setMenuText();
                     break;
                 case 6:
+                    inst::config::soundEnabled = !inst::config::soundEnabled;
+                    inst::config::setConfig();
+                    this->setMenuText();
+                    break;
+                case 7:
+                    inst::config::oledMode = !inst::config::oledMode;
+                    inst::config::setConfig();
+                    {
+                        auto keepAlive = mainApp->optionspage;
+                        mainApp->mainPage = MainPage::New();
+                        mainApp->instpage = instPage::New();
+                        mainApp->sdinstPage = sdInstPage::New();
+                        mainApp->netinstPage = netInstPage::New();
+                        mainApp->usbinstPage = usbInstPage::New();
+                        mainApp->shopinstPage = shopInstPage::New();
+                        mainApp->optionspage = optionsPage::New();
+                        mainApp->mainPage->SetOnInput(std::bind(&MainPage::onInput, mainApp->mainPage, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+                        mainApp->netinstPage->SetOnInput(std::bind(&netInstPage::onInput, mainApp->netinstPage, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+                        mainApp->shopinstPage->SetOnInput(std::bind(&shopInstPage::onInput, mainApp->shopinstPage, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+                        mainApp->sdinstPage->SetOnInput(std::bind(&sdInstPage::onInput, mainApp->sdinstPage, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+                        mainApp->usbinstPage->SetOnInput(std::bind(&usbInstPage::onInput, mainApp->usbinstPage, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+                        mainApp->instpage->SetOnInput(std::bind(&instPage::onInput, mainApp->instpage, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+                        mainApp->optionspage->SetOnInput(std::bind(&optionsPage::onInput, mainApp->optionspage, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+                        mainApp->LoadLayout(mainApp->optionspage);
+                    }
+                    break;
+                case 8:
                     keyboardResult = inst::util::softwareKeyboard("options.sig_hint"_lang, inst::config::sigPatchesUrl.c_str(), 500);
                     if (keyboardResult.size() > 0) {
                         inst::config::sigPatchesUrl = keyboardResult;
@@ -255,7 +298,7 @@ namespace inst::ui {
                         this->setMenuText();
                     }
                     break;
-                case 7:
+                case 9:
                     keyboardResult = inst::util::softwareKeyboard("options.shop.url_hint"_lang, inst::config::shopUrl.c_str(), 200);
                     if (keyboardResult.size() > 0) {
                         inst::config::shopUrl = keyboardResult;
@@ -263,27 +306,19 @@ namespace inst::ui {
                         this->setMenuText();
                     }
                     break;
-                case 8:
+                case 10:
                     keyboardResult = inst::util::softwareKeyboard("options.shop.user_hint"_lang, inst::config::shopUser.c_str(), 100);
                     inst::config::shopUser = keyboardResult;
                     inst::config::setConfig();
                     this->setMenuText();
                     break;
-                case 9:
+                case 11:
                     keyboardResult = inst::util::softwareKeyboard("options.shop.pass_hint"_lang, inst::config::shopPass.c_str(), 100);
                     inst::config::shopPass = keyboardResult;
                     inst::config::setConfig();
                     this->setMenuText();
                     break;
-                case 10:
-                    inst::config::shopRememberSelection = !inst::config::shopRememberSelection;
-                    if (!inst::config::shopRememberSelection) {
-                        inst::config::shopSelection.clear();
-                    }
-                    inst::config::setConfig();
-                    this->setMenuText();
-                    break;
-                case 11:
+                case 12:
                     languageList = languageStrings;
                     languageList.push_back("options.language.system_language"_lang);
                     rc = inst::ui::mainApp->CreateShowDialog("options.language.title"_lang, "options.language.desc"_lang, languageList, false);
@@ -329,7 +364,7 @@ namespace inst::ui {
                     mainApp->FadeOut();
                     mainApp->Close();
                     break;
-                case 12:
+                case 13:
                     if (inst::util::getIPAddress() == "1.0.0.127") {
                         inst::ui::mainApp->CreateShowDialog("main.net.title"_lang, "main.net.desc"_lang, {"common.ok"_lang}, true);
                         break;
@@ -341,7 +376,7 @@ namespace inst::ui {
                     }
                     this->askToUpdate(downloadUrl);
                     break;
-                case 13:
+                case 14:
                     inst::ui::mainApp->CreateShowDialog("options.credits.title"_lang, "options.credits.desc"_lang, {"common.close"_lang}, true);
                     break;
                 default:

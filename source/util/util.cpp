@@ -269,6 +269,8 @@ namespace inst::util {
     }
 
     void playAudio(std::string audioPath) {
+        if (audioPath.empty())
+            return;
         int audio_rate = 22050;
         Uint16 audio_format = AUDIO_S16SYS;
         int audio_channels = 2;
@@ -301,7 +303,7 @@ namespace inst::util {
     
    std::vector<std::string> checkForAppUpdate () {
         try {
-            std::string jsonData = inst::curl::downloadToBuffer("https://api.github.com/repos/Huntereb/Awoo-Installer/releases/latest", 0, 0, 1000L);
+            std::string jsonData = inst::curl::downloadToBuffer("https://api.github.com/repos/luketanti/CyberFoil/releases/latest", 0, 0, 1000L);
             if (jsonData.size() == 0) return {};
             nlohmann::json ourJson = nlohmann::json::parse(jsonData);
             if (ourJson["tag_name"].get<std::string>() != inst::config::appVersion) {

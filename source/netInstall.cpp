@@ -178,7 +178,7 @@ namespace netInstStuff{
             inst::ui::instPage::setInstInfoText("inst.info_page.failed"_lang + urlNames[urlItr]);
             inst::ui::instPage::setInstBarPerc(0);
             std::string audioPath = "romfs:/audio/bark.wav";
-            if (inst::config::gayMode) audioPath = "";
+            if (!inst::config::soundEnabled) audioPath = "";
             if (std::filesystem::exists(inst::config::appDir + "/bark.wav")) audioPath = inst::config::appDir + "/bark.wav";
             std::thread audioThread(inst::util::playAudio,audioPath);
             inst::ui::mainApp->CreateShowDialog("inst.info_page.failed"_lang + urlNames[urlItr] + "!", "inst.info_page.failed_desc"_lang + "\n\n" + (std::string)e.what(), {"common.ok"_lang}, true);
@@ -198,9 +198,9 @@ namespace netInstStuff{
         if(nspInstalled) {
             inst::ui::instPage::setInstInfoText("inst.info_page.complete"_lang);
             inst::ui::instPage::setInstBarPerc(100);
-            std::string audioPath = "romfs:/audio/awoo.wav";
-            if (inst::config::gayMode) audioPath = "";
-            if (std::filesystem::exists(inst::config::appDir + "/awoo.wav")) audioPath = inst::config::appDir + "/awoo.wav";
+            std::string audioPath = "romfs:/audio/success.wav";
+            if (!inst::config::soundEnabled) audioPath = "";
+            if (std::filesystem::exists(inst::config::appDir + "/success.wav")) audioPath = inst::config::appDir + "/success.wav";
             std::thread audioThread(inst::util::playAudio,audioPath);
             if (ourUrlList.size() > 1) inst::ui::mainApp->CreateShowDialog(std::to_string(ourUrlList.size()) + "inst.info_page.desc0"_lang, Language::GetRandomMsg(), {"common.ok"_lang}, true);
             else inst::ui::mainApp->CreateShowDialog(urlNames[0] + "inst.info_page.desc1"_lang, Language::GetRandomMsg(), {"common.ok"_lang}, true);

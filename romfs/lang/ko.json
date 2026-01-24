@@ -171,10 +171,11 @@
             "shop_url": "Ownfoil URL: ",
             "shop_user": "Ownfoil 사용자 이름: ",
             "shop_pass": "Ownfoil 비밀번호: ",
-            "shop_remember": "Remember last shop selection",
             "language": "언어: ",
             "check_update": "Awoo 설치 프로그램에 대한 업데이트 확인",
-            "credits": "크레딧"
+            "credits": "크레딧",
+            "sound": "Enable sounds",
+            "oled": "Enable OLED mode"
         },
         "nca_warn": {
             "title": "경고!",

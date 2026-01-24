@@ -10,13 +10,13 @@ namespace inst::config {
     std::string shopUrl;
     std::string shopUser;
     std::string shopPass;
-    bool shopRememberSelection;
-    std::vector<std::string> shopSelection;
     std::vector<std::string> updateInfo;
     int languageSetting;
     bool autoUpdate;
     bool deletePrompt;
     bool gayMode;
+    bool soundEnabled;
+    bool oledMode;
     bool ignoreReqVers;
     bool overClock;
     bool usbAck;
@@ -28,6 +28,8 @@ namespace inst::config {
             {"deletePrompt", deletePrompt},
             {"gAuthKey", gAuthKey},
             {"gayMode", gayMode},
+            {"soundEnabled", soundEnabled},
+            {"oledMode", oledMode},
             {"ignoreReqVers", ignoreReqVers},
             {"languageSetting", languageSetting},
             {"overClock", overClock},
@@ -38,8 +40,8 @@ namespace inst::config {
             {"shopUrl", shopUrl},
             {"shopUser", shopUser},
             {"shopPass", shopPass},
-            {"shopRememberSelection", shopRememberSelection},
-            {"shopSelection", shopSelection}
+            {"shopRememberSelection", false},
+            {"shopSelection", nlohmann::json::array()}
         };
         std::ofstream file(inst::config::configPath);
         file << std::setw(4) << j << std::endl;
@@ -51,7 +53,9 @@ namespace inst::config {
         languageSetting = 99;
         autoUpdate = true;
         deletePrompt = true;
-        gayMode = false;
+        gayMode = true;
+        soundEnabled = true;
+        oledMode = false;
         ignoreReqVers = true;
         overClock = false;
         usbAck = false;
@@ -60,8 +64,6 @@ namespace inst::config {
         shopUrl.clear();
         shopUser.clear();
         shopPass.clear();
-        shopRememberSelection = false;
-        shopSelection.clear();
 
         try {
             std::ifstream file(inst::config::configPath);
@@ -71,6 +73,8 @@ namespace inst::config {
             if (j.contains("deletePrompt")) deletePrompt = j["deletePrompt"].get<bool>();
             if (j.contains("gAuthKey")) gAuthKey = j["gAuthKey"].get<std::string>();
             if (j.contains("gayMode")) gayMode = j["gayMode"].get<bool>();
+            if (j.contains("soundEnabled")) soundEnabled = j["soundEnabled"].get<bool>();
+            if (j.contains("oledMode")) oledMode = j["oledMode"].get<bool>();
             if (j.contains("ignoreReqVers")) ignoreReqVers = j["ignoreReqVers"].get<bool>();
             if (j.contains("languageSetting")) languageSetting = j["languageSetting"].get<int>();
             if (j.contains("overClock")) overClock = j["overClock"].get<bool>();
@@ -81,8 +85,6 @@ namespace inst::config {
             if (j.contains("shopUrl")) shopUrl = j["shopUrl"].get<std::string>();
             if (j.contains("shopUser")) shopUser = j["shopUser"].get<std::string>();
             if (j.contains("shopPass")) shopPass = j["shopPass"].get<std::string>();
-            if (j.contains("shopRememberSelection")) shopRememberSelection = j["shopRememberSelection"].get<bool>();
-            if (j.contains("shopSelection")) shopSelection = j["shopSelection"].get<std::vector<std::string>>();
         }
         catch (...) {
             // If loading values from the config fails, we just load the defaults and overwrite the old config
