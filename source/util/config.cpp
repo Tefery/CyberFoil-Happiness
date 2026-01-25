@@ -21,6 +21,8 @@ namespace inst::config {
     bool overClock;
     bool usbAck;
     bool validateNCAs;
+    bool shopHideInstalled;
+    bool shopHideInstalledSection;
 
     void setConfig() {
         nlohmann::json j = {
@@ -40,6 +42,8 @@ namespace inst::config {
             {"shopUrl", shopUrl},
             {"shopUser", shopUser},
             {"shopPass", shopPass},
+            {"shopHideInstalled", shopHideInstalled},
+            {"shopHideInstalledSection", shopHideInstalledSection},
             {"shopRememberSelection", false},
             {"shopSelection", nlohmann::json::array()}
         };
@@ -64,6 +68,8 @@ namespace inst::config {
         shopUrl.clear();
         shopUser.clear();
         shopPass.clear();
+        shopHideInstalled = false;
+        shopHideInstalledSection = false;
 
         try {
             std::ifstream file(inst::config::configPath);
@@ -85,6 +91,8 @@ namespace inst::config {
             if (j.contains("shopUrl")) shopUrl = j["shopUrl"].get<std::string>();
             if (j.contains("shopUser")) shopUser = j["shopUser"].get<std::string>();
             if (j.contains("shopPass")) shopPass = j["shopPass"].get<std::string>();
+            if (j.contains("shopHideInstalled")) shopHideInstalled = j["shopHideInstalled"].get<bool>();
+            if (j.contains("shopHideInstalledSection")) shopHideInstalledSection = j["shopHideInstalledSection"].get<bool>();
         }
         catch (...) {
             // If loading values from the config fails, we just load the defaults and overwrite the old config

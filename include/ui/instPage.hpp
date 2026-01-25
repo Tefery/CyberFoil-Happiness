@@ -13,11 +13,14 @@ namespace inst::ui {
             TextBlock::Ref installInfoText;
             pu::ui::elm::ProgressBar::Ref installBar;
             Image::Ref awooImage;
+            Image::Ref installIconImage;
             Image::Ref titleImage;
             TextBlock::Ref appVersionText;
             static void setTopInstInfoText(std::string ourText);
             static void setInstInfoText(std::string ourText);
             static void setInstBarPerc(double ourPercent);
+            static void setInstallIcon(const std::string& imagePath);
+            static void clearInstallIcon();
             static void loadMainMenu();
             static void loadInstallScreen();
         private:

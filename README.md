@@ -1,4 +1,9 @@
 # CyberFoil
+![GitHub all releases downloads](https://img.shields.io/github/downloads/luketanti/CyberFoil/total)
+![GitHub latest release downloads](https://img.shields.io/github/downloads/luketanti/CyberFoil/latest/total)
+
+Version: 1.3.8
+
 A No-Bullshit NSP, NSZ, XCI, and XCZ Installer for Nintendo Switch
 
 ![CyberFoil Main Menu](screenshots/CyberFoil_Main_Menu.jpg)
@@ -50,6 +55,11 @@ Notes:
 - The Installed section lists content already on the Switch and cannot be installed from.
 - The shop list is cached for faster startup (5-minute TTL). Use X to refresh.
 
+New in 1.3.8:
+- Option to hide installed titles in the eShop (keeps All available).
+- Option to hide the Installed section in the eShop.
+- Updates and DLC now respect base install status and installed DLC visibility.
+
 Screenshots:
 ![Shop Section](screenshots/CyberFoil_eShop.jpg)
 ![Shop Section](screenshots/CyberFoil_eShop_settings.jpg)
@@ -62,6 +72,7 @@ Screenshots:
 
 ## Thanks to
 - HookedBehemoth for A LOT of contributions
+- Huntereb for creating Awoo Installer
 - Adubbz and other contributors for [Tinfoil](https://github.com/Adubbz/Tinfoil)
 - XorTroll for [Plutonium](https://github.com/XorTroll/Plutonium) and [Goldleaf](https://github.com/XorTroll/Goldleaf)
 - blawar (wife strangulator) and nicoboss for [NSZ](https://github.com/nicoboss/nsz) support

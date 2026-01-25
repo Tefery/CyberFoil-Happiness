@@ -95,6 +95,14 @@ namespace {
         return false;
     }
 
+    bool IsBaseTitleCurrentlyInstalled(u64 baseTitleId)
+    {
+        s32 metaCount = 0;
+        if (R_FAILED(nsCountApplicationContentMeta(baseTitleId, &metaCount)) || metaCount <= 0)
+            return false;
+        return tin::util::IsTitleInstalled(baseTitleId);
+    }
+
     bool TryGetInstalledUpdateVersionNcm(u64 baseTitleId, u32& outVersion)
     {
         outVersion = 0;
@@ -262,6 +270,8 @@ namespace inst::ui {
 
             for (s32 i = 0; i < outCount; i++) {
                 const u64 baseId = records[i].application_id;
+                if (!IsBaseTitleCurrentlyInstalled(baseId))
+                    continue;
                 shopInstStuff::ShopItem baseItem;
                 baseItem.name = tin::util::GetTitleName(baseId, NcmContentMetaType_Application);
                 baseItem.url = "";
@@ -340,8 +350,10 @@ namespace inst::ui {
             s32 outCount = 0;
             if (R_FAILED(nsListApplicationRecord(records, chunk, offset, &outCount)) || outCount <= 0)
                 break;
-            for (s32 i = 0; i < outCount; i++)
-                baseInstalled[records[i].application_id] = true;
+            for (s32 i = 0; i < outCount; i++) {
+                const auto titleId = records[i].application_id;
+                baseInstalled[titleId] = IsBaseTitleCurrentlyInstalled(titleId);
+            }
             offset += outCount;
         }
 
@@ -351,17 +363,20 @@ namespace inst::ui {
                 return false;
             auto baseIt = baseInstalled.find(baseTitleId);
             if (baseIt != baseInstalled.end()) {
-                auto verIt = installedUpdateVersion.find(baseTitleId);
-                if (verIt != installedUpdateVersion.end()) {
-                    outVersion = verIt->second;
-                    return baseIt->second;
+                if (baseIt->second) {
+                    auto verIt = installedUpdateVersion.find(baseTitleId);
+                    if (verIt != installedUpdateVersion.end()) {
+                        outVersion = verIt->second;
+                    } else {
+                        tin::util::GetInstalledUpdateVersion(baseTitleId, outVersion);
+                        if (outVersion == 0)
+                            TryGetInstalledUpdateVersionNcm(baseTitleId, outVersion);
+                        installedUpdateVersion[baseTitleId] = outVersion;
+                    }
                 }
-                if (!baseIt->second)
-                    return false;
+                return baseIt->second;
             }
-            bool installed = true;
-            if (baseIt == baseInstalled.end())
-                installed = tin::util::IsTitleInstalled(baseTitleId);
+            bool installed = IsBaseTitleCurrentlyInstalled(baseTitleId);
             if (installed) {
                 tin::util::GetInstalledUpdateVersion(baseTitleId, outVersion);
                 if (outVersion == 0)
@@ -390,10 +405,81 @@ namespace inst::ui {
                     if (item.appVersion > installedVersion)
                         filtered.push_back(item);
                 } else {
+                    if (item.hasTitleId && tin::util::IsTitleInstalled(item.titleId))
+                        continue;
                     filtered.push_back(item);
                 }
             }
             section.items = std::move(filtered);
+        }
+
+        for (auto& section : this->shopSections) {
+            if (section.items.empty())
+                continue;
+            if (section.id == "all" || section.id == "installed")
+                continue;
+            if (section.id == "updates" || section.id == "dlc")
+                continue;
+
+            std::vector<shopInstStuff::ShopItem> filtered;
+            filtered.reserve(section.items.size());
+            for (const auto& item : section.items) {
+                if (item.appType != NcmContentMetaType_AddOnContent) {
+                    filtered.push_back(item);
+                    continue;
+                }
+                std::uint32_t installedVersion = 0;
+                if (item.hasTitleId && tin::util::IsTitleInstalled(item.titleId))
+                    continue;
+                if (isBaseInstalled(item, installedVersion))
+                    filtered.push_back(item);
+            }
+            section.items = std::move(filtered);
+        }
+
+        if (inst::config::shopHideInstalled) {
+            for (auto& section : this->shopSections) {
+                if (section.items.empty())
+                    continue;
+                if (section.id == "all" || section.id == "installed" || section.id == "updates")
+                    continue;
+
+                std::vector<shopInstStuff::ShopItem> filtered;
+                filtered.reserve(section.items.size());
+                for (const auto& item : section.items) {
+                    std::uint32_t installedVersion = 0;
+                    if (!IsBaseItem(item) || !item.hasTitleId || !isBaseInstalled(item, installedVersion)) {
+                        filtered.push_back(item);
+                    }
+                }
+                section.items = std::move(filtered);
+            }
+        }
+
+        auto hasSuffix = [](const std::string& text, const std::string& suffix) {
+            if (text.size() < suffix.size())
+                return false;
+            return text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
+        };
+
+        auto appendTypeLabels = [&](shopInstStuff::ShopSection& section) {
+            static const std::string kUpdateSuffix = " (Update)";
+            static const std::string kDlcSuffix = " (DLC)";
+            for (auto& item : section.items) {
+                if (item.appType == NcmContentMetaType_Patch) {
+                    if (!hasSuffix(item.name, kUpdateSuffix))
+                        item.name += kUpdateSuffix;
+                } else if (item.appType == NcmContentMetaType_AddOnContent) {
+                    if (!hasSuffix(item.name, kDlcSuffix))
+                        item.name += kDlcSuffix;
+                }
+            }
+        };
+
+        for (auto& section : this->shopSections) {
+            if (section.items.empty())
+                continue;
+            appendTypeLabels(section);
         }
 
         ncmExit();
@@ -615,6 +701,12 @@ namespace inst::ui {
             }
             this->menu->AddItem(entry);
         }
+
+        if (!this->menu->GetItems().empty()) {
+            int sel = this->menu->GetSelectedIndex();
+            if (sel < 0 || sel >= (int)this->menu->GetItems().size())
+                this->menu->SetSelectedIndex(0);
+        }
     }
 
     void shopInstPage::updateInstalledGrid() {
@@ -775,11 +867,18 @@ namespace inst::ui {
         if (!motd.empty())
             mainApp->CreateShowDialog("inst.shop.motd_title"_lang, motd, {"common.ok"_lang}, true);
 
-        this->buildInstalledSection();
+        if (!inst::config::shopHideInstalledSection)
+            this->buildInstalledSection();
         this->cacheAvailableUpdates();
         this->filterOwnedSections();
 
         this->selectedSectionIndex = 0;
+        for (size_t i = 0; i < this->shopSections.size(); i++) {
+            if (this->shopSections[i].id == "recommended") {
+                this->selectedSectionIndex = static_cast<int>(i);
+                break;
+            }
+        }
         this->gridSelectedIndex = 0;
         this->gridPage = -1;
         this->updateSectionText();

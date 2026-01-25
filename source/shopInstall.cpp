@@ -16,6 +16,7 @@
 #include "ui/MainApplication.hpp"
 #include "ui/instPage.hpp"
 #include "util/config.hpp"
+#include "util/curl.hpp"
 #include "util/error.hpp"
 #include "util/json.hpp"
 #include "util/lang.hpp"
@@ -103,6 +104,58 @@ namespace {
         if (!urlPath.empty() && urlPath[0] == '/')
             return baseUrl + urlPath;
         return baseUrl + "/" + urlPath;
+    }
+
+    std::string GetShopIconCachePath(const shopInstStuff::ShopItem& item)
+    {
+        if (!item.hasIconUrl)
+            return "";
+        std::string cacheDir = inst::config::appDir + "/shop_icons";
+        if (!std::filesystem::exists(cacheDir))
+            std::filesystem::create_directory(cacheDir);
+
+        std::string urlPath = item.iconUrl;
+        std::string ext = ".jpg";
+        auto queryPos = urlPath.find('?');
+        std::string cleanPath = queryPos == std::string::npos ? urlPath : urlPath.substr(0, queryPos);
+        auto dotPos = cleanPath.find_last_of('.');
+        if (dotPos != std::string::npos) {
+            std::string suffix = cleanPath.substr(dotPos);
+            if (suffix.size() <= 5 && suffix.find('/') == std::string::npos && suffix.find('?') == std::string::npos)
+                ext = suffix;
+        }
+
+        std::string fileName;
+        if (item.hasTitleId)
+            fileName = std::to_string(item.titleId);
+        else
+            fileName = std::to_string(std::hash<std::string>{}(item.iconUrl));
+        return cacheDir + "/" + fileName + ext;
+    }
+
+    void UpdateInstallIcon(const shopInstStuff::ShopItem& item)
+    {
+        if (!item.hasIconUrl) {
+            inst::ui::instPage::clearInstallIcon();
+            return;
+        }
+
+        std::string filePath = GetShopIconCachePath(item);
+        if (filePath.empty()) {
+            inst::ui::instPage::clearInstallIcon();
+            return;
+        }
+
+        if (!std::filesystem::exists(filePath)) {
+            bool ok = inst::curl::downloadImageWithAuth(item.iconUrl, filePath.c_str(), inst::config::shopUser, inst::config::shopPass, 8000);
+            if (!ok && std::filesystem::exists(filePath))
+                std::filesystem::remove(filePath);
+        }
+
+        if (std::filesystem::exists(filePath))
+            inst::ui::instPage::setInstallIcon(filePath);
+        else
+            inst::ui::instPage::clearInstallIcon();
     }
 
     constexpr int kShopCacheTtlSeconds = 300;
@@ -418,7 +471,7 @@ namespace shopInstStuff {
             return false;
         }
         if (fetch.body.rfind("TINFOIL", 0) == 0) {
-            error = "Encrypted shop responses are not supported. Disable Encrypt shop in Ownfoil settings.";
+            error = "inst.shop.encrypted_unsupported"_lang;
             return false;
         }
         return true;
@@ -609,6 +662,7 @@ namespace shopInstStuff {
             for (size_t i = 0; i < items.size(); i++) {
                 LOG_DEBUG("%s %s\n", "Install request from", items[i].url.c_str());
                 currentName = names[i];
+                UpdateInstallIcon(items[i]);
                 inst::ui::instPage::setTopInstInfoText("inst.info_page.top_info0"_lang + currentName + sourceLabel);
                 std::unique_ptr<tin::install::Install> installTask;
 

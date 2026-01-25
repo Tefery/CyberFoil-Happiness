@@ -173,6 +173,14 @@ namespace inst::ui {
         auto shopPassOption = pu::ui::elm::MenuItem::New("options.menu_items.shop_pass"_lang + shopPassDisplay);
         shopPassOption->SetColor(COLOR("#FFFFFFFF"));
         this->menu->AddItem(shopPassOption);
+        auto shopHideInstalledOption = pu::ui::elm::MenuItem::New("options.menu_items.shop_hide_installed"_lang);
+        shopHideInstalledOption->SetColor(COLOR("#FFFFFFFF"));
+        shopHideInstalledOption->SetIcon(this->getMenuOptionIcon(inst::config::shopHideInstalled));
+        this->menu->AddItem(shopHideInstalledOption);
+        auto shopHideInstalledSectionOption = pu::ui::elm::MenuItem::New("options.menu_items.shop_hide_installed_section"_lang);
+        shopHideInstalledSectionOption->SetColor(COLOR("#FFFFFFFF"));
+        shopHideInstalledSectionOption->SetIcon(this->getMenuOptionIcon(inst::config::shopHideInstalledSection));
+        this->menu->AddItem(shopHideInstalledSectionOption);
         auto languageOption = pu::ui::elm::MenuItem::New("options.menu_items.language"_lang + this->getMenuLanguage(inst::config::languageSetting));
         languageOption->SetColor(COLOR("#FFFFFFFF"));
         this->menu->AddItem(languageOption);
@@ -319,6 +327,16 @@ namespace inst::ui {
                     this->setMenuText();
                     break;
                 case 12:
+                    inst::config::shopHideInstalled = !inst::config::shopHideInstalled;
+                    inst::config::setConfig();
+                    this->setMenuText();
+                    break;
+                case 13:
+                    inst::config::shopHideInstalledSection = !inst::config::shopHideInstalledSection;
+                    inst::config::setConfig();
+                    this->setMenuText();
+                    break;
+                case 14:
                     languageList = languageStrings;
                     languageList.push_back("options.language.system_language"_lang);
                     rc = inst::ui::mainApp->CreateShowDialog("options.language.title"_lang, "options.language.desc"_lang, languageList, false);
@@ -364,7 +382,7 @@ namespace inst::ui {
                     mainApp->FadeOut();
                     mainApp->Close();
                     break;
-                case 13:
+                case 15:
                     if (inst::util::getIPAddress() == "1.0.0.127") {
                         inst::ui::mainApp->CreateShowDialog("main.net.title"_lang, "main.net.desc"_lang, {"common.ok"_lang}, true);
                         break;
@@ -376,7 +394,7 @@ namespace inst::ui {
                     }
                     this->askToUpdate(downloadUrl);
                     break;
-                case 14:
+                case 16:
                     inst::ui::mainApp->CreateShowDialog("options.credits.title"_lang, "options.credits.desc"_lang, {"common.close"_lang}, true);
                     break;
                 default:

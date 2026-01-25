@@ -24,6 +24,8 @@ namespace inst::config {
     extern bool soundEnabled;
     extern bool oledMode;
     extern bool usbAck;
+    extern bool shopHideInstalled;
+    extern bool shopHideInstalledSection;
 
     void setConfig();
     void parseConfig();
