@@ -72,11 +72,12 @@ Screenshots:
 - Shop icon cache is stored in `sdmc:/switch/CyberFoil/shop_icons/`.
 
 ## To Do
-- Better search and navigation for large libraries (Planned)
-- Add MTP Install function for NSP,NSZ,XCI and XCZ installation (In-progress)
-- Switch betwwen multiple shops
-- Pre-load to cache title images and banners
-- Make a noobs video tutorial for the complete setup (CyberFoil and Ownfoil)
+- Improve search and navigation for large libraries (Planned)
+- Add MTP install functionality for NSP, NSZ, XCI, and XCZ files (In progress)
+- Add support for switching between multiple shops
+- Preload title images and banners to cache for a faster UI experience
+- Create a beginner-friendly video tutorial for the complete setup (CyberFoil and Ownfoil)
+
 
 
 ## Thanks to
