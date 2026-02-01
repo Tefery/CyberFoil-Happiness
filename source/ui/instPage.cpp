@@ -3,6 +3,7 @@
 #include "ui/instPage.hpp"
 #include "util/config.hpp"
 #include "mtp_server.hpp"
+#include <switch.h>
 
 #define COLOR(hex) pu::ui::Color::FromHex(hex)
 
@@ -70,6 +71,9 @@ namespace inst::ui {
         this->progressText = TextBlock::New(0, 340, "", 30);
         this->progressText->SetColor(COLOR("#FFFFFFFF"));
         this->progressText->SetVisible(false);
+        this->progressDetailText = TextBlock::New(0, 646, "", 22);
+        this->progressDetailText->SetColor(COLOR("#FFFFFFFF"));
+        this->progressDetailText->SetVisible(false);
         if (std::filesystem::exists(inst::config::appDir + "/awoo_inst.png")) this->awooImage = Image::New(410, 190, inst::config::appDir + "/awoo_inst.png");
         else this->awooImage = Image::New(510, 166, "romfs:/images/awoos/7d8a05cddfef6da4901b20d2698d5a71.png");
         this->installIconImage = Image::New(kInstallIconX, kInstallIconY, "romfs:/images/awoos/7d8a05cddfef6da4901b20d2698d5a71.png");
@@ -101,6 +105,7 @@ namespace inst::ui {
         this->Add(this->installInfoText);
         this->Add(this->installBar);
         this->Add(this->progressText);
+        this->Add(this->progressDetailText);
         this->Add(this->hintText);
         this->Add(this->awooImage);
         this->Add(this->installIconImage);
@@ -120,6 +125,41 @@ namespace inst::ui {
     void instPage::setInstBarPerc(double ourPercent){
         mainApp->instpage->installBar->SetVisible(true);
         mainApp->instpage->installBar->SetProgress(ourPercent);
+        mainApp->CallForRender();
+    }
+
+    void instPage::setProgressDetailText(const std::string& ourText){
+        mainApp->instpage->progressDetailText->SetText(ourText);
+        mainApp->instpage->progressDetailText->SetX((1280 - mainApp->instpage->progressDetailText->GetTextWidth()) / 2);
+        mainApp->instpage->progressDetailText->SetVisible(true);
+        mainApp->CallForRender();
+    }
+
+    void instPage::clearProgressDetailText(){
+        mainApp->instpage->progressDetailText->SetVisible(false);
+        mainApp->CallForRender();
+    }
+
+    void instPage::setInstallIconFromTitleId(u64 titleId){
+        if (titleId == 0) {
+            return;
+        }
+
+        NsApplicationControlData appControlData{};
+        size_t sizeRead = 0;
+        Result rc = nsGetApplicationControlData(NsApplicationControlSource_Storage, titleId, &appControlData, sizeof(NsApplicationControlData), &sizeRead);
+        if (R_FAILED(rc) || sizeRead <= sizeof(appControlData.nacp)) {
+            return;
+        }
+
+        const size_t iconSize = sizeRead - sizeof(appControlData.nacp);
+        if (iconSize == 0) {
+            return;
+        }
+
+        mainApp->instpage->installIconImage->SetJpegImage(appControlData.icon, iconSize);
+        mainApp->instpage->installIconImage->SetVisible(true);
+        mainApp->instpage->awooImage->SetVisible(false);
         mainApp->CallForRender();
     }
 
@@ -156,6 +196,7 @@ namespace inst::ui {
         mainApp->instpage->installBar->SetVisible(false);
         mainApp->instpage->hintText->SetVisible(false);
         mainApp->instpage->progressText->SetVisible(false);
+        mainApp->instpage->progressDetailText->SetVisible(false);
         mainApp->instpage->installIconImage->SetVisible(false);
         mainApp->instpage->awooImage->SetVisible(!inst::config::gayMode);
         mainApp->LoadLayout(mainApp->instpage);

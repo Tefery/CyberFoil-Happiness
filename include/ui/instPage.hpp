@@ -18,6 +18,7 @@ namespace inst::ui {
             TextBlock::Ref appVersionText;
             TextBlock::Ref hintText;
             TextBlock::Ref progressText;
+            TextBlock::Ref progressDetailText;
             TextBlock::Ref timeText;
             TextBlock::Ref sysLabelText;
             TextBlock::Ref sysFreeText;
@@ -37,6 +38,9 @@ namespace inst::ui {
             static void setTopInstInfoText(std::string ourText);
             static void setInstInfoText(std::string ourText);
             static void setInstBarPerc(double ourPercent);
+            static void setProgressDetailText(const std::string& ourText);
+            static void clearProgressDetailText();
+            static void setInstallIconFromTitleId(u64 titleId);
             static void setInstallIcon(const std::string& imagePath);
             static void clearInstallIcon();
             static void loadMainMenu();
