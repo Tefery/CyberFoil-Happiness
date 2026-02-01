@@ -731,7 +731,7 @@ namespace shopInstStuff {
             }
 
         private:
-            static constexpr size_t kReadAheadSize = 8 * 1024 * 1024;
+            static constexpr size_t kReadAheadSize = 16 * 1024 * 1024;
             tin::network::HTTPDownload& m_download;
             std::vector<std::uint8_t> m_cache;
             size_t m_cache_start = 0;
@@ -882,7 +882,7 @@ namespace shopInstStuff {
             std::unordered_map<std::string, EntryState> entries;
             entries.reserve(collections.size());
 
-            std::vector<std::uint8_t> buf(0x400000);
+            std::vector<std::uint8_t> buf(0x800000);
             for (const auto& collection : collections) {
                 EntryState entry;
                 entry.name = collection.name;
