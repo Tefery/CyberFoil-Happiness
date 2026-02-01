@@ -68,6 +68,7 @@
             "loading": "A carregar a lista da loja...",
             "top_info": "Selecione os ficheiros que deseja instalar da loja e depois pressione o botão Mais!",
             "failed": "Falha ao carregar a loja",
+            "unreachable": "Não foi possível acessar a loja.",
             "encrypted_unsupported": "Respostas de loja criptografadas não são suportadas. Desative «Criptografar loja» nas configurações do Ownfoil.",
             "empty": "A loja não tem ficheiros.",
             "source_string": " da loja Ownfoil",

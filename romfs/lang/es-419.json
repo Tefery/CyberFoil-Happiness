@@ -68,6 +68,7 @@
             "loading": "Cargando lista de la tienda...",
             "top_info": "Selecciona los archivos que quieres instalar desde la tienda y luego pulsa el botón +",
             "failed": "No se pudo cargar la tienda",
+            "unreachable": "No se puede acceder a la tienda.",
             "encrypted_unsupported": "Las respuestas cifradas de la tienda no son compatibles. Desactiva «Cifrar tienda» en los ajustes de Ownfoil.",
             "empty": "La tienda no tiene archivos.",
             "source_string": " desde la tienda de Ownfoil",

@@ -68,6 +68,7 @@
             "loading": "Chargement de la liste de la boutique...",
             "top_info": "Sélectionnez les fichiers que vous voulez installer depuis la boutique, puis appuyez sur le bouton Plus !",
             "failed": "Échec du chargement de la boutique",
+            "unreachable": "Impossible de joindre la boutique.",
             "encrypted_unsupported": "Les réponses chiffrées de la boutique ne sont pas prises en charge. Désactivez « Chiffrer la boutique » dans les paramètres d’Ownfoil.",
             "empty": "La boutique ne contient aucun fichier.",
             "source_string": " depuis la boutique Ownfoil",

@@ -68,6 +68,7 @@
             "loading": "Caricamento elenco del negozio...",
             "top_info": "Seleziona i file che vuoi installare dal negozio, poi premi il tasto Più!",
             "failed": "Impossibile caricare il negozio",
+            "unreachable": "Impossibile raggiungere il negozio.",
             "encrypted_unsupported": "Le risposte del negozio crittografate non sono supportate. Disattiva «Crittografa negozio» nelle impostazioni di Ownfoil.",
             "empty": "Il negozio non contiene file.",
             "source_string": " dal negozio Ownfoil",

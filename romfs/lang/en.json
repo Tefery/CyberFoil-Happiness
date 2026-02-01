@@ -69,6 +69,7 @@
             "loading": "Loading eShop list...",
             "top_info": "Select what files you want to install from the shop, then press the Plus button! Section:",
             "failed": "Failed to load shop",
+            "unreachable": "Cannot reach shop.",
             "encrypted_unsupported": "Encrypted shop responses are not supported. Disable Encrypt shop in Ownfoil settings.",
             "empty": "Shop has no files.",
             "source_string": " from Ownfoil shop",

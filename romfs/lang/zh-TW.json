@@ -68,6 +68,7 @@
             "loading": "正在載入商店清單...",
             "top_info": "選擇要從商店安裝的檔案，然後按下  鍵開始安裝！",
             "failed": "載入商店失敗",
+            "unreachable": "無法連線到商店。",
             "encrypted_unsupported": "不支援加密的商店回應。請在 Ownfoil 設定中停用「加密商店」。",
             "empty": "商店中沒有任何檔案。",
             "source_string": " 來自 Ownfoil 商店",

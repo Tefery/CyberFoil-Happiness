@@ -604,19 +604,6 @@ namespace shopInstStuff {
             return sections;
         }
 
-        if (allowCache) {
-            std::string cachedBody;
-            bool fresh = false;
-            if (LoadShopCache(baseUrl, cachedBody, fresh) && fresh) {
-                std::string cacheError;
-                sections = ParseShopSectionsBody(cachedBody, baseUrl, cacheError);
-                if (!sections.empty()) {
-                    error.clear();
-                    return sections;
-                }
-            }
-        }
-
         std::string sectionsUrl = baseUrl + "/api/shop/sections";
         FetchResult fetch = FetchShopResponse(sectionsUrl, user, pass);
         if (fetch.responseCode == 404) {
@@ -628,6 +615,10 @@ namespace shopInstStuff {
         }
 
         if (!ValidateShopResponse(fetch, error)) {
+            if (!fetch.error.empty()) {
+                error = "inst.shop.unreachable"_lang;
+                return sections;
+            }
             if (allowCache) {
                 std::string cachedBody;
                 bool fresh = false;

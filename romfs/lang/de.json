@@ -68,6 +68,7 @@
             "loading": "Shop-Liste wird geladen...",
             "top_info": "Wähle aus, welche Dateien du aus dem Shop installieren möchtest, und drücke dann die Plus-Taste!",
             "failed": "Shop konnte nicht geladen werden",
+            "unreachable": "Shop nicht erreichbar.",
             "encrypted_unsupported": "Verschlüsselte Shop-Antworten werden nicht unterstützt. Deaktiviere „Shop verschlüsseln“ in den Ownfoil-Einstellungen.",
             "empty": "Der Shop enthält keine Dateien.",
             "source_string": " aus dem Ownfoil-Shop",

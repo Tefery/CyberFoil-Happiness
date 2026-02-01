@@ -68,6 +68,7 @@
             "loading": "상점 목록을 불러오는 중...",
             "top_info": "상점에서 설치할 파일을 선택한 다음 플러스 버튼을 누르세요!",
             "failed": "상점을 불러오지 못했습니다",
+            "unreachable": "상점에 접속할 수 없습니다.",
             "encrypted_unsupported": "암호화된 상점 응답은 지원되지 않습니다. Ownfoil 설정에서 '상점 암호화'를 비활성화하세요.",
             "empty": "상점에 파일이 없습니다.",
             "source_string": " Ownfoil 상점에서",
