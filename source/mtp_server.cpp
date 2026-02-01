@@ -12,6 +12,7 @@
 
 #include "../include/mtp_install.hpp"
 #include "util/error.hpp"
+#include "util/usb_comms_awoo.h"
 
 namespace inst::mtp {
 namespace {
@@ -28,6 +29,7 @@ bool g_running = false;
 std::mutex g_state_mutex;
 int g_storage_choice = 0;
 bool g_ncm_ready = false;
+bool g_awoo_suspended = false;
 
 constexpr u16 kMtpVid = 0x057e; // Nintendo
 constexpr u16 kMtpPid = 0x201d; // Switch
@@ -315,10 +317,18 @@ haze::FsEntries g_entries;
 
 bool StartInstallServer(int storage_choice)
 {
+    if (IsInstallServerRunning()) {
+        StopInstallServer();
+    }
+
     std::lock_guard<std::mutex> lock(g_state_mutex);
     if (g_running) return true;
 
     g_storage_choice = storage_choice;
+    if (!g_awoo_suspended) {
+        awoo_usbCommsExit();
+        g_awoo_suspended = true;
+    }
     if (!g_ncm_ready) {
         if (R_SUCCEEDED(ncmInitialize())) {
             g_ncm_ready = true;
@@ -328,15 +338,22 @@ bool StartInstallServer(int storage_choice)
     g_entries.emplace_back(std::make_shared<FsInstallProxy>("install", "Install (NSP, XCI, NSZ, XCZ)"));
 
     if (!haze::Initialize(nullptr, 0x2C, 2, g_entries, kMtpVid, kMtpPid)) {
+        if (g_awoo_suspended) {
+            const Result rc = awoo_usbCommsInitialize();
+            if (R_SUCCEEDED(rc) || rc == MAKERESULT(Module_Libnx, LibnxError_AlreadyInitialized)) {
+                g_awoo_suspended = false;
+            }
+        }
         return false;
     }
 
-    if (R_SUCCEEDED(usbDsDisable())) {
-        svcSleepThread(50'000'000);
-        usbDsEnable();
-    }
 
-    g_shared.enabled = true;
+    {
+        std::lock_guard<std::mutex> shared_lock(g_shared.mutex);
+        g_shared.current_file.clear();
+        g_shared.in_progress = false;
+        g_shared.enabled = true;
+    }
     g_running = true;
     return true;
 }
@@ -348,15 +365,21 @@ void StopInstallServer()
     inst::mtp::CancelStreamInstall();
     haze::Exit();
     g_entries.clear();
-    g_shared.enabled = false;
-    g_shared.in_progress = false;
-    g_shared.current_file.clear();
-    if (R_SUCCEEDED(usbDsDisable())) {
-        svcSleepThread(50'000'000);
+    {
+        std::lock_guard<std::mutex> shared_lock(g_shared.mutex);
+        g_shared.enabled = false;
+        g_shared.in_progress = false;
+        g_shared.current_file.clear();
     }
     if (g_ncm_ready) {
         ncmExit();
         g_ncm_ready = false;
+    }
+    if (g_awoo_suspended) {
+        const Result rc = awoo_usbCommsInitialize();
+        if (R_SUCCEEDED(rc) || rc == MAKERESULT(Module_Libnx, LibnxError_AlreadyInitialized)) {
+            g_awoo_suspended = false;
+        }
     }
     g_running = false;
 }

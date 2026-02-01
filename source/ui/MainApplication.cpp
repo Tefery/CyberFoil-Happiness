@@ -1,9 +1,12 @@
 #include "ui/MainApplication.hpp"
 #include "util/lang.hpp"
 #include "util/config.hpp"
+#include "util/util.hpp"
 #include <chrono>
 #include <ctime>
 #include <cstdio>
+#include <filesystem>
+#include <thread>
 #include "mtp_install.hpp"
 #include "mtp_server.hpp"
 #include "switch.h"
@@ -205,7 +208,14 @@ namespace inst::ui {
                 this->instpage->progressText->SetX((1280 - this->instpage->progressText->GetTextWidth()) / 2);
                 this->instpage->progressText->SetVisible(true);
                 if (!complete_notified) {
+                    std::string audioPath = "romfs:/audio/success.wav";
+                    if (!inst::config::soundEnabled) audioPath = "";
+                    if (std::filesystem::exists(inst::config::appDir + "/success.wav")) {
+                        audioPath = inst::config::appDir + "/success.wav";
+                    }
+                    std::thread audioThread(inst::util::playAudio, audioPath);
                     this->CreateShowDialog(last_name + "inst.info_page.desc1"_lang, Language::GetRandomMsg(), {"common.ok"_lang}, true);
+                    audioThread.join();
                     complete_notified = true;
                 }
             }
