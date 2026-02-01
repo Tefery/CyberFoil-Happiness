@@ -2,6 +2,7 @@
     "main": {
         "menu": {
             "sd": "SD 카드에서 설치",
+            "hdd": "Install from USB SSD/HDD",
             "net": "LAN 또는 인터넷을 통해 설치",
             "shop": "Ownfoil에서 설치",
             "usb": "USB를 통해 설치",
@@ -23,6 +24,10 @@
                 "title": "USB 연결이 감지되지 않았습니다.",
                 "desc": "USB를 통해 설치하려면 호환되는 장치에 연결하세요."
             }
+        },
+        "hdd": {
+            "title": "No USB drive detected",
+            "notfound": "Plug in a USB SSD or hard drive to install from it."
         },
         "applet": {
             "title": "애플릿 모드가 지원되지 않습니다.",
@@ -89,6 +94,18 @@
             "delete_info_multi": " 파일이 성공적으로 설치되었습니다! SD 카드에서 삭제하겠습니까?",
             "delete_desc": "원본 파일은 설치 후 더 이상 필요하지 않습니다.",
             "buttons": " 파일 선택     모두 선택     파일 설치     도움말     취소"
+        },
+        "hdd": {
+            "help": {
+                "title": "Help",
+                "desc": "Plug in a USB SSD or hard drive, browse to and select NSP, NSZ, XCI,\nor XCZ files, then press the Plus button."
+            },
+            "top_info": "Select what files you want to install, then press the Plus button!",
+            "source_string": " from USB drive",
+            "delete_info": " installed! Delete it from the USB drive?",
+            "delete_info_multi": " files installed successfully! Delete them from the USB drive?",
+            "delete_desc": "The original files aren't needed anymore after they've been installed",
+            "buttons": " Select File     Select All     Install File(s)     Help     Cancel"
         },
         "usb": {
             "help": {

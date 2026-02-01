@@ -2,6 +2,7 @@
     "main": {
         "menu": {
             "sd": "SDカードからインストール",
+            "hdd": "Install from USB SSD/HDD",
             "net": "ネットワーク経由でインストール",
             "shop": "Ownfoilからインストール",
             "usb": "USB経由でインストール",
@@ -23,6 +24,10 @@
                 "title": "USB接続が検出されません",
                 "desc": "互換性のあるデバイスに接続してUSB経由でインストールする"
             }
+        },
+        "hdd": {
+            "title": "No USB drive detected",
+            "notfound": "Plug in a USB SSD or hard drive to install from it."
         },
         "applet": {
             "title": "アプレットモードはサポートされていません",
@@ -89,6 +94,18 @@
             "delete_info_multi": " ファイルが正常にインストールされました！ SDカードから削除しますか？",
             "delete_desc": "元のファイルはインストール後に不要になりました",
             "buttons": " ファイルを選択     すべて選択     ファイルをインストール     ヘルプ     キャンセル"
+        },
+        "hdd": {
+            "help": {
+                "title": "Help",
+                "desc": "Plug in a USB SSD or hard drive, browse to and select NSP, NSZ, XCI,\nor XCZ files, then press the Plus button."
+            },
+            "top_info": "Select what files you want to install, then press the Plus button!",
+            "source_string": " from USB drive",
+            "delete_info": " installed! Delete it from the USB drive?",
+            "delete_info_multi": " files installed successfully! Delete them from the USB drive?",
+            "delete_desc": "The original files aren't needed anymore after they've been installed",
+            "buttons": " Select File     Select All     Install File(s)     Help     Cancel"
         },
         "usb": {
             "help": {

@@ -2,6 +2,7 @@
     "main": {
         "menu": {
             "sd": "Installa dalla SD",
+            "hdd": "Install from USB SSD/HDD",
             "net": "Installa via LAN o da internet",
             "shop": "Installa da Ownfoil",
             "usb": "Installa via USB",
@@ -23,6 +24,10 @@
                 "title": "Nessuna connessione USB rilevata",
                 "desc": "Collega a un dispositivo compatibile per installare via USB"
             }
+        },
+        "hdd": {
+            "title": "No USB drive detected",
+            "notfound": "Plug in a USB SSD or hard drive to install from it."
         },
         "applet": {
             "title": "Applet Mode non è supportata",
@@ -89,6 +94,18 @@
             "delete_info_multi": " file installati correttamente! Cancellarli dalla SD?",
             "delete_desc": "I file originali non sono più necessari dopo averli installati",
             "buttons": " Seleziona File     Seleziona tutto     Installa i File     Aiuto     Annulla"
+        },
+        "hdd": {
+            "help": {
+                "title": "Help",
+                "desc": "Plug in a USB SSD or hard drive, browse to and select NSP, NSZ, XCI,\nor XCZ files, then press the Plus button."
+            },
+            "top_info": "Select what files you want to install, then press the Plus button!",
+            "source_string": " from USB drive",
+            "delete_info": " installed! Delete it from the USB drive?",
+            "delete_info_multi": " files installed successfully! Delete them from the USB drive?",
+            "delete_desc": "The original files aren't needed anymore after they've been installed",
+            "buttons": " Select File     Select All     Install File(s)     Help     Cancel"
         },
         "usb": {
             "help": {

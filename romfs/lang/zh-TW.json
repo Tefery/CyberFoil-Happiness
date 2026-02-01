@@ -2,6 +2,7 @@
     "main": {
         "menu": {
             "sd": "通過SD卡安裝",
+            "hdd": "Install from USB SSD/HDD",
             "net": "通過網路安裝",
             "shop": "通過 Ownfoil 安裝",
             "usb": "通過USB安裝",
@@ -23,6 +24,10 @@
                 "title": "USB未連接",
                 "desc": "請通過USB線連接您的遠程設備"
             }
+        },
+        "hdd": {
+            "title": "No USB drive detected",
+            "notfound": "Plug in a USB SSD or hard drive to install from it."
         },
         "applet": {
             "title": "不支援Applet模式",
@@ -89,6 +94,18 @@
             "delete_info_multi": " 所有文件已安裝！要把所有原文件從SD卡刪除嗎？",
             "delete_desc": "安裝成功後已經不需要原文件。",
             "buttons": " 選擇文件  全選  安裝  幫助  取消"
+        },
+        "hdd": {
+            "help": {
+                "title": "Help",
+                "desc": "Plug in a USB SSD or hard drive, browse to and select NSP, NSZ, XCI,\nor XCZ files, then press the Plus button."
+            },
+            "top_info": "Select what files you want to install, then press the Plus button!",
+            "source_string": " from USB drive",
+            "delete_info": " installed! Delete it from the USB drive?",
+            "delete_info_multi": " files installed successfully! Delete them from the USB drive?",
+            "delete_desc": "The original files aren't needed anymore after they've been installed",
+            "buttons": " Select File     Select All     Install File(s)     Help     Cancel"
         },
         "usb": {
             "help": {
