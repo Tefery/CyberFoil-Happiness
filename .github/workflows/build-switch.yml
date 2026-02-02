@@ -1,0 +1,55 @@
+name: Build (Nintendo Switch homebrew)
+
+on:
+  push:
+    branches: [ "build" ]
+    tags: [ "v*" ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Build inside devkitPro container
+        uses: addnab/docker-run-action@v3
+        with:
+            image: devkitpro/devkita64:latest
+            options: -v ${{ github.workspace }}:/repo -w /repo
+            run: |
+                dkp-pacman -Syu --noconfirm
+                dkp-pacman -S --noconfirm --needed switch-ntfs-3g switch-lwext4
+                make -j"$(nproc)"
+
+      - name: Collect build outputs
+        run: |
+          mkdir -p dist
+          find . -type f \( \
+            -name "*.nro" -o -name "*.nsp" -o -name "*.nso" -o \
+            -name "*.npdm" -o -name "*.nacp" -o -name "*.elf" \
+          \) -print -exec cp -v {} dist/ \;
+          echo "---- dist/ ----"
+          ls -lah dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CyberFoil-Happiness-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish GitHub Release (only tags v*)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
