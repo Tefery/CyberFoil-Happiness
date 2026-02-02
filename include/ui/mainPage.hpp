@@ -20,6 +20,7 @@ namespace inst::ui {
             void onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos);
             Image::Ref awooImage;
             Image::Ref titleImage;
+            Image::Ref boobsImage;
             TextBlock::Ref appVersionText;
             TextBlock::Ref timeText;
             TextBlock::Ref sysLabelText;
