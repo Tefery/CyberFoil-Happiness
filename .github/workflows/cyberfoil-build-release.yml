@@ -1,0 +1,93 @@
+name: Build CyberFoil (release)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # Suggestion #2: job-level container (all steps run inside devkitPro image)
+    container:
+      image: devkitpro/devkita64:latest
+      # options: --user 1001:1001  # optional (uncomment if you want non-root output ownership)
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Build + verify expected NRO name/location
+        run: |
+          set -euo pipefail
+
+          dkp-pacman -S --noconfirm --needed switch-ntfs-3g switch-lwext4
+          make -j"$(nproc)"
+
+          # Suggestion #1 (adapted to your Makefile):
+          # Your Makefile outputs ./cyberfoil.nro (TARGET := cyberfoil), so verify that exact file.
+          if [ ! -f "./cyberfoil.nro" ]; then
+            echo "ERROR: Expected ./cyberfoil.nro not found"
+            echo "Debug: any .nro files present?"
+            find . -type f -name '*.nro' -print -exec ls -l {} \; || true
+            exit 1
+          fi
+
+          # Optional extra safety: ensure there aren't multiple .nro files
+          COUNT="$(find . -type f -name '*.nro' | wc -l | tr -d ' ')"
+          if [ "$COUNT" -ne 1 ]; then
+            echo "ERROR: Expected exactly 1 .nro file, found $COUNT"
+            find . -type f -name '*.nro' -print -exec ls -l {} \;
+            exit 1
+          fi
+
+      - name: Package cyberfoil.zip (switch/cyberfoil/cyberfoil.nro)
+        run: |
+          set -euo pipefail
+
+          rm -rf dist cyberfoil.zip
+          mkdir -p dist/switch/cyberfoil
+          cp -v ./cyberfoil.nro dist/switch/cyberfoil/cyberfoil.nro
+
+          # Use Python to create the zip (avoids needing the 'zip' binary in the container)
+          python3 - <<'PY'
+          import os, zipfile
+          zip_name = "cyberfoil.zip"
+          base_dir = "dist"
+          with zipfile.ZipFile(zip_name, "w", compression=zipfile.ZIP_DEFLATED) as z:
+              for root, _, files in os.walk(os.path.join(base_dir, "switch")):
+                  for f in files:
+                      full_path = os.path.join(root, f)
+                      arcname = full_path[len(base_dir)+1:]  # strip "dist/"
+                      z.write(full_path, arcname)
+          print("Created", zip_name)
+          PY
+
+          echo "---- package ----"
+          ls -lah cyberfoil.zip
+          python3 - <<'PY'
+          import zipfile
+          with zipfile.ZipFile("cyberfoil.zip") as z:
+              for n in z.namelist():
+                  print(n)
+          PY
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CyberFoil
+          path: cyberfoil.zip
+          if-no-files-found: error
+
+      - name: Publish GitHub Release (auto notes)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: cyberfoil.zip
+          generate_release_notes: true
