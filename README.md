@@ -2,7 +2,7 @@
 ![GitHub all releases downloads](https://img.shields.io/github/downloads/luketanti/CyberFoil/total)
 ![GitHub latest release downloads](https://img.shields.io/github/downloads/luketanti/CyberFoil/latest/total)
 
-## Version: 1.3.9
+## Version: 1.3.10
 
 ## Buy me a Coffee at kofi -> https://ko-fi.com/cyberhazard
 
@@ -65,7 +65,7 @@ New in 1.3.8:
 - Option to hide the Installed section in the eShop.
 - Updates and DLC now respect base install status and installed DLC visibility.
 
-New in 1.3.9:
+New in 1.3.10:
 - MTP installs now work reliably across repeated sessions.
 - MTP completion plays the success sound.
 - Main menu and settings support tap-to-select.

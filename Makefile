@@ -48,7 +48,7 @@ INCLUDES	:=	include include/ui include/data include/install include/nx include/n
 			include/Plutonium/Plutonium/Output-switch/include external/libhaze/include
 APP_TITLE	:=	CyberFoil
 APP_AUTHOR	:=	luketanti
-APP_VERSION	:=	1.3.9
+APP_VERSION	:=	1.3.10
 ICON		:=	romfs/images/icon.jpg
 ROMFS		:=	romfs
 
@@ -76,6 +76,7 @@ LIBS	:=  `curl-config --libs` # Networking
 LIBS	+=	-lSDL2_mixer -lopusfile -lopus -lmodplug -lmpg123 -lvorbisidec -logg # Audio
 LIBS	+=	-lpu -lSDL2_gfx -lSDL2_image -lwebp -lpng -ljpeg `sdl2-config --libs` `$(PREFIX)pkg-config --libs freetype2` # Graphics
 LIBS	+=	-lmbedtls -lmbedcrypto -lminizip -lzstd # Memes
+LIBS	+=	-lntfs-3g -llwext4
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
