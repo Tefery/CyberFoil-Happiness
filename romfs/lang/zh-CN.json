@@ -196,7 +196,8 @@
             "check_update": "检查 CyberFoil 更新",
             "credits": "致谢",
             "sound": "启用声音",
-            "oled": "启用 OLED 模式"
+            "oled": "启用 OLED 模式",
+            "mtp_album": "在 MTP 安装模式下显示相册驱动器"
         },
         "nca_warn": {
             "title": "警告！",

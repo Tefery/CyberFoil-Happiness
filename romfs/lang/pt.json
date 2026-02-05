@@ -196,7 +196,8 @@
             "check_update": "Procurar atualizações do CyberFoil",
             "credits": "Créditos",
             "sound": "Ativar sons",
-            "oled": "Ativar modo OLED"
+            "oled": "Ativar modo OLED",
+            "mtp_album": "Mostrar unidade Álbum no modo de instalação MTP"
         },
         "nca_warn": {
             "title": "Aviso!",

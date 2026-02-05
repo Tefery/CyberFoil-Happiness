@@ -196,7 +196,8 @@
             "check_update": "CyberFoil 업데이트 확인",
             "credits": "크레딧",
             "sound": "효과음을 활성화",
-            "oled": "OLED 모드를 활성화"
+            "oled": "OLED 모드를 활성화",
+            "mtp_album": "MTP 설치 모드에서 앨범 드라이브 표시"
         },
         "nca_warn": {
             "title": "경고!",

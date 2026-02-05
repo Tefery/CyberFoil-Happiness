@@ -196,7 +196,8 @@
             "check_update": "CyberFoilのアップデートを確認",
             "credits": "クレジット",
             "sound": "効果音を有効にする",
-            "oled": "OLED モードを有効にする"
+            "oled": "OLED モードを有効にする",
+            "mtp_album": "MTPインストールモードでアルバムドライブを表示"
         },
         "nca_warn": {
             "title": "警告!",

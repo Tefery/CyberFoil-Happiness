@@ -11,6 +11,7 @@
 #include <haze.hpp>
 
 #include "../include/mtp_install.hpp"
+#include "util/config.hpp"
 #include "util/error.hpp"
 #include "util/usb_comms_awoo.h"
 
@@ -87,7 +88,12 @@ struct FsProxyVfs : haze::FileSystemProxyImpl {
 
         const auto it = std::find_if(m_entries.begin(), m_entries.end(),
             [file_name](const auto& e){ return !strcasecmp(file_name, e.name); });
-        if (it != m_entries.end()) return KERNELRESULT(AlreadyExists);
+        if (it != m_entries.end()) {
+            // Reuse existing virtual entry to support repeated uploads with
+            // the same filename across one MTP session.
+            it->file_size = size;
+            return 0;
+        }
 
         FsDirectoryEntry entry{};
         std::strcpy(entry.name, file_name);
@@ -286,29 +292,174 @@ struct FsInstallProxy final : FsProxyVfs {
     }
 
     Result WriteFile(FsFile* file, s64 off, const void* buf, u64 write_size, u32 option) override {
-        std::lock_guard<std::mutex> lock(g_shared.mutex);
-        if (!g_shared.enabled) return KERNELRESULT(NotImplemented);
+        {
+            std::lock_guard<std::mutex> lock(g_shared.mutex);
+            if (!g_shared.enabled) return KERNELRESULT(NotImplemented);
+        }
 
         if (!WriteStreamInstall(buf, write_size, off)) {
             return KERNELRESULT(NotImplemented);
         }
-
         return FsProxyVfs::WriteFile(file, off, buf, write_size, option);
     }
 
     void CloseFile(FsFile* file) override {
+        bool should_finalize = false;
         {
             std::lock_guard<std::mutex> lock(g_shared.mutex);
             const auto it = m_open_files.find(file);
             if (it != m_open_files.end() && (it->second->mode & FsOpenMode_Write)) {
-                CloseStreamInstall();
+                should_finalize = true;
+                // Clear shared state before finalize to avoid lock-order inversion
+                // with stream mutex operations inside CloseStreamInstall().
                 g_shared.current_file.clear();
                 g_shared.in_progress = false;
             }
         }
 
         FsProxyVfs::CloseFile(file);
+
+        if (should_finalize) {
+            CloseStreamInstall();
+        }
     }
+
+    bool MultiThreadTransfer(s64 /*size*/, bool read) override {
+        (void)read;
+        // Allow libhaze's multithreaded transfer path for better upload throughput.
+        return true;
+    }
+};
+
+struct FsAlbumProxy final : haze::FileSystemProxyImpl {
+    FsAlbumProxy() = default;
+    ~FsAlbumProxy() {
+        if (m_fs_open) {
+            fsFsClose(&m_fs);
+            m_fs_open = false;
+        }
+    }
+
+    const char* GetName() const override {
+        return "album";
+    }
+
+    const char* GetDisplayName() const override {
+        return "Album (Screenshots & Videos)";
+    }
+
+    Result GetTotalSpace(const char* /*path*/, s64* out) override {
+        return QuerySdSpace(out, nullptr);
+    }
+
+    Result GetFreeSpace(const char* /*path*/, s64* out) override {
+        return QuerySdSpace(nullptr, out);
+    }
+
+    Result GetEntryType(const char* path, FsDirEntryType* out_entry_type) override {
+        if (!out_entry_type) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        const Result rc = EnsureFsOpen();
+        if (R_FAILED(rc)) return rc;
+        const auto fixed = FixPath(path);
+        if (fixed.empty()) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        return fsFsGetEntryType(&m_fs, fixed.c_str(), out_entry_type);
+    }
+
+    Result CreateFile(const char* /*path*/, s64 /*size*/, u32 /*option*/) override { return KERNELRESULT(NotImplemented); }
+    Result DeleteFile(const char* /*path*/) override { return KERNELRESULT(NotImplemented); }
+    Result RenameFile(const char* /*old_path*/, const char* /*new_path*/) override { return KERNELRESULT(NotImplemented); }
+    Result SetFileSize(FsFile* /*file*/, s64 /*size*/) override { return KERNELRESULT(NotImplemented); }
+    Result WriteFile(FsFile* /*file*/, s64 /*off*/, const void* /*buf*/, u64 /*write_size*/, u32 /*option*/) override { return KERNELRESULT(NotImplemented); }
+    Result CreateDirectory(const char* /*path*/) override { return KERNELRESULT(NotImplemented); }
+    Result DeleteDirectoryRecursively(const char* /*path*/) override { return KERNELRESULT(NotImplemented); }
+    Result RenameDirectory(const char* /*old_path*/, const char* /*new_path*/) override { return KERNELRESULT(NotImplemented); }
+
+    Result OpenFile(const char* path, u32 mode, FsFile* out_file) override {
+        if (!out_file) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        if ((mode & FsOpenMode_Write) || (mode & FsOpenMode_Append)) return KERNELRESULT(NotImplemented);
+        const Result rc = EnsureFsOpen();
+        if (R_FAILED(rc)) return rc;
+        const auto fixed = FixPath(path);
+        if (fixed.empty()) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        return fsFsOpenFile(&m_fs, fixed.c_str(), FsOpenMode_Read, out_file);
+    }
+
+    Result GetFileSize(FsFile* file, s64* out_size) override {
+        if (!file || !out_size) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        return fsFileGetSize(file, out_size);
+    }
+
+    Result ReadFile(FsFile* file, s64 off, void* buf, u64 read_size, u32 /*option*/, u64* out_bytes_read) override {
+        if (!file || !buf || !out_bytes_read) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        return fsFileRead(file, off, buf, read_size, FsReadOption_None, out_bytes_read);
+    }
+
+    void CloseFile(FsFile* file) override {
+        if (file) {
+            fsFileClose(file);
+        }
+    }
+
+    Result OpenDirectory(const char* path, u32 /*mode*/, FsDir* out_dir) override {
+        if (!out_dir) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        const Result rc = EnsureFsOpen();
+        if (R_FAILED(rc)) return rc;
+        const auto fixed = FixPath(path);
+        if (fixed.empty()) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        return fsFsOpenDirectory(&m_fs, fixed.c_str(),
+            FsDirOpenMode_ReadDirs | FsDirOpenMode_ReadFiles | FsDirOpenMode_NoFileSize, out_dir);
+    }
+
+    Result ReadDirectory(FsDir* d, s64* out_total_entries, size_t max_entries, FsDirectoryEntry* buf) override {
+        if (!d || !out_total_entries || !buf) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        return fsDirRead(d, out_total_entries, max_entries, buf);
+    }
+
+    Result GetDirectoryEntryCount(FsDir* d, s64* out_count) override {
+        if (!d || !out_count) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        return fsDirGetEntryCount(d, out_count);
+    }
+
+    void CloseDirectory(FsDir* d) override {
+        if (d) {
+            fsDirClose(d);
+        }
+    }
+
+private:
+    Result EnsureFsOpen() {
+        if (!m_fs_open) {
+            const Result rc = fsOpenImageDirectoryFileSystem(&m_fs, FsImageDirectoryId_Sd);
+            if (R_FAILED(rc)) return rc;
+            m_fs_open = true;
+        }
+        return 0;
+    }
+
+    static Result QuerySdSpace(s64* out_total, s64* out_free) {
+        NcmContentStorage storage{};
+        Result rc = ncmOpenContentStorage(&storage, NcmStorageId_SdCard);
+        if (R_FAILED(rc)) return rc;
+        if (out_total) rc = ncmContentStorageGetTotalSpaceSize(&storage, out_total);
+        if (R_SUCCEEDED(rc) && out_free) rc = ncmContentStorageGetFreeSpaceSize(&storage, out_free);
+        ncmContentStorageClose(&storage);
+        return rc;
+    }
+
+    static std::string FixPath(const char* path) {
+        if (!path || path[0] == '\0') return "/";
+        std::string p(path);
+        while (!p.empty() && p.front() == '/') p.erase(p.begin());
+        if (p.empty()) return "/";
+        if (p == "album") return "/";
+        if (p.rfind("album/", 0) == 0) p.erase(0, 6);
+        if (p.empty()) return "/";
+        if (p.find("..") != std::string::npos) return {};
+        return "/" + p;
+    }
+
+    FsFileSystem m_fs{};
+    bool m_fs_open = false;
 };
 
 haze::FsEntries g_entries;
@@ -336,6 +487,9 @@ bool StartInstallServer(int storage_choice)
     }
     g_entries.clear();
     g_entries.emplace_back(std::make_shared<FsInstallProxy>("install", "Install (NSP, XCI, NSZ, XCZ)"));
+    if (inst::config::mtpExposeAlbum) {
+        g_entries.emplace_back(std::make_shared<FsAlbumProxy>());
+    }
 
     if (!haze::Initialize(nullptr, 0x2C, 2, g_entries, kMtpVid, kMtpPid)) {
         if (g_awoo_suspended) {

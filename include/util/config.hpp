@@ -23,6 +23,7 @@ namespace inst::config {
     extern bool gayMode;
     extern bool soundEnabled;
     extern bool oledMode;
+    extern bool mtpExposeAlbum;
     extern bool usbAck;
     extern bool shopHideInstalled;
     extern bool shopHideInstalledSection;

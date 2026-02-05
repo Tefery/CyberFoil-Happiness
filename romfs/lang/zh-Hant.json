@@ -196,7 +196,8 @@
             "check_update": "檢查CyberFoil的更新版本",
             "credits": "感謝名單",
             "sound": "啟用音效",
-            "oled": "啟用 OLED 模式"
+            "oled": "啟用 OLED 模式",
+            "mtp_album": "在 MTP 安裝模式下顯示相簿磁碟機"
         },
         "nca_warn": {
             "title": "注意！",

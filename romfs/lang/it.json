@@ -196,7 +196,8 @@
             "check_update": "Controlla aggiornamenti di CyberFoil ora",
             "credits": "Crediti",
             "sound": "Abilita i suoni",
-            "oled": "Abilita la modalità OLED"
+            "oled": "Abilita la modalità OLED",
+            "mtp_album": "Mostra unità Album in modalità installazione MTP"
         },
         "nca_warn": {
             "title": "Attenzione!",

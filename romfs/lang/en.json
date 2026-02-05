@@ -213,7 +213,8 @@
             "check_update": "Check for updates to CyberFoil",
             "credits": "Credits",
             "sound": "Enable sounds",
-            "oled": "Enable OLED mode"
+            "oled": "Enable OLED mode",
+            "mtp_album": "Show Album drive during MTP install mode"
         },
         "nca_warn": {
             "title": "Warning!",
