@@ -33,6 +33,32 @@ namespace inst::ui {
 }
 
 namespace {
+    std::string FormatOneDecimal(double value)
+    {
+        char buf[32];
+        std::snprintf(buf, sizeof(buf), "%.1f", value);
+        return std::string(buf);
+    }
+
+    std::string FormatEta(std::uint64_t totalSeconds)
+    {
+        const std::uint64_t h = totalSeconds / 3600;
+        const std::uint64_t m = (totalSeconds % 3600) / 60;
+        const std::uint64_t s = totalSeconds % 60;
+        char buf[32];
+        if (h > 0) {
+            std::snprintf(buf, sizeof(buf), "%llu:%02llu:%02llu",
+                static_cast<unsigned long long>(h),
+                static_cast<unsigned long long>(m),
+                static_cast<unsigned long long>(s));
+        } else {
+            std::snprintf(buf, sizeof(buf), "%llu:%02llu",
+                static_cast<unsigned long long>(m),
+                static_cast<unsigned long long>(s));
+        }
+        return std::string(buf);
+    }
+
     size_t WriteToString(char* ptr, size_t size, size_t numItems, void* userdata)
     {
         auto out = reinterpret_cast<std::string*>(userdata);
@@ -936,11 +962,14 @@ namespace shopInstStuff {
                     const u64 now = armGetSystemTick();
                     if (now - lastTick >= (freq / 2)) {
                         double speed = 0.0;
+                        double speedBytesPerSec = 0.0;
                         if (processedBytes > lastProcessed) {
                             double deltaMb = (processedBytes - lastProcessed) / 1000000.0;
                             double deltaSec = (double)(now - lastTick) / (double)freq;
-                            if (deltaSec > 0.0)
+                            if (deltaSec > 0.0) {
                                 speed = deltaMb / deltaSec;
+                                speedBytesPerSec = (double)(processedBytes - lastProcessed) / deltaSec;
+                            }
                         }
                         lastTick = now;
                         lastProcessed = processedBytes;
@@ -948,10 +977,19 @@ namespace shopInstStuff {
                         if (totalBytes > 0) {
                             int progress = (int)((double)processedBytes / (double)totalBytes * 100.0);
                             inst::ui::instPage::setInstBarPerc(progress);
-                            std::string speedStr = std::to_string(speed);
-                            if (speedStr.size() > 4)
-                                speedStr = speedStr.substr(0, speedStr.size() - 4);
-                            inst::ui::instPage::setInstInfoText("inst.info_page.downloading"_lang + speedStr + "MB/s");
+
+                            std::string etaText = "--:--";
+                            if (speedBytesPerSec > 0.0 && processedBytes < totalBytes) {
+                                const auto etaSeconds = static_cast<std::uint64_t>((double)(totalBytes - processedBytes) / speedBytesPerSec);
+                                etaText = FormatEta(etaSeconds);
+                            }
+
+                            inst::ui::instPage::setInstInfoText("inst.info_page.downloading"_lang + FormatOneDecimal(speed) + "MB/s");
+                            inst::ui::instPage::setProgressDetailText(
+                                "Downloaded " + FormatOneDecimal((double)processedBytes / 1000000.0) + " / " +
+                                FormatOneDecimal((double)totalBytes / 1000000.0) + " MB (" +
+                                std::to_string(progress) + "%) • ETA " + etaText
+                            );
                         }
                     }
                 }
@@ -972,6 +1010,7 @@ namespace shopInstStuff {
 
             helper.CommitAll();
             inst::ui::instPage::setInstBarPerc(100);
+            inst::ui::instPage::setProgressDetailText("Downloaded 100% • Verifying and installing...");
             return true;
         }
     }

@@ -64,7 +64,7 @@ namespace inst::config {
         oledMode = false;
         mtpExposeAlbum = true;
         ignoreReqVers = true;
-        overClock = false;
+        overClock = true;
         usbAck = false;
         validateNCAs = true;
         lastNetUrl = "https://";

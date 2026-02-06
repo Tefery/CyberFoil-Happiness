@@ -1403,6 +1403,7 @@ namespace inst::ui {
 
         this->updateRememberedSelection();
         shopInstStuff::installTitleShop(this->selectedItems, dialogResult, "inst.shop.source_string"_lang);
+        this->startShop(true);
     }
 
     void shopInstPage::onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
