@@ -124,6 +124,14 @@ namespace {
         }
         return outVersion > 0;
     }
+
+    void CenterTextX(const TextBlock::Ref& text, int containerWidth = 1280)
+    {
+        int textX = (containerWidth - text->GetTextWidth()) / 2;
+        if (textX < 0)
+            textX = 0;
+        text->SetX(textX);
+    }
 }
 
 namespace inst::ui {
@@ -175,7 +183,7 @@ namespace inst::ui {
         this->batteryOutline = Rectangle::New(0, 0, 24, 12, COLOR("#FFFFFF66"));
         this->batteryFill = Rectangle::New(0, 0, 0, 10, COLOR("#4CD964FF"));
         this->batteryCap = Rectangle::New(0, 0, 3, 6, COLOR("#FFFFFF66"));
-        this->pageInfoText = TextBlock::New(10, 109, "", 20);
+        this->pageInfoText = TextBlock::New(10, 109, "", 34);
         this->pageInfoText->SetColor(COLOR("#FFFFFFFF"));
         this->butText = TextBlock::New(10, 678, "", 20);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
@@ -296,15 +304,13 @@ namespace inst::ui {
 
     void shopInstPage::updateSectionText() {
         if (this->shopSections.empty()) {
-            this->pageInfoText->SetText("inst.shop.top_info"_lang);
+            this->pageInfoText->SetText("inst.shop.loading"_lang);
+            CenterTextX(this->pageInfoText);
             return;
         }
         const auto& section = this->shopSections[this->selectedSectionIndex];
-        std::string label = "inst.shop.top_info"_lang + " " + section.title;
-        if (!this->searchQuery.empty()) {
-            label += " (" + this->searchQuery + ")";
-        }
-        this->pageInfoText->SetText(label);
+        this->pageInfoText->SetText(section.title);
+        CenterTextX(this->pageInfoText);
     }
 
     void shopInstPage::updateButtonsText() {
@@ -1192,6 +1198,7 @@ namespace inst::ui {
         this->infoImage->SetVisible(true);
         this->previewImage->SetVisible(false);
         this->pageInfoText->SetText("inst.shop.loading"_lang);
+        CenterTextX(this->pageInfoText);
         mainApp->LoadLayout(mainApp->shopinstPage);
         mainApp->CallForRender();
 
