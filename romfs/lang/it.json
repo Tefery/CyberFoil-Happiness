@@ -6,6 +6,7 @@
             "net": "Installa via LAN o da internet",
             "shop": "Installa da Ownfoil",
             "usb": "Installa da NS-USBloader",
+            "mtp": "Installa da MTP",
             "sig": "Gestisci le SigPatches",
             "set": "Impostazioni",
             "exit": "Esci"
@@ -128,6 +129,21 @@
             "opt0": "SD",
             "opt1": "Memoria interna"
         },
+        "mtp": {
+            "target": {
+                "title": "Installazione via MTP",
+                "desc": "Dove dovrebbe essere installato?"
+            },
+            "waiting": {
+                "title": "Installazione via MTP",
+                "desc": "Collegati al PC e carica i file nella cartella di installazione MTP.",
+                "hint": "Premi B per interrompere MTP."
+            },
+            "error": {
+                "title": "Errore MTP",
+                "desc": "Inizializzazione del server MTP non riuscita."
+            }
+        },
         "info_page": {
             "top_info0": "Sto installando ",
             "preparing": "Preparando l'installazione...",
@@ -192,6 +208,7 @@
             "shop_pass": "Password Ownfoil: ",
             "shop_hide_installed": "Nascondi i titoli installati nell'eShop",
             "shop_hide_installed_section": "Nascondi la sezione Installati nell\u2019eShop",
+            "shop_reset_icons": "Reimpostare la cache delle icone del negozio",
             "language": "Lingua: ",
             "check_update": "Controlla aggiornamenti di CyberFoil ora",
             "credits": "Crediti",
@@ -208,6 +225,11 @@
             "url_hint": "Inserisci l'URL del tuo negozio Ownfoil (esempio: http://192.168.1.2:8465)",
             "user_hint": "Inserisci il tuo nome utente Ownfoil (opzionale)",
             "pass_hint": "Inserisci la tua password Ownfoil (opzionale)"
+        },
+        "cache_reset": {
+            "title": "Reimpostare la cache delle icone del negozio?",
+            "desc": "Questo eliminerà tutte le icone del negozio memorizzate nella cache e forzerà un nuovo download la prossima volta che apri il negozio.",
+            "confirm": "Reimposta"
         },
         "update": {
             "title": "Aggiornamento disponibile",

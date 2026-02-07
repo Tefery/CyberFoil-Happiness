@@ -6,6 +6,7 @@
             "net": "ネットワーク経由でインストール",
             "shop": "Ownfoilからインストール",
             "usb": "NS-USBloaderからインストール",
+            "mtp": "MTPからインストール",
             "sig": "署名パッチを管理する",
             "set": "設定",
             "exit": "終了"
@@ -128,6 +129,21 @@
             "opt0": "SDカード",
             "opt1": "内部ストレージ"
         },
+        "mtp": {
+            "target": {
+                "title": "MTP 経由のインストール",
+                "desc": "どこにインストールしますか?"
+            },
+            "waiting": {
+                "title": "MTP 経由のインストール",
+                "desc": "PC に接続し、ファイルを MTP インストールフォルダーにアップロードしてください。",
+                "hint": "B を押して MTP を停止します。"
+            },
+            "error": {
+                "title": "MTP エラー",
+                "desc": "MTP サーバーの初期化に失敗しました。"
+            }
+        },
         "info_page": {
             "top_info0": "インストール中 ",
             "preparing": "インストールの準備...",
@@ -192,6 +208,7 @@
             "shop_pass": "Ownfoil パスワード: ",
             "shop_hide_installed": "eShop のインストール済みタイトルを非表示にする",
             "shop_hide_installed_section": "eShop\u306e\u300c\u30a4\u30f3\u30b9\u30c8\u30fc\u30eb\u6e08\u307f\u300d\u30bb\u30af\u30b7\u30e7\u30f3\u3092\u975e\u8868\u793a",
+            "shop_reset_icons": "ショップアイコンのキャッシュをリセット",
             "language": "言語: ",
             "check_update": "CyberFoilのアップデートを確認",
             "credits": "クレジット",
@@ -208,6 +225,11 @@
             "url_hint": "Ownfoil ショップの URL を入力してください (例: http://192.168.1.2:8465)",
             "user_hint": "Ownfoil のユーザー名を入力してください (任意)",
             "pass_hint": "Ownfoil のパスワードを入力してください (任意)"
+        },
+        "cache_reset": {
+            "title": "ショップアイコンのキャッシュをリセットしますか？",
+            "desc": "これによりキャッシュされたショップアイコンがすべて削除され、次回ショップを開いたときに再ダウンロードされます。",
+            "confirm": "リセット"
         },
         "update": {
             "title": "更新可能",

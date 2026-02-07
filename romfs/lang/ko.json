@@ -6,6 +6,7 @@
             "net": "LAN 또는 인터넷을 통해 설치",
             "shop": "Ownfoil에서 설치",
             "usb": "NS-USBloader에서 설치",
+            "mtp": "MTP에서 설치",
             "sig": "서명 패치 관리",
             "set": "설정",
             "exit": "종료"
@@ -128,6 +129,21 @@
             "opt0": "SD 카드",
             "opt1": "내부 저장소"
         },
+        "mtp": {
+            "target": {
+                "title": "MTP를 통한 설치",
+                "desc": "어디에 설치해야 하나요?"
+            },
+            "waiting": {
+                "title": "MTP를 통한 설치",
+                "desc": "PC에 연결한 다음 파일을 MTP 설치 폴더에 업로드하세요.",
+                "hint": "B를 눌러 MTP를 중지하세요."
+            },
+            "error": {
+                "title": "MTP 오류",
+                "desc": "MTP 서버 초기화에 실패했습니다."
+            }
+        },
         "info_page": {
             "top_info0": "설치 중 ",
             "preparing": "설치 준비 중...",
@@ -192,6 +208,7 @@
             "shop_pass": "Ownfoil 비밀번호: ",
             "shop_hide_installed": "eShop에서 설치된 타이틀 숨기기",
             "shop_hide_installed_section": "eShop\uc758 \u2018\uc124\uce58\ub428\u2019 \uc139\uc158 \uc228\uae30\uae30",
+            "shop_reset_icons": "상점 아이콘 캐시 재설정",
             "language": "언어: ",
             "check_update": "CyberFoil 업데이트 확인",
             "credits": "크레딧",
@@ -208,6 +225,11 @@
             "url_hint": "Ownfoil 상점 URL을 입력하세요 (예: http://192.168.1.2:8465)",
             "user_hint": "Ownfoil 사용자 이름을 입력하세요 (선택 사항)",
             "pass_hint": "Ownfoil 비밀번호를 입력하세요 (선택 사항)"
+        },
+        "cache_reset": {
+            "title": "상점 아이콘 캐시를 재설정할까요?",
+            "desc": "이 작업은 캐시된 상점 아이콘을 모두 삭제하고, 다음에 상점을 열 때 다시 다운로드하도록 합니다.",
+            "confirm": "재설정"
         },
         "update": {
             "title": "업데이트 가능",

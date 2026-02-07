@@ -6,6 +6,7 @@
             "net": "通过局域网或网络安装",
             "shop": "通过 Ownfoil 安装",
             "usb": "通过 NS-USBloader 安装",
+            "mtp": "通过 MTP 安装",
             "sig": "管理签名补丁",
             "set": "设置",
             "exit": "退出"
@@ -128,6 +129,21 @@
             "opt0": "SD 卡",
             "opt1": "内部存储"
         },
+        "mtp": {
+            "target": {
+                "title": "通过 MTP 安装",
+                "desc": "应该安装到哪里?"
+            },
+            "waiting": {
+                "title": "通过 MTP 安装",
+                "desc": "连接到电脑，并将文件上传到 MTP 安装文件夹。",
+                "hint": "按 B 停止 MTP。"
+            },
+            "error": {
+                "title": "MTP 错误",
+                "desc": "MTP 服务器初始化失败。"
+            }
+        },
         "info_page": {
             "top_info0": "正在安装 ",
             "preparing": "正在准备安装...",
@@ -192,6 +208,7 @@
             "shop_pass": "Ownfoil 密码：",
             "shop_hide_installed": "在 eShop 中隐藏已安装的标题",
             "shop_hide_installed_section": "\u9690\u85cf eShop \u7684\u201c\u5df2\u5b89\u88c5\u201d\u5206\u533a",
+            "shop_reset_icons": "重置商店图标缓存",
             "language": "语言：",
             "check_update": "检查 CyberFoil 更新",
             "credits": "致谢",
@@ -208,6 +225,11 @@
             "url_hint": "请输入 Ownfoil 商店地址 (例如: http://192.168.1.2:8465)",
             "user_hint": "请输入 Ownfoil 用户名 (可选)",
             "pass_hint": "请输入 Ownfoil 密码 (可选)"
+        },
+        "cache_reset": {
+            "title": "重置商店图标缓存？",
+            "desc": "这将删除所有已缓存的商店图标，并在你下次打开商店时强制重新下载。",
+            "confirm": "重置"
         },
         "update": {
             "title": "有更新可用",

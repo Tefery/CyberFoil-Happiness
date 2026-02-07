@@ -6,6 +6,7 @@
             "net": "Über LAN oder Internet installieren",
             "shop": "Installieren vom Ownfoil-Shop",
             "usb": "Mit NS-USBloader installieren",
+            "mtp": "Mit MTP installieren",
             "sig": "Verwalte Signatur-Patches",
             "set": "Einstellungen",
             "exit": "Beenden"
@@ -128,6 +129,21 @@
             "opt0": "SD Karte",
             "opt1": "Interner Speicher"
         },
+        "mtp": {
+            "target": {
+                "title": "Installation über MTP",
+                "desc": "Wo soll installiert werden?"
+            },
+            "waiting": {
+                "title": "Installation über MTP",
+                "desc": "Verbinden Sie sich mit dem PC und kopieren Sie die Dateien in den MTP-Installationsordner.",
+                "hint": "Drücken Sie B, um MTP zu beenden."
+            },
+            "error": {
+                "title": "MTP-Fehler",
+                "desc": "Die Initialisierung des MTP-Servers ist fehlgeschlagen."
+            }
+        },
         "info_page": {
             "top_info0": "Installiere ",
             "preparing": "Bereite Installation vor...",
@@ -192,6 +208,7 @@
             "shop_pass": "Ownfoil Passwort: ",
             "shop_hide_installed": "Installierte Titel im eShop ausblenden",
             "shop_hide_installed_section": "Installiert-Abschnitt im eShop ausblenden",
+            "shop_reset_icons": "Shop-Icon-Cache zurücksetzen",
             "language": "Sprache: ",
             "check_update": "Suche nach Updates für CyberFoil",
             "credits": "Anerkennung",
@@ -208,6 +225,11 @@
             "url_hint": "Gib die URL deines Ownfoil-Shops ein (Beispiel: http://192.168.1.2:8465)",
             "user_hint": "Gib deinen Ownfoil-Benutzernamen ein (optional)",
             "pass_hint": "Gib dein Ownfoil-Passwort ein (optional)"
+        },
+        "cache_reset": {
+            "title": "Shop-Icon-Cache zurücksetzen?",
+            "desc": "Dadurch werden alle zwischengespeicherten Shop-Icons gelöscht und beim nächsten Öffnen des Shops erneut heruntergeladen.",
+            "confirm": "Zurücksetzen"
         },
         "update": {
             "title": "Neue Version verfügbar",

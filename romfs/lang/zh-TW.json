@@ -6,6 +6,7 @@
             "net": "通過網路安裝",
             "shop": "通過 Ownfoil 安裝",
             "usb": "透過 NS-USBloader 安裝",
+            "mtp": "透過 MTP 安裝",
             "sig": "管理簽名補丁（signature patches）",
             "set": "設置",
             "exit": "退出"
@@ -128,6 +129,21 @@
             "opt0": "SD卡",
             "opt1": "內部閃存"
         },
+        "mtp": {
+            "target": {
+                "title": "透過 MTP 安裝",
+                "desc": "應該安裝到哪裡?"
+            },
+            "waiting": {
+                "title": "透過 MTP 安裝",
+                "desc": "連接到電腦，並將檔案上傳到 MTP 安裝資料夾。",
+                "hint": "按下 B 以停止 MTP。"
+            },
+            "error": {
+                "title": "MTP 錯誤",
+                "desc": "MTP 伺服器初始化失敗。"
+            }
+        },
         "info_page": {
             "top_info0": "正在安裝 ",
             "preparing": "初始化安裝...",
@@ -192,6 +208,7 @@
             "shop_pass": "Ownfoil 密碼: ",
             "shop_hide_installed": "在 eShop 中隱藏已安裝的標題",
             "shop_hide_installed_section": "\u96b1\u85cf eShop \u7684\u300c\u5df2\u5b89\u88dd\u300d\u5340\u6bb5",
+            "shop_reset_icons": "重設商店圖示快取",
             "language": "語言： ",
             "check_update": "檢測更新",
             "credits": "致谢",
@@ -208,6 +225,11 @@
             "url_hint": "請輸入 Ownfoil 商店網址 (例如: http://192.168.1.2:8465)",
             "user_hint": "請輸入 Ownfoil 使用者名稱 (選填)",
             "pass_hint": "請輸入 Ownfoil 密碼 (選填)"
+        },
+        "cache_reset": {
+            "title": "重設商店圖示快取？",
+            "desc": "這將刪除所有已快取的商店圖示，並在你下次開啟商店時強制重新下載。",
+            "confirm": "重設"
         },
         "update": {
             "title": "有新版本可以更新",
