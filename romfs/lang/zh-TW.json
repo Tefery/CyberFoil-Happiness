@@ -208,6 +208,7 @@
             "shop_pass": "Ownfoil 密碼: ",
             "shop_hide_installed": "在 eShop 中隱藏已安裝的標題",
             "shop_hide_installed_section": "\u96b1\u85cf eShop \u7684\u300c\u5df2\u5b89\u88dd\u300d\u5340\u6bb5",
+            "shop_reset_icons": "重設商店圖示快取",
             "language": "語言： ",
             "check_update": "檢測更新",
             "credits": "致谢",

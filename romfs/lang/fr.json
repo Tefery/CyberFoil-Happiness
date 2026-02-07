@@ -208,6 +208,7 @@
             "shop_pass": "Mot de passe Ownfoil: ",
             "shop_hide_installed": "Masquer les titres installés dans l’eShop",
             "shop_hide_installed_section": "Masquer la section Install\u00e9s dans l\u2019eShop",
+            "shop_reset_icons": "Réinitialiser le cache des icônes de la boutique",
             "language": "Langage: ",
             "check_update": "Vérifier les mises à jour de CyberFoil",
             "credits": "Crédits",
