@@ -78,6 +78,8 @@
             "search_hint": "搜索所有标题",
             "update_prompt_title": "安装更新？",
             "update_prompt_desc": "是否为已选择标题一并安装可用更新？ 已发现更新数量：",
+            "dlc_prompt_title": "Install DLC?",
+            "dlc_prompt_desc": "Include available DLC for selected titles? DLC found: ",
             "motd_title": "每日消息",
             "buttons_installed": " 详情     刷新    / 分区     取消",
             "detail_type": "类型: ",
@@ -196,7 +198,8 @@
             "check_update": "检查 CyberFoil 更新",
             "credits": "致谢",
             "sound": "启用声音",
-            "oled": "启用 OLED 模式"
+            "oled": "启用 OLED 模式",
+            "mtp_album": "在 MTP 安装模式下显示相册驱动器"
         },
         "nca_warn": {
             "title": "警告！",

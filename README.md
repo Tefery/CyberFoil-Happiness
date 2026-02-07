@@ -2,7 +2,7 @@
 ![GitHub all releases downloads](https://img.shields.io/github/downloads/luketanti/CyberFoil/total)
 ![GitHub latest release downloads](https://img.shields.io/github/downloads/luketanti/CyberFoil/latest/total)
 
-## Version: 1.3.10
+## Version: 1.3.11-dev
 
 ## Buy me a Coffee at kofi -> https://ko-fi.com/cyberhazard
 
@@ -65,9 +65,13 @@ New in 1.3.8:
 - Option to hide the Installed section in the eShop.
 - Updates and DLC now respect base install status and installed DLC visibility.
 
-New in 1.3.10:
+New in 1.3.11:
 - MTP installs now work reliably across repeated sessions.
 - MTP completion plays the success sound.
+- MTP install progress now shows spinner/status with MiB/GiB transfer info.
+- MTP completion status is shown inline on the install screen (no blocking popup).
+- Optional Album drive exposure during MTP install mode (toggle in Settings).
+- Album MTP drive uses libnx image-directory APIs for better Windows Explorer compatibility.
 - Main menu and settings support tap-to-select.
 - eShop grid selections use a green highlight and selected overlay.
 
@@ -79,6 +83,7 @@ Screenshots:
 - OLED mode uses pure-black UI backgrounds. Toggle in Settings.
 - "Remove anime" hides the mascot art.
 - Sounds can be disabled in Settings. You can override sounds by placing `success.wav` and `bark.wav` in `sdmc:/switch/CyberFoil/`.
+- MTP setting: you can enable/disable exposing the Album drive while MTP install mode is running.
 - Shop icon cache is stored in `sdmc:/switch/CyberFoil/shop_icons/`.
 - Touch input: tap items in the main menu and settings to select.
 

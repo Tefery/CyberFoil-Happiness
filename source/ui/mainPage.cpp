@@ -17,6 +17,14 @@ namespace inst::ui {
     extern MainApplication *mainApp;
     bool appletFinished = false;
     bool updateFinished = false;
+    constexpr int kMainGridCols = 3;
+    constexpr int kMainGridRows = 3;
+    constexpr int kMainGridTileWidth = 360;
+    constexpr int kMainGridTileHeight = 170;
+    constexpr int kMainGridGapX = 20;
+    constexpr int kMainGridGapY = 18;
+    constexpr int kMainGridStartX = (1280 - ((kMainGridCols * kMainGridTileWidth) + ((kMainGridCols - 1) * kMainGridGapX))) / 2;
+    constexpr int kMainGridStartY = 120;
 
     void mainMenuThread() {
         bool menuLoaded = mainApp->IsShown();
@@ -84,14 +92,6 @@ namespace inst::ui {
         this->butText = TextBlock::New(10, 678, "main.buttons"_lang, 20);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
         this->bottomHintSegments = BuildBottomHintSegments("main.buttons"_lang, 10, 20);
-        this->optionMenu = pu::ui::elm::Menu::New(0, 95, 1280, COLOR("#67000000"), 60, 9);
-        if (inst::config::oledMode) {
-            this->optionMenu->SetOnFocusColor(COLOR("#FFFFFF33"));
-            this->optionMenu->SetScrollbarColor(COLOR("#FFFFFF66"));
-        } else {
-            this->optionMenu->SetOnFocusColor(COLOR("#00000033"));
-            this->optionMenu->SetScrollbarColor(COLOR("#170909FF"));
-        }
         this->installMenuItem = pu::ui::elm::MenuItem::New("main.menu.sd"_lang);
         this->installMenuItem->SetColor(COLOR("#FFFFFFFF"));
         this->installMenuItem->SetIcon("romfs:/images/icons/micro-sd.png");
@@ -119,10 +119,56 @@ namespace inst::ui {
         this->exitMenuItem = pu::ui::elm::MenuItem::New("main.menu.exit"_lang);
         this->exitMenuItem->SetColor(COLOR("#FFFFFFFF"));
         this->exitMenuItem->SetIcon("romfs:/images/icons/exit-run.png");
+        const auto tileColor = inst::config::oledMode ? COLOR("#1A1A1ACC") : COLOR("#170909CC");
+        const auto highlightColor = inst::config::oledMode ? COLOR("#FF4D4D66") : COLOR("#FF4D4D88");
+        const std::vector<std::string> gridLabels = {
+            "main.menu.shop"_lang,
+            "main.menu.sd"_lang,
+            "main.menu.hdd"_lang,
+            "main.menu.mtp"_lang,
+            "main.menu.usb"_lang,
+            "main.menu.net"_lang,
+            "main.menu.sig"_lang,
+            "main.menu.set"_lang,
+            "main.menu.exit"_lang
+        };
+        const std::vector<std::string> gridIcons = {
+            "romfs:/images/icons/eshop.png",
+            "romfs:/images/icons/micro-sd.png",
+            "romfs:/images/icons/usb-install.png",
+            "romfs:/images/icons/usb-port.png",
+            "romfs:/images/icons/usb-port.png",
+            "romfs:/images/icons/cloud-download.png",
+            "romfs:/images/icons/wrench.png",
+            "romfs:/images/icons/settings.png",
+            "romfs:/images/icons/exit-run.png"
+        };
+        this->mainGridTiles.reserve(kMainGridCols * kMainGridRows);
+        this->mainGridIcons.reserve(kMainGridCols * kMainGridRows);
+        this->mainGridLabels.reserve(kMainGridCols * kMainGridRows);
+        for (int i = 0; i < (kMainGridCols * kMainGridRows); i++) {
+            const int col = i % kMainGridCols;
+            const int row = i / kMainGridCols;
+            const int x = kMainGridStartX + (col * (kMainGridTileWidth + kMainGridGapX));
+            const int y = kMainGridStartY + (row * (kMainGridTileHeight + kMainGridGapY));
+            auto tile = Rectangle::New(x, y, kMainGridTileWidth, kMainGridTileHeight, tileColor, 18);
+            constexpr int kMainIconSize = 96;
+            auto icon = Image::New(x + ((kMainGridTileWidth - kMainIconSize) / 2), y + 22, gridIcons[i]);
+            icon->SetWidth(kMainIconSize);
+            icon->SetHeight(kMainIconSize);
+            auto label = TextBlock::New(0, y + 116, gridLabels[i], 22);
+            label->SetX(x + ((kMainGridTileWidth - label->GetTextWidth()) / 2));
+            label->SetColor(COLOR("#FFFFFFFF"));
+            this->mainGridTiles.push_back(tile);
+            this->mainGridIcons.push_back(icon);
+            this->mainGridLabels.push_back(label);
+        }
+        this->mainGridHighlight = Rectangle::New(0, 0, kMainGridTileWidth + 8, kMainGridTileHeight + 8, highlightColor, 20);
         if (std::filesystem::exists(inst::config::appDir + "/awoo_main.png")) this->awooImage = Image::New(410, 190, inst::config::appDir + "/awoo_main.png");
         else this->awooImage = Image::New(410, 190, "romfs:/images/awoos/5bbdbcf9a5625cd307c9e9bc360d78bd.png");
         if (std::filesystem::exists(inst::config::appDir + "/awoo_alter.png")) this->boobsImage = Image::New(410, 190, inst::config::appDir + "/awoo_alter.png");
         else this->boobsImage = Image::New(410, 190, "romfs:/images/awoos/7d5d18b92253bc63e61c7cbc88fe3092.png");
+        this->Add(this->awooImage);
         this->Add(this->topRect);
         this->Add(this->botRect);
         this->Add(this->titleImage);
@@ -145,20 +191,16 @@ namespace inst::ui {
         this->Add(this->timeText);
         this->Add(this->ipText);
         this->Add(this->butText);
-        this->optionMenu->AddItem(this->shopInstallMenuItem);
-        this->optionMenu->AddItem(this->installMenuItem);
-        this->optionMenu->AddItem(this->hddInstallMenuItem);
-        this->optionMenu->AddItem(this->mtpInstallMenuItem);
-        this->optionMenu->AddItem(this->usbInstallMenuItem);
-        this->optionMenu->AddItem(this->netInstallMenuItem);
-        this->optionMenu->AddItem(this->sigPatchesMenuItem);
-        this->optionMenu->AddItem(this->settingsMenuItem);
-        this->optionMenu->AddItem(this->exitMenuItem);
-        this->Add(this->optionMenu);
-        this->Add(this->awooImage);
-        this->Add(this->boobsImage);
+        for (auto& tile : this->mainGridTiles)
+            this->Add(tile);
+        for (auto& icon : this->mainGridIcons)
+            this->Add(icon);
+        for (auto& label : this->mainGridLabels)
+            this->Add(label);
+        this->Add(this->mainGridHighlight);
         this->awooImage->SetVisible(!inst::config::gayMode);
         this->boobsImage->SetVisible(false);
+        this->updateMainGridSelection();
         this->AddThread(mainMenuThread);
     }
 
@@ -232,6 +274,66 @@ namespace inst::ui {
         mainApp->LoadLayout(mainApp->optionspage);
     }
 
+    void MainPage::updateMainGridSelection() {
+        if (this->selectedMainIndex < 0)
+            this->selectedMainIndex = 0;
+        const int maxIndex = (kMainGridCols * kMainGridRows) - 1;
+        if (this->selectedMainIndex > maxIndex)
+            this->selectedMainIndex = maxIndex;
+        const int col = this->selectedMainIndex % kMainGridCols;
+        const int row = this->selectedMainIndex / kMainGridCols;
+        const int x = kMainGridStartX + (col * (kMainGridTileWidth + kMainGridGapX));
+        const int y = kMainGridStartY + (row * (kMainGridTileHeight + kMainGridGapY));
+        this->mainGridHighlight->SetX(x - 4);
+        this->mainGridHighlight->SetY(y - 4);
+    }
+
+    int MainPage::getMainGridIndexFromTouch(int x, int y) const {
+        for (int i = 0; i < (kMainGridCols * kMainGridRows); i++) {
+            const int col = i % kMainGridCols;
+            const int row = i / kMainGridCols;
+            const int tx = kMainGridStartX + (col * (kMainGridTileWidth + kMainGridGapX));
+            const int ty = kMainGridStartY + (row * (kMainGridTileHeight + kMainGridGapY));
+            if (x >= tx && x <= (tx + kMainGridTileWidth) && y >= ty && y <= (ty + kMainGridTileHeight))
+                return i;
+        }
+        return -1;
+    }
+
+    void MainPage::activateSelectedMainItem() {
+        switch (this->selectedMainIndex) {
+            case 0:
+                this->shopInstallMenuItem_Click();
+                break;
+            case 1:
+                this->installMenuItem_Click();
+                break;
+            case 2:
+                this->hddInstallMenuItem_Click();
+                break;
+            case 3:
+                this->mtpInstallMenuItem_Click();
+                break;
+            case 4:
+                this->usbInstallMenuItem_Click();
+                break;
+            case 5:
+                this->netInstallMenuItem_Click();
+                break;
+            case 6:
+                this->sigPatchesMenuItem_Click();
+                break;
+            case 7:
+                this->settingsMenuItem_Click();
+                break;
+            case 8:
+                this->exitMenuItem_Click();
+                break;
+            default:
+                break;
+        }
+    }
+
     void MainPage::onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
         int bottomTapX = 0;
         if (DetectBottomHintTap(Pos, this->bottomHintTouch, 668, 52, bottomTapX)) {
@@ -241,18 +343,40 @@ namespace inst::ui {
             mainApp->FadeOut();
             mainApp->Close();
         }
+        if (Down & HidNpadButton_Left) {
+            if ((this->selectedMainIndex % kMainGridCols) > 0) {
+                this->selectedMainIndex--;
+                this->updateMainGridSelection();
+            }
+        }
+        if (Down & HidNpadButton_Right) {
+            if ((this->selectedMainIndex % kMainGridCols) < (kMainGridCols - 1) && this->selectedMainIndex < ((kMainGridCols * kMainGridRows) - 1)) {
+                this->selectedMainIndex++;
+                this->updateMainGridSelection();
+            }
+        }
+        if (Down & HidNpadButton_Up) {
+            if (this->selectedMainIndex >= kMainGridCols) {
+                this->selectedMainIndex -= kMainGridCols;
+                this->updateMainGridSelection();
+            }
+        }
+        if (Down & HidNpadButton_Down) {
+            if (this->selectedMainIndex + kMainGridCols < (kMainGridCols * kMainGridRows)) {
+                this->selectedMainIndex += kMainGridCols;
+                this->updateMainGridSelection();
+            }
+        }
         bool touchSelect = false;
         if (!Pos.IsEmpty()) {
-            const int menuX = this->optionMenu->GetProcessedX();
-            const int menuY = this->optionMenu->GetProcessedY();
-            const int menuW = this->optionMenu->GetWidth();
-            const int menuH = this->optionMenu->GetHeight();
-            const bool inMenu = (Pos.X >= menuX) && (Pos.X <= (menuX + menuW)) && (Pos.Y >= menuY) && (Pos.Y <= (menuY + menuH));
-            if (!this->touchActive && inMenu) {
+            const int touchedIndex = this->getMainGridIndexFromTouch(Pos.X, Pos.Y);
+            if (!this->touchActive && touchedIndex >= 0) {
                 this->touchActive = true;
                 this->touchMoved = false;
                 this->touchStartX = Pos.X;
                 this->touchStartY = Pos.Y;
+                this->selectedMainIndex = touchedIndex;
+                this->updateMainGridSelection();
             } else if (this->touchActive) {
                 int dx = Pos.X - this->touchStartX;
                 int dy = Pos.Y - this->touchStartY;
@@ -261,6 +385,10 @@ namespace inst::ui {
                 if (dx > 12 || dy > 12) {
                     this->touchMoved = true;
                 }
+                if (touchedIndex >= 0 && touchedIndex != this->selectedMainIndex) {
+                    this->selectedMainIndex = touchedIndex;
+                    this->updateMainGridSelection();
+                }
             }
         } else if (this->touchActive) {
             if (!this->touchMoved) {
@@ -268,40 +396,6 @@ namespace inst::ui {
             }
             this->touchActive = false;
             this->touchMoved = false;
-        }
-
-        if ((Down & HidNpadButton_A) || touchSelect) {
-            switch (this->optionMenu->GetSelectedIndex()) {
-                case 0:
-                    this->shopInstallMenuItem_Click();
-                    break;
-                case 1:
-                    this->installMenuItem_Click();
-                    break;
-                case 2:
-                    MainPage::hddInstallMenuItem_Click();
-                    break;
-                case 3:
-                    MainPage::mtpInstallMenuItem_Click();
-                    break;
-                case 4:
-                    MainPage::usbInstallMenuItem_Click();
-                    break;
-                case 5:
-                    this->netInstallMenuItem_Click();
-                    break;
-                case 6:
-                    MainPage::sigPatchesMenuItem_Click();
-                    break;
-                case 7:
-                    MainPage::settingsMenuItem_Click();
-                    break;
-                case 8:
-                    MainPage::exitMenuItem_Click();
-                    break;
-                default:
-                    break;
-            }
         }
 
         if (!inst::config::gayMode) {
@@ -313,5 +407,8 @@ namespace inst::ui {
                 this->boobsImage->SetVisible(false);
             }
         }
+
+        if ((Down & HidNpadButton_A) || touchSelect)
+            this->activateSelectedMainItem();
     }
 }

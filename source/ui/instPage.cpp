@@ -10,6 +10,7 @@
 
 namespace inst::ui {
     extern MainApplication *mainApp;
+    static pu::ui::Layout::Ref lastLayoutBeforeInstall;
 
     constexpr int kInstallIconSize = 256;
     constexpr int kInstallIconX = (1280 - kInstallIconSize) / 2;
@@ -67,6 +68,7 @@ namespace inst::ui {
         this->installInfoText->SetColor(COLOR("#FFFFFFFF"));
         this->installBar = pu::ui::elm::ProgressBar::New(10, 600, 850, 40, 100.0f);
         this->installBar->SetColor(COLOR("#222222FF"));
+        this->installBar->SetProgressColor(COLOR("#FF4D4DFF"));
         this->hintText = TextBlock::New(0, 678, " Back", 20);
         this->hintText->SetColor(COLOR("#FFFFFFFF"));
         this->hintText->SetX(1280 - 10 - this->hintText->GetTextWidth());
@@ -191,10 +193,16 @@ namespace inst::ui {
     }
 
     void instPage::loadMainMenu(){
-        mainApp->LoadLayout(mainApp->mainPage);
+        if (lastLayoutBeforeInstall != nullptr && lastLayoutBeforeInstall != mainApp->instpage)
+            mainApp->LoadLayout(lastLayoutBeforeInstall);
+        else
+            mainApp->LoadLayout(mainApp->mainPage);
     }
 
     void instPage::loadInstallScreen(){
+        auto currentLayout = mainApp->GetCurrentLayout();
+        if (currentLayout != nullptr && currentLayout != mainApp->instpage)
+            lastLayoutBeforeInstall = currentLayout;
         mainApp->instpage->pageInfoText->SetText("");
         mainApp->instpage->installInfoText->SetText("");
         mainApp->instpage->installBar->SetProgress(0);

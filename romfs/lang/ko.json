@@ -78,6 +78,8 @@
             "search_hint": "모든 타이틀 검색",
             "update_prompt_title": "업데이트를 설치하시겠습니까?",
             "update_prompt_desc": "선택한 타이틀에 사용 가능한 업데이트를 포함하시겠습니까? 찾은 업데이트 수: ",
+            "dlc_prompt_title": "Install DLC?",
+            "dlc_prompt_desc": "Include available DLC for selected titles? DLC found: ",
             "motd_title": "오늘의 메시지",
             "buttons_installed": " 상세 정보     새로고침    / 섹션     취소",
             "detail_type": "종류: ",
@@ -196,7 +198,8 @@
             "check_update": "CyberFoil 업데이트 확인",
             "credits": "크레딧",
             "sound": "효과음을 활성화",
-            "oled": "OLED 모드를 활성화"
+            "oled": "OLED 모드를 활성화",
+            "mtp_album": "MTP 설치 모드에서 앨범 드라이브 표시"
         },
         "nca_warn": {
             "title": "경고!",

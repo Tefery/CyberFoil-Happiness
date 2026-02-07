@@ -79,6 +79,8 @@
             "search_hint": "Search all titles",
             "update_prompt_title": "Install updates?",
             "update_prompt_desc": "Include available updates for selected titles? Updates found: ",
+            "dlc_prompt_title": "Install DLC?",
+            "dlc_prompt_desc": "Include available DLC for selected titles? DLC found: ",
             "motd_title": "Message of the day",
             "buttons_installed": " Details     Refresh    / Section     Cancel",
             "detail_type": "Type: ",
@@ -213,7 +215,8 @@
             "check_update": "Check for updates to CyberFoil",
             "credits": "Credits",
             "sound": "Enable sounds",
-            "oled": "Enable OLED mode"
+            "oled": "Enable OLED mode",
+            "mtp_album": "Show Album drive during MTP install mode"
         },
         "nca_warn": {
             "title": "Warning!",

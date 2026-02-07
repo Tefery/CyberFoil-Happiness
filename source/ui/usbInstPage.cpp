@@ -162,19 +162,63 @@ namespace inst::ui {
     }
 
     void usbInstPage::onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
+        (void)Held;
         int bottomTapX = 0;
         if (DetectBottomHintTap(Pos, this->bottomHintTouch, 668, 52, bottomTapX)) {
             Down |= FindBottomHintButton(this->bottomHintSegments, bottomTapX);
         }
+
+        if (!Pos.IsEmpty()) {
+            if (!this->touchTapActive) {
+                this->touchTapActive = true;
+                this->touchTapMoved = false;
+                this->touchTapStartX = Pos.X;
+                this->touchTapStartY = Pos.Y;
+            } else {
+                int dx = Pos.X - this->touchTapStartX;
+                int dy = Pos.Y - this->touchTapStartY;
+                if (dx < 0) dx = -dx;
+                if (dy < 0) dy = -dy;
+                if (dx > 12 || dy > 12) this->touchTapMoved = true;
+            }
+        } else if (this->touchTapActive) {
+            if (!this->touchTapMoved) {
+                const int tappedIndex = this->menu->GetSelectedIndex();
+                const auto now = std::chrono::steady_clock::now();
+                bool doubleTap = false;
+                if (this->hasLastTap && (this->lastTapIndex == tappedIndex)) {
+                    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - this->lastTapTime).count();
+                    if (ms <= 350) doubleTap = true;
+                }
+
+                if (doubleTap) {
+                    this->selectTitle(tappedIndex);
+                    if (this->menu->GetItems().size() == 1 && this->selectedTitles.size() == 1) {
+                        this->startInstall();
+                    }
+                    this->hasLastTap = false;
+                    this->lastTapIndex = -1;
+                } else {
+                    this->hasLastTap = true;
+                    this->lastTapIndex = tappedIndex;
+                    this->lastTapTime = now;
+                }
+            }
+            this->touchTapActive = false;
+            this->touchTapMoved = false;
+        }
+
         if (Down & HidNpadButton_B) {
             tin::util::USBCmdManager::SendExitCmd();
             mainApp->LoadLayout(mainApp->mainPage);
         }
-        if ((Down & HidNpadButton_A) || (Up & TouchPseudoKey)) {
+        if (Down & HidNpadButton_A) {
             this->selectTitle(this->menu->GetSelectedIndex());
             if (this->menu->GetItems().size() == 1 && this->selectedTitles.size() == 1) {
                 this->startInstall();
             }
+            this->hasLastTap = false;
+            this->lastTapIndex = -1;
         }
         if ((Down & HidNpadButton_Y)) {
             if (this->selectedTitles.size() == this->menu->GetItems().size()) this->drawMenuItems(true);

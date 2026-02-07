@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include <pu/Plutonium>
 #include "ui/bottomHint.hpp"
 
@@ -43,6 +44,13 @@ namespace inst::ui {
             Rectangle::Ref topRect;
             Rectangle::Ref infoRect;
             Rectangle::Ref botRect;
+            bool touchTapActive = false;
+            bool touchTapMoved = false;
+            int touchTapStartX = 0;
+            int touchTapStartY = 0;
+            bool hasLastTap = false;
+            int lastTapIndex = -1;
+            std::chrono::steady_clock::time_point lastTapTime{};
             pu::ui::elm::Menu::Ref menu;
             Image::Ref infoImage;
             void setButtonsText(const std::string& text);

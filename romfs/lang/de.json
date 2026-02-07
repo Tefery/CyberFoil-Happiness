@@ -78,6 +78,8 @@
             "search_hint": "Alle Titel durchsuchen",
             "update_prompt_title": "Updates installieren?",
             "update_prompt_desc": "Verfügbare Updates für ausgewählte Titel einbeziehen? Gefundene Updates: ",
+            "dlc_prompt_title": "Install DLC?",
+            "dlc_prompt_desc": "Include available DLC for selected titles? DLC found: ",
             "motd_title": "Nachricht des Tages",
             "buttons_installed": " Details     Aktualisieren    / Abschnitt     Abbrechen",
             "detail_type": "Typ: ",
@@ -196,7 +198,8 @@
             "check_update": "Suche nach Updates für CyberFoil",
             "credits": "Anerkennung",
             "sound": "Töne aktivieren",
-            "oled": "OLED-Modus aktivieren"
+            "oled": "OLED-Modus aktivieren",
+            "mtp_album": "Album-Laufwerk im MTP-Installationsmodus anzeigen"
         },
         "nca_warn": {
             "title": "Warnung!",

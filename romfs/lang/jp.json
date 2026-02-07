@@ -78,6 +78,8 @@
             "search_hint": "すべてのタイトルを検索",
             "update_prompt_title": "アップデートをインストールしますか？",
             "update_prompt_desc": "選択したタイトルに利用可能なアップデートを含めますか？ 見つかったアップデート数: ",
+            "dlc_prompt_title": "Install DLC?",
+            "dlc_prompt_desc": "Include available DLC for selected titles? DLC found: ",
             "motd_title": "本日のメッセージ",
             "buttons_installed": " 詳細     更新    / セクション     キャンセル",
             "detail_type": "種類: ",
@@ -196,7 +198,8 @@
             "check_update": "CyberFoilのアップデートを確認",
             "credits": "クレジット",
             "sound": "効果音を有効にする",
-            "oled": "OLED モードを有効にする"
+            "oled": "OLED モードを有効にする",
+            "mtp_album": "MTPインストールモードでアルバムドライブを表示"
         },
         "nca_warn": {
             "title": "警告!",

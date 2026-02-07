@@ -17,6 +17,7 @@ namespace inst::config {
     bool gayMode;
     bool soundEnabled;
     bool oledMode;
+    bool mtpExposeAlbum;
     bool ignoreReqVers;
     bool overClock;
     bool usbAck;
@@ -32,6 +33,7 @@ namespace inst::config {
             {"gayMode", gayMode},
             {"soundEnabled", soundEnabled},
             {"oledMode", oledMode},
+            {"mtpExposeAlbum", mtpExposeAlbum},
             {"ignoreReqVers", ignoreReqVers},
             {"languageSetting", languageSetting},
             {"overClock", overClock},
@@ -59,9 +61,10 @@ namespace inst::config {
         deletePrompt = true;
         gayMode = true;
         soundEnabled = true;
-        oledMode = false;
+        oledMode = true;
+        mtpExposeAlbum = true;
         ignoreReqVers = true;
-        overClock = false;
+        overClock = true;
         usbAck = false;
         validateNCAs = true;
         lastNetUrl = "https://";
@@ -81,6 +84,7 @@ namespace inst::config {
             if (j.contains("gayMode")) gayMode = j["gayMode"].get<bool>();
             if (j.contains("soundEnabled")) soundEnabled = j["soundEnabled"].get<bool>();
             if (j.contains("oledMode")) oledMode = j["oledMode"].get<bool>();
+            if (j.contains("mtpExposeAlbum")) mtpExposeAlbum = j["mtpExposeAlbum"].get<bool>();
             if (j.contains("ignoreReqVers")) ignoreReqVers = j["ignoreReqVers"].get<bool>();
             if (j.contains("languageSetting")) languageSetting = j["languageSetting"].get<int>();
             if (j.contains("overClock")) overClock = j["overClock"].get<bool>();

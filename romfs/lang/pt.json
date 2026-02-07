@@ -78,6 +78,8 @@
             "search_hint": "Pesquisar em todos os títulos",
             "update_prompt_title": "Instalar atualizações?",
             "update_prompt_desc": "Incluir as atualizações disponíveis para os títulos selecionados? Atualizações encontradas: ",
+            "dlc_prompt_title": "Install DLC?",
+            "dlc_prompt_desc": "Include available DLC for selected titles? DLC found: ",
             "motd_title": "Mensagem do dia",
             "buttons_installed": " Detalhes     Atualizar    / Secção     Cancelar",
             "detail_type": "Tipo: ",
@@ -196,7 +198,8 @@
             "check_update": "Procurar atualizações do CyberFoil",
             "credits": "Créditos",
             "sound": "Ativar sons",
-            "oled": "Ativar modo OLED"
+            "oled": "Ativar modo OLED",
+            "mtp_album": "Mostrar unidade Álbum no modo de instalação MTP"
         },
         "nca_warn": {
             "title": "Aviso!",

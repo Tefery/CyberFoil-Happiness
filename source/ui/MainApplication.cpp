@@ -6,6 +6,7 @@
 #include <ctime>
 #include <cstdio>
 #include <filesystem>
+#include <sstream>
 #include <thread>
 #include "mtp_install.hpp"
 #include "mtp_server.hpp"
@@ -15,6 +16,72 @@
 
 namespace inst::ui {
     MainApplication *mainApp;
+
+    static std::string WrapForTextBlock(const pu::ui::elm::TextBlock::Ref& block, const std::string& text, int max_width) {
+        if (!block || text.empty()) return text;
+
+        std::stringstream input(text);
+        std::string paragraph;
+        std::string wrapped;
+
+        while (std::getline(input, paragraph)) {
+            if (paragraph.empty()) {
+                wrapped += "\n";
+                continue;
+            }
+
+            std::stringstream words(paragraph);
+            std::string word;
+            std::string line;
+            while (words >> word) {
+                std::string candidate = line.empty() ? word : (line + " " + word);
+                block->SetText(candidate);
+                if (block->GetTextWidth() <= max_width) {
+                    line = candidate;
+                } else {
+                    if (!wrapped.empty() && wrapped.back() != '\n') wrapped += "\n";
+                    wrapped += line.empty() ? word : line;
+                    line = line.empty() ? "" : word;
+                    if (line == word) {
+                        block->SetText(line);
+                        if (block->GetTextWidth() > max_width) {
+                            // Single overlong token: place as-is on its own line.
+                            wrapped += "\n" + line;
+                            line.clear();
+                        }
+                    }
+                }
+            }
+            if (!line.empty()) {
+                if (!wrapped.empty() && wrapped.back() != '\n') wrapped += "\n";
+                wrapped += line;
+            }
+            wrapped += "\n";
+        }
+
+        if (!wrapped.empty() && wrapped.back() == '\n') wrapped.pop_back();
+        return wrapped;
+    }
+
+    static std::string FormatOneDecimal(double value) {
+        char buf[64];
+        std::snprintf(buf, sizeof(buf), "%.1f", value);
+        std::string out = buf;
+        if (out.find('.') != std::string::npos) {
+            while (!out.empty() && out.back() == '0') out.pop_back();
+            if (!out.empty() && out.back() == '.') out.pop_back();
+        }
+        return out;
+    }
+
+    static std::string FormatBinarySize(std::uint64_t bytes) {
+        const double mib = static_cast<double>(bytes) / (1024.0 * 1024.0);
+        if (mib >= 1024.0) {
+            const double gib = mib / 1024.0;
+            return FormatOneDecimal(gib) + " GiB";
+        }
+        return FormatOneDecimal(mib) + " MiB";
+    }
 
     void MainApplication::OnLoad() {
         mainApp = this;
@@ -70,20 +137,29 @@ namespace inst::ui {
             static auto last_time = std::chrono::steady_clock::now();
             static std::uint64_t last_bytes = 0;
             static double ema_rate = 0.0;
+            static int spinner_idx = 0;
+            static const char kSpinner[4] = {'|', '/', '-', '\\'};
+            static auto last_ui_text_update = std::chrono::steady_clock::now();
 
             const bool active = inst::mtp::IsStreamInstallActive();
             const bool server_running = inst::mtp::IsInstallServerRunning();
+            constexpr int kRightIconSize = 220;
+            constexpr int kRightIconX = 1280 - 60 - kRightIconSize;
+            constexpr int kRightIconY = 220;
 
             if (server_running && !active && !last_server_running) {
                 this->LoadLayout(this->instpage);
                 this->instpage->pageInfoText->SetText("inst.mtp.waiting.title"_lang);
                 this->instpage->installInfoText->SetText("inst.mtp.waiting.desc"_lang + std::string("\n\n") + "inst.mtp.waiting.hint"_lang);
+                this->instpage->installInfoText->SetX(15);
+                this->instpage->installInfoText->SetY(568);
                 this->instpage->installBar->SetVisible(false);
                 this->instpage->installBar->SetProgress(0);
                 this->instpage->installIconImage->SetVisible(false);
                 this->instpage->awooImage->SetVisible(!inst::config::gayMode);
                 this->instpage->hintText->SetVisible(true);
                 this->instpage->progressText->SetVisible(false);
+                this->instpage->progressDetailText->SetVisible(false);
                 icon_set = false;
             }
 
@@ -96,15 +172,20 @@ namespace inst::ui {
                 last_time = std::chrono::steady_clock::now();
                 last_bytes = 0;
                 ema_rate = 0.0;
+                spinner_idx = 0;
+                last_ui_text_update = std::chrono::steady_clock::now() - std::chrono::milliseconds(1000);
                 this->LoadLayout(this->instpage);
                 this->instpage->pageInfoText->SetText("inst.info_page.top_info0"_lang + last_name + " (MTP)");
                 this->instpage->installInfoText->SetText("inst.info_page.preparing"_lang);
+                this->instpage->installInfoText->SetX(15);
+                this->instpage->installInfoText->SetY(568);
                 this->instpage->installBar->SetVisible(true);
                 this->instpage->installBar->SetProgress(0);
                 this->instpage->installIconImage->SetVisible(false);
                 this->instpage->awooImage->SetVisible(!inst::config::gayMode);
                 this->instpage->hintText->SetVisible(true);
                 this->instpage->progressText->SetVisible(true);
+                this->instpage->progressDetailText->SetVisible(true);
                 icon_set = false;
             }
 
@@ -116,7 +197,9 @@ namespace inst::ui {
                     const double percent = (double)received / (double)total * 100.0;
                     this->instpage->installBar->SetVisible(true);
                     this->instpage->installBar->SetProgress(percent);
-                    this->instpage->installInfoText->SetText("inst.info_page.downloading"_lang + last_name);
+                    if (!icon_set) {
+                        this->instpage->installInfoText->SetText("inst.info_page.downloading"_lang + last_name);
+                    }
 
                     const auto now = std::chrono::steady_clock::now();
                     const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_time).count();
@@ -152,15 +235,9 @@ namespace inst::ui {
                     std::string speed_text;
                     if (ema_rate > 0.0) {
                         const double mbps = ema_rate / (1024.0 * 1024.0);
-                        const double rounded = std::round(mbps * 10.0) / 10.0;
-                        speed_text = std::to_string(rounded);
-                        if (speed_text.find('.') != std::string::npos) {
-                            while (!speed_text.empty() && speed_text.back() == '0') speed_text.pop_back();
-                            if (!speed_text.empty() && speed_text.back() == '.') speed_text.pop_back();
-                        }
-                        speed_text += " MB/s";
+                        speed_text = FormatOneDecimal(mbps) + " MiB/s";
                     } else {
-                        speed_text = "-- MB/s";
+                        speed_text = "-- MiB/s";
                     }
 
                     std::string format_text;
@@ -170,14 +247,25 @@ namespace inst::ui {
                         std::transform(format_text.begin(), format_text.end(), format_text.begin(), ::toupper);
                     }
 
-                    const int pct = static_cast<int>(percent + 0.5);
-                    std::string progress_text = std::to_string(pct) + "% • " + eta_text + " • " + speed_text;
-                    if (!format_text.empty()) {
-                        progress_text += " • " + format_text;
+                    const auto ui_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_ui_text_update).count();
+                    if (ui_elapsed >= 250 || received >= total) {
+                        const int pct = static_cast<int>(percent + 0.5);
+                        std::string progress_text = std::string(1, kSpinner[spinner_idx]) + " " + std::to_string(pct) + "% • " + eta_text + " • " + speed_text;
+                        spinner_idx = (spinner_idx + 1) % 4;
+                        if (!format_text.empty()) {
+                            progress_text += " • " + format_text;
+                        }
+                        this->instpage->progressText->SetText(progress_text);
+                        this->instpage->progressText->SetX((1280 - this->instpage->progressText->GetTextWidth()) / 2);
+                        this->instpage->progressText->SetVisible(true);
+
+                        this->instpage->progressDetailText->SetText(
+                            "Copied " + FormatBinarySize(received) + " / " + FormatBinarySize(total)
+                        );
+                        this->instpage->progressDetailText->SetX((1280 - this->instpage->progressDetailText->GetTextWidth()) / 2);
+                        this->instpage->progressDetailText->SetVisible(true);
+                        last_ui_text_update = now;
                     }
-                    this->instpage->progressText->SetText(progress_text);
-                    this->instpage->progressText->SetX((1280 - this->instpage->progressText->GetTextWidth()) / 2);
-                    this->instpage->progressText->SetVisible(true);
                 }
 
                 if (!icon_set) {
@@ -190,8 +278,16 @@ namespace inst::ui {
                             const size_t iconSize = sizeRead - sizeof(appControlData.nacp);
                             if (iconSize > 0) {
                                 this->instpage->installIconImage->SetJpegImage(appControlData.icon, iconSize);
+                                this->instpage->installIconImage->SetX(kRightIconX);
+                                this->instpage->installIconImage->SetY(kRightIconY);
+                                this->instpage->installIconImage->SetWidth(kRightIconSize);
+                                this->instpage->installIconImage->SetHeight(kRightIconSize);
                                 this->instpage->installIconImage->SetVisible(true);
                                 this->instpage->awooImage->SetVisible(false);
+                                const std::string msg = last_name + "inst.info_page.desc1"_lang + "\n\n" + Language::GetRandomMsg();
+                                this->instpage->installInfoText->SetText(WrapForTextBlock(this->instpage->installInfoText, msg, 900));
+                                this->instpage->installInfoText->SetX(40);
+                                this->instpage->installInfoText->SetY(240);
                                 icon_set = true;
                             }
                         }
@@ -202,11 +298,29 @@ namespace inst::ui {
             if (inst::mtp::ConsumeStreamInstallComplete()) {
                 this->instpage->installBar->SetVisible(true);
                 this->instpage->installBar->SetProgress(100);
-                this->instpage->installInfoText->SetText("inst.info_page.complete"_lang + std::string("\n\n") + "inst.mtp.waiting.hint"_lang);
+                const std::string done_msg = last_name + "inst.info_page.desc1"_lang + "\n\n" + Language::GetRandomMsg() + "\n\n" + "inst.mtp.waiting.hint"_lang;
+                this->instpage->installInfoText->SetText(WrapForTextBlock(this->instpage->installInfoText, done_msg, 900));
+                this->instpage->installInfoText->SetX(40);
+                this->instpage->installInfoText->SetY(240);
                 this->instpage->hintText->SetVisible(true);
                 this->instpage->progressText->SetText("100% • done");
                 this->instpage->progressText->SetX((1280 - this->instpage->progressText->GetTextWidth()) / 2);
                 this->instpage->progressText->SetVisible(true);
+                this->instpage->progressDetailText->SetText("Copied complete");
+                this->instpage->progressDetailText->SetX((1280 - this->instpage->progressDetailText->GetTextWidth()) / 2);
+                this->instpage->progressDetailText->SetVisible(true);
+
+                if (this->instpage->installIconImage->IsVisible()) {
+                    this->instpage->installIconImage->SetX(kRightIconX);
+                    this->instpage->installIconImage->SetY(kRightIconY);
+                    this->instpage->installIconImage->SetWidth(kRightIconSize);
+                    this->instpage->installIconImage->SetHeight(kRightIconSize);
+                } else if (!inst::config::gayMode) {
+                    this->instpage->awooImage->SetVisible(true);
+                    this->instpage->awooImage->SetX(kRightIconX + 10);
+                    this->instpage->awooImage->SetY(kRightIconY - 10);
+                }
+
                 if (!complete_notified) {
                     std::string audioPath = "romfs:/audio/success.wav";
                     if (!inst::config::soundEnabled) audioPath = "";
@@ -214,7 +328,6 @@ namespace inst::ui {
                         audioPath = inst::config::appDir + "/success.wav";
                     }
                     std::thread audioThread(inst::util::playAudio, audioPath);
-                    this->CreateShowDialog(last_name + "inst.info_page.desc1"_lang, Language::GetRandomMsg(), {"common.ok"_lang}, true);
                     audioThread.join();
                     complete_notified = true;
                 }

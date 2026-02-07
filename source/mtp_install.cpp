@@ -91,6 +91,7 @@ private:
     std::uint64_t m_received = 0;
     std::vector<std::uint8_t> m_header_bytes;
     std::vector<EntryState> m_entries;
+    size_t m_hint_index = 0;
     bool m_header_parsed = false;
     std::unique_ptr<class StreamInstallHelper> m_helper;
 };
@@ -177,6 +178,7 @@ bool MtpNspStream::ParseHeaderIfReady()
     m_header_parsed = true;
 
     m_entries.clear();
+    m_hint_index = 0;
     for (u32 i = 0; i < base->numFiles; i++) {
         const auto* entry = reinterpret_cast<const tin::install::PFS0FileEntry*>(
             m_header_bytes.data() + sizeof(tin::install::PFS0BaseHeader) + i * sizeof(tin::install::PFS0FileEntry));
@@ -195,6 +197,9 @@ bool MtpNspStream::ParseHeaderIfReady()
         }
         m_entries.emplace_back(std::move(st));
     }
+    std::sort(m_entries.begin(), m_entries.end(), [](const EntryState& a, const EntryState& b) {
+        return a.data_offset < b.data_offset;
+    });
 
     return true;
 }
@@ -242,6 +247,21 @@ bool MtpNspStream::CommitCnmt(EntryState& entry)
 
 bool MtpNspStream::WriteEntryData(EntryState& entry, const std::uint8_t* data, size_t size, std::uint64_t rel_offset)
 {
+    if (rel_offset != entry.written) {
+        // Host retries/overlaps can happen near transfer end; accept already-written prefix.
+        if (rel_offset < entry.written) {
+            const auto overlap = static_cast<size_t>(std::min<std::uint64_t>(entry.written - rel_offset, size));
+            data += overlap;
+            size -= overlap;
+            rel_offset += overlap;
+            if (size == 0) {
+                return true;
+            }
+        } else {
+            return false;
+        }
+    }
+
     if (entry.name.find(".tik") != std::string::npos) {
         entry.ticket_buf.insert(entry.ticket_buf.end(), data, data + size);
         entry.written += size;
@@ -259,8 +279,16 @@ bool MtpNspStream::WriteEntryData(EntryState& entry, const std::uint8_t* data, s
         return true;
     }
 
-    if (!entry.is_nca || !entry.nca_writer) return false;
-    if (rel_offset != entry.written) return false;
+    if (!entry.is_nca) {
+        // Non-NCA metadata payloads (eg xml) are not needed by installer logic.
+        entry.written += size;
+        if (entry.written >= entry.size) {
+            entry.complete = true;
+        }
+        return true;
+    }
+
+    if (!entry.nca_writer) return false;
     entry.nca_writer->write(data, size);
     entry.written += size;
     if (entry.written >= entry.size) {
@@ -281,6 +309,8 @@ bool MtpNspStream::Feed(const void* buf, size_t size, std::uint64_t offset)
 {
     try {
     const auto* data = static_cast<const std::uint8_t*>(buf);
+    const auto chunk_start = offset;
+    const auto chunk_end = offset + size;
     if (offset == m_received) {
         m_received += size;
     }
@@ -306,13 +336,30 @@ bool MtpNspStream::Feed(const void* buf, size_t size, std::uint64_t offset)
         return true;
     }
 
-    for (auto& entry : m_entries) {
+    if (m_entries.empty()) {
+        return true;
+    }
+
+    if (m_hint_index >= m_entries.size()) {
+        m_hint_index = 0;
+    }
+
+    while (m_hint_index > 0 && chunk_start < m_entries[m_hint_index].data_offset) {
+        --m_hint_index;
+    }
+    while (m_hint_index < m_entries.size()) {
+        const auto end = m_entries[m_hint_index].data_offset + m_entries[m_hint_index].size;
+        if (chunk_start < end) break;
+        ++m_hint_index;
+    }
+
+    for (size_t i = m_hint_index; i < m_entries.size(); ++i) {
+        auto& entry = m_entries[i];
         const auto entry_start = entry.data_offset;
         const auto entry_end = entry.data_offset + entry.size;
-        const auto chunk_start = offset;
-        const auto chunk_end = offset + size;
 
-        if (chunk_end <= entry_start || chunk_start >= entry_end) continue;
+        if (chunk_end <= entry_start) break;
+        if (chunk_start >= entry_end) continue;
 
         const auto write_start = std::max<std::uint64_t>(chunk_start, entry_start);
         const auto write_end = std::min<std::uint64_t>(chunk_end, entry_end);
@@ -333,6 +380,7 @@ bool MtpNspStream::Feed(const void* buf, size_t size, std::uint64_t offset)
 bool MtpNspStream::Finalize()
 {
     if (!m_helper) return true;
+    bool ok = true;
 
     std::vector<std::vector<std::uint8_t>> tickets;
     std::vector<std::vector<std::uint8_t>> certs;
@@ -348,13 +396,24 @@ bool MtpNspStream::Finalize()
     const size_t count = std::min(tickets.size(), certs.size());
     for (size_t i = 0; i < count; i++) {
         if (!tickets[i].empty() && !certs[i].empty()) {
-            ASSERT_OK(esImportTicket(tickets[i].data(), tickets[i].size(), certs[i].data(), certs[i].size()),
-                "Failed to import ticket");
+            const Result rc = esImportTicket(tickets[i].data(), tickets[i].size(), certs[i].data(), certs[i].size());
+            if (R_FAILED(rc)) {
+                LOG_DEBUG("MTP finalize: ticket import failed (0x%08x)\n", rc);
+                ok = false;
+            }
         }
     }
 
-    m_helper->CommitAll();
-    return true;
+    try {
+        m_helper->CommitAll();
+    } catch (const std::exception& e) {
+        LOG_DEBUG("MTP finalize: CommitAll failed: %s\n", e.what());
+        ok = false;
+    } catch (...) {
+        LOG_DEBUG("MTP finalize: CommitAll failed with unknown exception\n");
+        ok = false;
+    }
+    return ok;
 }
 
 class MtpStreamBuffer {
@@ -722,14 +781,25 @@ private:
                 const auto base = entry.name.substr(0, entry.name.size() - 4);
                 auto it = entries.find(base + ".cert");
                 if (it != entries.end() && !entry.ticket_buf.empty() && !it->second.cert_buf.empty()) {
-                    ASSERT_OK(esImportTicket(entry.ticket_buf.data(), entry.ticket_buf.size(), it->second.cert_buf.data(), it->second.cert_buf.size()),
-                        "Failed to import ticket");
+                    const Result rc = esImportTicket(entry.ticket_buf.data(), entry.ticket_buf.size(), it->second.cert_buf.data(), it->second.cert_buf.size());
+                    if (R_FAILED(rc)) {
+                        LOG_DEBUG("MTP XCI finalize: ticket import failed (0x%08x)\n", rc);
+                        return false;
+                    }
                 }
             }
         }
 
-        m_helper->CommitAll();
-        return true;
+        try {
+            m_helper->CommitAll();
+            return true;
+        } catch (const std::exception& e) {
+            LOG_DEBUG("MTP XCI finalize: CommitAll failed: %s\n", e.what());
+            return false;
+        } catch (...) {
+            LOG_DEBUG("MTP XCI finalize: CommitAll failed with unknown exception\n");
+            return false;
+        }
     }
 
     NcmStorageId m_dest_storage = NcmStorageId_SdCard;
@@ -746,7 +816,10 @@ private:
 
 bool StartStreamInstall(const std::string& name, std::uint64_t size, int storage_choice)
 {
-    g_stream.reset();
+    {
+        std::lock_guard<std::mutex> lock(g_stream_mutex);
+        g_stream.reset();
+    }
 
     g_stream_total.store(size, std::memory_order_relaxed);
     g_stream_received.store(0, std::memory_order_relaxed);
@@ -759,12 +832,15 @@ bool StartStreamInstall(const std::string& name, std::uint64_t size, int storage
     }
 
     NcmStorageId storage = (storage_choice == 1) ? NcmStorageId_BuiltInUser : NcmStorageId_SdCard;
-    if (IsNspName(name)) {
-        g_stream = std::make_unique<MtpNspStream>(size, storage);
-    } else if (IsXciName(name)) {
-        g_stream = std::make_unique<MtpXciStreamPull>(size, storage);
-    } else {
-        return false;
+    {
+        std::lock_guard<std::mutex> lock(g_stream_mutex);
+        if (IsNspName(name)) {
+            g_stream = std::make_unique<MtpNspStream>(size, storage);
+        } else if (IsXciName(name)) {
+            g_stream = std::make_unique<MtpXciStreamPull>(size, storage);
+        } else {
+            return false;
+        }
     }
 
     inst::util::initInstallServices();
@@ -773,17 +849,37 @@ bool StartStreamInstall(const std::string& name, std::uint64_t size, int storage
 
 bool WriteStreamInstall(const void* buf, size_t size, std::uint64_t offset)
 {
+    std::lock_guard<std::mutex> lock(g_stream_mutex);
     if (!g_stream) return false;
     return g_stream->Feed(buf, size, offset);
 }
 
 void CloseStreamInstall()
 {
-    if (!g_stream) return;
-    g_stream->Finalize();
-    g_stream.reset();
+    std::unique_ptr<StreamInstaller> stream;
+    {
+        std::lock_guard<std::mutex> lock(g_stream_mutex);
+        if (!g_stream) return;
+        stream = std::move(g_stream);
+    }
+
+    bool ok = false;
+    try {
+        ok = stream->Finalize();
+    } catch (const std::exception& e) {
+        LOG_DEBUG("MTP close: finalize threw: %s\n", e.what());
+        ok = false;
+    } catch (...) {
+        LOG_DEBUG("MTP close: finalize threw unknown exception\n");
+        ok = false;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(g_stream_mutex);
+        g_stream_name.clear();
+    }
     g_stream_active.store(false, std::memory_order_relaxed);
-    g_stream_complete.store(true, std::memory_order_relaxed);
+    g_stream_complete.store(ok, std::memory_order_relaxed);
     inst::util::deinitInstallServices();
 }
 

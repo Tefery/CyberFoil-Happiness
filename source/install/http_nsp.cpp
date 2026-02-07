@@ -22,6 +22,7 @@ SOFTWARE.
 
 #include "install/http_nsp.hpp"
 
+#include <cstdio>
 #include <switch.h>
 #include <threads.h>
 #include "data/buffered_placeholder_writer.hpp"
@@ -34,6 +35,34 @@ SOFTWARE.
 
 namespace tin::install::nsp
 {
+    namespace {
+        std::string FormatOneDecimal(double value)
+        {
+            char buf[32];
+            std::snprintf(buf, sizeof(buf), "%.1f", value);
+            return std::string(buf);
+        }
+
+        std::string FormatEta(std::uint64_t totalSeconds)
+        {
+            const std::uint64_t h = totalSeconds / 3600;
+            const std::uint64_t m = (totalSeconds % 3600) / 60;
+            const std::uint64_t s = totalSeconds % 60;
+            char buf[32];
+            if (h > 0) {
+                std::snprintf(buf, sizeof(buf), "%llu:%02llu:%02llu",
+                    static_cast<unsigned long long>(h),
+                    static_cast<unsigned long long>(m),
+                    static_cast<unsigned long long>(s));
+            } else {
+                std::snprintf(buf, sizeof(buf), "%llu:%02llu",
+                    static_cast<unsigned long long>(m),
+                    static_cast<unsigned long long>(s));
+            }
+            return std::string(buf);
+        }
+    }
+
     bool stopThreadsHttpNsp;
 
     HTTPNSP::HTTPNSP(std::string url) :
@@ -124,13 +153,28 @@ namespace tin::install::nsp
                 startTime = newTime;
                 startSizeBuffered = newSizeBuffered;
 
-                int downloadProgress = (int)(((double)bufferedPlaceholderWriter.GetSizeBuffered() / (double)bufferedPlaceholderWriter.GetTotalDataSize()) * 100.0);
+                const double sizeBuffered = static_cast<double>(bufferedPlaceholderWriter.GetSizeBuffered());
+                const double totalSize = static_cast<double>(bufferedPlaceholderWriter.GetTotalDataSize());
+                int downloadProgress = (int)((sizeBuffered / totalSize) * 100.0);
+
+                std::string etaText = "--:--";
+                if (speed > 0.0 && totalSize > sizeBuffered) {
+                    const double remainingMb = (totalSize - sizeBuffered) / 1000000.0;
+                    const auto etaSeconds = static_cast<std::uint64_t>(remainingMb / speed);
+                    etaText = FormatEta(etaSeconds);
+                }
 
                 inst::ui::instPage::setInstInfoText("inst.info_page.downloading"_lang + inst::util::formatUrlString(ncaFileName) + "inst.info_page.at"_lang + std::to_string(speed).substr(0, std::to_string(speed).size()-4) + "MB/s");
                 inst::ui::instPage::setInstBarPerc((double)downloadProgress);
+                inst::ui::instPage::setProgressDetailText(
+                    "Downloaded " + FormatOneDecimal(sizeBuffered / 1000000.0) + " / " +
+                    FormatOneDecimal(totalSize / 1000000.0) + " MB (" +
+                    std::to_string(downloadProgress) + "%) • ETA " + etaText
+                );
             }
         }
         inst::ui::instPage::setInstBarPerc(100);
+        inst::ui::instPage::setProgressDetailText("Downloaded 100% • Verifying and installing...");
 
         inst::ui::instPage::setInstInfoText("inst.info_page.top_info0"_lang + ncaFileName + "...");
         inst::ui::instPage::setInstBarPerc(0);
@@ -139,8 +183,14 @@ namespace tin::install::nsp
             int installProgress = (int)(((double)bufferedPlaceholderWriter.GetSizeWrittenToPlaceholder() / (double)bufferedPlaceholderWriter.GetTotalDataSize()) * 100.0);
 
             inst::ui::instPage::setInstBarPerc((double)installProgress);
+            inst::ui::instPage::setProgressDetailText(
+                "Installing " + FormatOneDecimal((double)bufferedPlaceholderWriter.GetSizeWrittenToPlaceholder() / 1000000.0) + " / " +
+                FormatOneDecimal((double)bufferedPlaceholderWriter.GetTotalDataSize() / 1000000.0) + " MB (" +
+                std::to_string(installProgress) + "%)"
+            );
         }
         inst::ui::instPage::setInstBarPerc(100);
+        inst::ui::instPage::setProgressDetailText("Installing 100%");
 
         thrd_join(curlThread, NULL);
         thrd_join(writeThread, NULL);
