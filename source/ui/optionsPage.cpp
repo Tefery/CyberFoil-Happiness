@@ -107,6 +107,9 @@ namespace inst::ui {
         this->Add(this->butText);
         this->Add(this->pageInfoText);
         for (int i = 0; i < 3; i++) {
+            auto sectionHighlight = Rectangle::New(30, 172 + (i * 56), 240, 48, COLOR("#FFFFFF00"), 10);
+            this->sectionHighlights.push_back(sectionHighlight);
+            this->Add(sectionHighlight);
             auto sectionText = TextBlock::New(40, 190 + (i * 56), "", 26);
             sectionText->SetColor(COLOR("#FFFFFFFF"));
             this->sectionTexts.push_back(sectionText);
@@ -179,8 +182,21 @@ namespace inst::ui {
     void optionsPage::setSectionNavText() {
         static const std::vector<std::string> sectionLabels = {"General", "Shop", "System"};
         for (size_t i = 0; i < this->sectionTexts.size() && i < sectionLabels.size(); i++) {
+            const bool selected = static_cast<int>(i) == this->selectedSection;
+            this->sectionHighlights[i]->SetColor(selected
+                ? (this->tabsFocused
+                    ? (inst::config::oledMode ? COLOR("#FFFFFF55") : COLOR("#FFFFFF66"))
+                    : (inst::config::oledMode ? COLOR("#FFFFFF33") : COLOR("#FFFFFF40")))
+                : COLOR("#FFFFFF00"));
             this->sectionTexts[i]->SetText(sectionLabels[i]);
-            this->sectionTexts[i]->SetColor(static_cast<int>(i) == this->selectedSection ? COLOR("#FFFFFFFF") : COLOR("#FFFFFF99"));
+            this->sectionTexts[i]->SetColor(selected ? COLOR("#FFFFFFFF") : (this->tabsFocused ? COLOR("#FFFFFFCC") : COLOR("#FFFFFF99")));
+        }
+
+        // Make the settings-list row highlight clearly reflect which area is active.
+        if (inst::config::oledMode) {
+            this->menu->SetOnFocusColor(this->tabsFocused ? COLOR("#FFFFFF18") : COLOR("#FFFFFF66"));
+        } else {
+            this->menu->SetOnFocusColor(this->tabsFocused ? COLOR("#00000022") : COLOR("#00000070"));
         }
     }
 
@@ -275,15 +291,51 @@ namespace inst::ui {
             mainApp->LoadLayout(mainApp->mainPage);
         }
 
+        const int sectionCount = static_cast<int>(this->sectionTexts.size());
+        const bool leftPressed = (Down & (HidNpadButton_Left | HidNpadButton_StickLLeft)) != 0;
+        const bool rightPressed = (Down & (HidNpadButton_Right | HidNpadButton_StickLRight)) != 0;
+        const bool upPressed = (Down & (HidNpadButton_Up | HidNpadButton_StickLUp)) != 0;
+        const bool downPressed = (Down & (HidNpadButton_Down | HidNpadButton_StickLDown)) != 0;
+
+        if (leftPressed && !this->tabsFocused) {
+            this->tabsFocused = true;
+            this->lockedMenuIndex = this->menu->GetSelectedIndex();
+            this->setSectionNavText();
+        } else if (rightPressed && this->tabsFocused) {
+            this->tabsFocused = false;
+            this->setSectionNavText();
+        }
+
         if (Down & HidNpadButton_L) {
+            this->tabsFocused = true;
             this->selectedSection--;
-            if (this->selectedSection < 0) this->selectedSection = 2;
+            if (this->selectedSection < 0) this->selectedSection = sectionCount - 1;
             this->refreshOptions(true);
+            this->lockedMenuIndex = this->menu->GetSelectedIndex();
         }
         if (Down & HidNpadButton_R) {
+            this->tabsFocused = true;
             this->selectedSection++;
-            if (this->selectedSection > 2) this->selectedSection = 0;
+            if (this->selectedSection >= sectionCount) this->selectedSection = 0;
             this->refreshOptions(true);
+            this->lockedMenuIndex = this->menu->GetSelectedIndex();
+        }
+
+        if (this->tabsFocused) {
+            if (upPressed && !downPressed) {
+                this->selectedSection--;
+                if (this->selectedSection < 0) this->selectedSection = sectionCount - 1;
+                this->refreshOptions(true);
+                this->lockedMenuIndex = this->menu->GetSelectedIndex();
+            } else if (downPressed) {
+                this->selectedSection++;
+                if (this->selectedSection >= sectionCount) this->selectedSection = 0;
+                this->refreshOptions(true);
+                this->lockedMenuIndex = this->menu->GetSelectedIndex();
+            }
+            this->menu->SetSelectedIndex(this->lockedMenuIndex);
+        } else {
+            this->lockedMenuIndex = this->menu->GetSelectedIndex();
         }
 
         bool touchSelect = false;
@@ -309,12 +361,18 @@ namespace inst::ui {
         } else if (this->touchActive) {
             if (!this->touchMoved) {
                 if (this->touchRegion == 1) {
+                    this->tabsFocused = true;
                     int touchedSection = this->getSectionFromTouch(this->touchStartX, this->touchStartY);
                     if (touchedSection >= 0 && touchedSection != this->selectedSection) {
                         this->selectedSection = touchedSection;
                         this->refreshOptions(true);
+                        this->lockedMenuIndex = this->menu->GetSelectedIndex();
+                    } else {
+                        this->setSectionNavText();
                     }
                 } else if (this->touchRegion == 2) {
+                    this->tabsFocused = false;
+                    this->setSectionNavText();
                     touchSelect = true;
                 }
             }
@@ -323,7 +381,12 @@ namespace inst::ui {
             this->touchRegion = 0;
         }
 
-        if ((Down & HidNpadButton_A) || touchSelect) {
+        if ((Down & HidNpadButton_A) && this->tabsFocused) {
+            this->tabsFocused = false;
+            this->setSectionNavText();
+        }
+
+        if (((Down & HidNpadButton_A) && !this->tabsFocused) || touchSelect) {
             std::string keyboardResult;
             int rc;
             std::vector<std::string> downloadUrl;
