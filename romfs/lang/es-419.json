@@ -129,6 +129,21 @@
             "opt0": "Tarjeta SD",
             "opt1": "Almacenamiento Interno"
         },
+        "mtp": {
+            "target": {
+                "title": "Instalación via MTP",
+                "desc": "Dónde debería instalarse?"
+            },
+            "waiting": {
+                "title": "Instalación via MTP",
+                "desc": "Cónectese al PC y suba los archivos a la carpeta de instalación MTP.",
+                "hint": "Pulsa B para detener el MTP."
+            },
+            "error": {
+                "title": "Error MTP",
+                "desc": "Falló la inicialización del servidor MTP."
+            }
+        },
         "info_page": {
             "top_info0": "Instalando ",
             "preparing": "Preparando la instalación...",

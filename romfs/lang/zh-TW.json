@@ -129,6 +129,21 @@
             "opt0": "SD卡",
             "opt1": "內部閃存"
         },
+        "mtp": {
+            "target": {
+                "title": "透過 MTP 安裝",
+                "desc": "應該安裝到哪裡?"
+            },
+            "waiting": {
+                "title": "透過 MTP 安裝",
+                "desc": "連接到電腦，並將檔案上傳到 MTP 安裝資料夾。",
+                "hint": "按下 B 以停止 MTP。"
+            },
+            "error": {
+                "title": "MTP 錯誤",
+                "desc": "MTP 伺服器初始化失敗。"
+            }
+        },
         "info_page": {
             "top_info0": "正在安裝 ",
             "preparing": "初始化安裝...",

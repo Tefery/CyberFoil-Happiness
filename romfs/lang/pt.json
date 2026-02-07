@@ -129,6 +129,21 @@
             "opt0": "Cartão SD",
             "opt1": "Memória Interna"
         },
+        "mtp": {
+            "target": {
+                "title": "Instalação via MTP",
+                "desc": "Onde deve ser instalado?"
+            },
+            "waiting": {
+                "title": "Instalação via MTP",
+                "desc": "Ligue-se ao PC e carregue os ficheiros para a pasta de instalação MTP.",
+                "hint": "Prima B para parar o MTP."
+            },
+            "error": {
+                "title": "Erro MTP",
+                "desc": "Falha na inicialização do servidor MTP."
+            }
+        },
         "info_page": {
             "top_info0": "A instalar ",
             "preparing": "A preparar a instalação...",

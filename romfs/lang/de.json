@@ -129,6 +129,21 @@
             "opt0": "SD Karte",
             "opt1": "Interner Speicher"
         },
+        "mtp": {
+            "target": {
+                "title": "Installation über MTP",
+                "desc": "Wo soll installiert werden?"
+            },
+            "waiting": {
+                "title": "Installation über MTP",
+                "desc": "Verbinden Sie sich mit dem PC und kopieren Sie die Dateien in den MTP-Installationsordner.",
+                "hint": "Drücken Sie B, um MTP zu beenden."
+            },
+            "error": {
+                "title": "MTP-Fehler",
+                "desc": "Die Initialisierung des MTP-Servers ist fehlgeschlagen."
+            }
+        },
         "info_page": {
             "top_info0": "Installiere ",
             "preparing": "Bereite Installation vor...",
