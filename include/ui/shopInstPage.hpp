@@ -2,6 +2,7 @@
 
 #include <pu/Plutonium>
 #include "shopInstall.hpp"
+#include "ui/bottomHint.hpp"
 
 using namespace pu::ui::elm;
 namespace inst::ui {
@@ -17,6 +18,7 @@ namespace inst::ui {
             Image::Ref titleImage;
             TextBlock::Ref appVersionText;
             TextBlock::Ref timeText;
+            TextBlock::Ref ipText;
             TextBlock::Ref sysLabelText;
             TextBlock::Ref sysFreeText;
             TextBlock::Ref sdLabelText;
@@ -37,6 +39,8 @@ namespace inst::ui {
             std::vector<shopInstStuff::ShopItem> selectedItems;
             std::vector<shopInstStuff::ShopItem> visibleItems;
             std::vector<shopInstStuff::ShopItem> availableUpdates;
+            BottomHintTouchState bottomHintTouch;
+            std::vector<BottomHintSegment> bottomHintSegments;
             int selectedSectionIndex = 0;
             std::string searchQuery;
             std::string previewKey;
@@ -75,6 +79,7 @@ namespace inst::ui {
             void updateRememberedSelection();
             void updateSectionText();
             void updateButtonsText();
+            void setButtonsText(const std::string& text);
             void buildInstalledSection();
             void cacheAvailableUpdates();
             void filterOwnedSections();

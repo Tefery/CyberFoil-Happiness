@@ -5,7 +5,7 @@
             "hdd": "通過 USB SSD/HDD 安裝",
             "net": "通過網路安裝",
             "shop": "通過 Ownfoil 安裝",
-            "usb": "通過USB安裝",
+            "usb": "透過 NS-USBloader 安裝",
             "sig": "管理簽名補丁（signature patches）",
             "set": "設置",
             "exit": "退出"

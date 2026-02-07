@@ -311,6 +311,7 @@ namespace inst::ui {
             const int iconGap = 6;
             const int iconsWidth = netSize + iconGap + wifiWidth + iconGap + batteryW + batteryCapW;
             auto applyStatus = [&](TextBlock::Ref timeBlock,
+                                   TextBlock::Ref ipText,
                                    TextBlock::Ref sysLabel,
                                    TextBlock::Ref sysFree,
                                    Rectangle::Ref sysBarBack,
@@ -402,6 +403,17 @@ namespace inst::ui {
                 int sdX = cardsRight - cardWidth;
                 int sysX = sdX - cardGap - cardWidth;
 
+                if (ipText) {
+                    std::string ipAddress = inst::util::getIPAddress();
+                    if (ipAddress == "1.0.0.127") ipAddress = "--";
+                    ipText->SetText("IP: " + ipAddress);
+                    int ipWidth = ipText->GetTextWidth();
+                    int ipX = sysX - cardGap - ipWidth;
+                    if (ipX < 10) ipX = 10;
+                    ipText->SetX(ipX);
+                    ipText->SetY(cardsTopY);
+                }
+
                 if (sysLabel) {
                     sysLabel->SetX(sysX);
                     sysLabel->SetY(cardsTopY);
@@ -479,7 +491,7 @@ namespace inst::ui {
             };
 
             auto applyAll = [&](auto& page) {
-                applyStatus(page->timeText, page->sysLabelText, page->sysFreeText, page->sysBarBack, page->sysBarFill,
+                applyStatus(page->timeText, page->ipText, page->sysLabelText, page->sysFreeText, page->sysBarBack, page->sysBarFill,
                             page->sdLabelText, page->sdFreeText, page->sdBarBack, page->sdBarFill,
                             page->netIndicator, page->wifiBar1, page->wifiBar2, page->wifiBar3,
                             page->batteryOutline, page->batteryFill, page->batteryCap);

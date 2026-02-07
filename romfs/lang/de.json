@@ -5,7 +5,7 @@
             "hdd": "Von USB-SSD/Festplatte installieren",
             "net": "Über LAN oder Internet installieren",
             "shop": "Installieren vom Ownfoil-Shop",
-            "usb": "Über USB installieren",
+            "usb": "Mit NS-USBloader installieren",
             "sig": "Verwalte Signatur-Patches",
             "set": "Einstellungen",
             "exit": "Beenden"

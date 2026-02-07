@@ -5,7 +5,7 @@
             "hdd": "Installa da SSD/HDD USB",
             "net": "Installa via LAN o da internet",
             "shop": "Installa da Ownfoil",
-            "usb": "Installa via USB",
+            "usb": "Installa da NS-USBloader",
             "sig": "Gestisci le SigPatches",
             "set": "Impostazioni",
             "exit": "Esci"

@@ -5,7 +5,7 @@
             "hdd": "Установка с USB SSD/HDD",
             "net": "Установка по сети",
             "shop": "Установка из Ownfoil",
-            "usb": "Установка через USB",
+            "usb": "Установка через NS-USBloader",
             "sig": "Управление sig-patches",
             "set": "Настройки",
             "exit": "Выход"

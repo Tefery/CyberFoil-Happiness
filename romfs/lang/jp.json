@@ -5,7 +5,7 @@
             "hdd": "USB SSD/HDD からインストール",
             "net": "ネットワーク経由でインストール",
             "shop": "Ownfoilからインストール",
-            "usb": "USB経由でインストール",
+            "usb": "NS-USBloaderからインストール",
             "sig": "署名パッチを管理する",
             "set": "設定",
             "exit": "終了"

@@ -5,7 +5,7 @@
             "hdd": "Install from USB SSD/HDD",
             "net": "Install over LAN or internet",
             "shop": "Install from Ownfoil eShop",
-            "usb": "Install over USB",
+            "usb": "Install from NS-USBloader",
             "mtp": "Install over MTP",
             "sig": "Manage signature patches",
             "set": "Settings",

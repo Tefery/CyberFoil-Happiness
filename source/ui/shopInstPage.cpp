@@ -12,6 +12,7 @@
 #include "util/lang.hpp"
 #include "util/title_util.hpp"
 #include "util/util.hpp"
+#include "ui/bottomHint.hpp"
 
 #define COLOR(hex) pu::ui::Color::FromHex(hex)
 
@@ -153,6 +154,8 @@ namespace inst::ui {
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
         this->timeText = TextBlock::New(0, 18, "--:--", 22);
         this->timeText->SetColor(COLOR("#FFFFFFFF"));
+        this->ipText = TextBlock::New(0, 26, "IP: --", 16);
+        this->ipText->SetColor(COLOR("#FFFFFFFF"));
         this->sysLabelText = TextBlock::New(0, 6, "System Memory", 16);
         this->sysLabelText->SetColor(COLOR("#FFFFFFFF"));
         this->sysFreeText = TextBlock::New(0, 42, "Free --", 16);
@@ -176,6 +179,7 @@ namespace inst::ui {
         this->pageInfoText->SetColor(COLOR("#FFFFFFFF"));
         this->butText = TextBlock::New(10, 678, "", 20);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
+        this->setButtonsText("inst.shop.buttons_loading"_lang);
         this->menu = pu::ui::elm::Menu::New(0, 156, 1280, COLOR("#FFFFFF00"), 28, 18, 16);
         if (inst::config::oledMode) {
             this->menu->SetOnFocusColor(COLOR("#FFFFFF33"));
@@ -244,6 +248,7 @@ namespace inst::ui {
         this->Add(this->batteryFill);
         this->Add(this->batteryCap);
         this->Add(this->timeText);
+        this->Add(this->ipText);
         this->Add(this->butText);
         this->Add(this->pageInfoText);
 #pragma GCC diagnostic push
@@ -304,9 +309,9 @@ namespace inst::ui {
 
     void shopInstPage::updateButtonsText() {
         if (this->isInstalledSection())
-            this->butText->SetText("inst.shop.buttons_installed"_lang);
+            this->setButtonsText("inst.shop.buttons_installed"_lang);
         else
-            this->butText->SetText("inst.shop.buttons_all"_lang);
+            this->setButtonsText("inst.shop.buttons_all"_lang);
     }
 
     void shopInstPage::buildInstalledSection() {
@@ -1181,7 +1186,7 @@ namespace inst::ui {
     }
 
     void shopInstPage::startShop(bool forceRefresh) {
-        this->butText->SetText("inst.shop.buttons_loading"_lang);
+        this->setButtonsText("inst.shop.buttons_loading"_lang);
         this->menu->SetVisible(false);
         this->menu->ClearItems();
         this->infoImage->SetVisible(true);
@@ -1302,6 +1307,10 @@ namespace inst::ui {
     }
 
     void shopInstPage::onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
+        int bottomTapX = 0;
+        if (DetectBottomHintTap(Pos, this->bottomHintTouch, 668, 52, bottomTapX)) {
+            Down |= FindBottomHintButton(this->bottomHintSegments, bottomTapX);
+        }
         if (Down & HidNpadButton_B) {
             this->updateRememberedSelection();
             mainApp->LoadLayout(mainApp->mainPage);
@@ -1703,5 +1712,10 @@ namespace inst::ui {
             body += "inst.shop.detail_version"_lang + "0";
 
         mainApp->CreateShowDialog(item.name, body, {"common.ok"_lang}, true);
+    }
+
+    void shopInstPage::setButtonsText(const std::string& text) {
+        this->butText->SetText(text);
+        this->bottomHintSegments = BuildBottomHintSegments(text, 10, 20);
     }
 }

@@ -11,6 +11,7 @@
 #include "util/lang.hpp"
 #include "ui/instPage.hpp"
 #include "shopInstall.hpp"
+#include "ui/bottomHint.hpp"
 
 #define COLOR(hex) pu::ui::Color::FromHex(hex)
 
@@ -44,6 +45,8 @@ namespace inst::ui {
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
         this->timeText = TextBlock::New(0, 18, "--:--", 22);
         this->timeText->SetColor(COLOR("#FFFFFFFF"));
+        this->ipText = TextBlock::New(0, 26, "IP: --", 16);
+        this->ipText->SetColor(COLOR("#FFFFFFFF"));
         this->sysLabelText = TextBlock::New(0, 6, "System Memory", 16);
         this->sysLabelText->SetColor(COLOR("#FFFFFFFF"));
         this->sysFreeText = TextBlock::New(0, 42, "Free --", 16);
@@ -67,6 +70,7 @@ namespace inst::ui {
         this->pageInfoText->SetColor(COLOR("#FFFFFFFF"));
         this->butText = TextBlock::New(10, 678, "options.buttons"_lang, 20);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
+        this->bottomHintSegments = BuildBottomHintSegments("options.buttons"_lang, 10, 20);
         this->menu = pu::ui::elm::Menu::New(0, 156, 1280, COLOR("#FFFFFF00"), 72, (506 / 72), 20);
         if (inst::config::oledMode) {
             this->menu->SetOnFocusColor(COLOR("#FFFFFF33"));
@@ -96,6 +100,7 @@ namespace inst::ui {
         this->Add(this->batteryFill);
         this->Add(this->batteryCap);
         this->Add(this->timeText);
+        this->Add(this->ipText);
         this->Add(this->butText);
         this->Add(this->pageInfoText);
         this->setMenuText();
@@ -234,6 +239,10 @@ namespace inst::ui {
     }
 
     void optionsPage::onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
+        int bottomTapX = 0;
+        if (DetectBottomHintTap(Pos, this->bottomHintTouch, 668, 52, bottomTapX)) {
+            Down |= FindBottomHintButton(this->bottomHintSegments, bottomTapX);
+        }
         if (Down & HidNpadButton_B) {
             mainApp->LoadLayout(mainApp->mainPage);
         }

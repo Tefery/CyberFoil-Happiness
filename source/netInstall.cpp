@@ -43,6 +43,7 @@ SOFTWARE.
 #include "util/lang.hpp"
 #include "ui/MainApplication.hpp"
 #include "ui/instPage.hpp"
+#include "ui/bottomHint.hpp"
 
 const unsigned int MAX_URL_SIZE = 1024;
 const unsigned int MAX_URLS = 256;
@@ -217,6 +218,8 @@ namespace netInstStuff{
     {
         u64 freq = armGetSystemTickFreq();
         u64 startTime = armGetSystemTick();
+        const auto hintSegments = inst::ui::BuildBottomHintSegments("inst.net.buttons"_lang, 10, 20);
+        inst::ui::BottomHintTouchState hintTouch;
 
         try
         {
@@ -254,6 +257,17 @@ namespace netInstStuff{
                 // Break on input pressed
                 inst::ui::mainApp->UpdateButtons();
                 u64 kDown = inst::ui::mainApp->GetButtonsDown();
+
+                pu::ui::Touch touch = pu::ui::Touch::Empty;
+                HidTouchScreenState touchState{};
+                if (hidGetTouchScreenStates(&touchState, 1) > 0 && touchState.count > 0) {
+                    touch.X = touchState.touches[0].x;
+                    touch.Y = touchState.touches[0].y;
+                }
+                int bottomTapX = 0;
+                if (inst::ui::DetectBottomHintTap(touch, hintTouch, 668, 52, bottomTapX)) {
+                    kDown |= inst::ui::FindBottomHintButton(hintSegments, bottomTapX);
+                }
 
                 if (kDown & HidNpadButton_B)
                 {

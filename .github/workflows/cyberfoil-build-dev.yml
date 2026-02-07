@@ -1,0 +1,53 @@
+name: Build CyberFoil (dev)
+
+on:
+  push:
+    branches:
+      - DEV
+  pull_request:
+    branches:
+      - DEV
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    container:
+      image: devkitpro/devkita64:latest
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          start_ts=$(date +%s)
+          dkp-pacman -S --noconfirm --needed switch-ntfs-3g switch-lwext4
+          make -j"$(nproc)"
+
+          end_ts=$(date +%s)
+          duration=$((end_ts - start_ts))
+
+          if [ -f "./cyberfoil.nro" ]; then
+            nro_status="present"
+            nro_size=$(stat -c%s "./cyberfoil.nro" 2>/dev/null || stat -f%z "./cyberfoil.nro")
+          else
+            nro_status="missing"
+            nro_size="0"
+          fi
+
+          {
+            echo "## Build Summary"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Runner: $(uname -a)"
+            echo "- Duration: ${duration}s"
+            echo "- Output: cyberfoil.nro (${nro_status}, ${nro_size} bytes)"
+          } >> "${GITHUB_STEP_SUMMARY}"

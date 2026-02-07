@@ -1,6 +1,7 @@
 #pragma once
 #include <filesystem>
 #include <pu/Plutonium>
+#include "ui/bottomHint.hpp"
 
 using namespace pu::ui::elm;
 namespace inst::ui {
@@ -17,6 +18,7 @@ namespace inst::ui {
             Image::Ref titleImage;
             TextBlock::Ref appVersionText;
             TextBlock::Ref timeText;
+            TextBlock::Ref ipText;
             TextBlock::Ref sysLabelText;
             TextBlock::Ref sysFreeText;
             TextBlock::Ref sdLabelText;
@@ -37,6 +39,8 @@ namespace inst::ui {
             std::vector<std::filesystem::path> ourFiles;
             std::vector<std::filesystem::path> selectedTitles;
             std::filesystem::path currentDir;
+            BottomHintTouchState bottomHintTouch;
+            std::vector<BottomHintSegment> bottomHintSegments;
             TextBlock::Ref butText;
             Rectangle::Ref topRect;
             Rectangle::Ref infoRect;

@@ -9,6 +9,7 @@
 #include "data/buffered_placeholder_writer.hpp"
 #include "mtp_server.hpp"
 #include "nx/usbhdd.h"
+#include "ui/bottomHint.hpp"
 
 #define COLOR(hex) pu::ui::Color::FromHex(hex)
 
@@ -59,6 +60,8 @@ namespace inst::ui {
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
         this->timeText = TextBlock::New(0, 18, "--:--", 22);
         this->timeText->SetColor(COLOR("#FFFFFFFF"));
+        this->ipText = TextBlock::New(0, 26, "IP: --", 16);
+        this->ipText->SetColor(COLOR("#FFFFFFFF"));
         this->sysLabelText = TextBlock::New(0, 6, "System Memory", 16);
         this->sysLabelText->SetColor(COLOR("#FFFFFFFF"));
         this->sysFreeText = TextBlock::New(0, 42, "Free --", 16);
@@ -80,7 +83,8 @@ namespace inst::ui {
         this->batteryCap = Rectangle::New(0, 0, 3, 6, COLOR("#FFFFFF66"));
         this->butText = TextBlock::New(10, 678, "main.buttons"_lang, 20);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
-        this->optionMenu = pu::ui::elm::Menu::New(0, 95, 1280, COLOR("#67000000"), 70, 8);
+        this->bottomHintSegments = BuildBottomHintSegments("main.buttons"_lang, 10, 20);
+        this->optionMenu = pu::ui::elm::Menu::New(0, 95, 1280, COLOR("#67000000"), 60, 9);
         if (inst::config::oledMode) {
             this->optionMenu->SetOnFocusColor(COLOR("#FFFFFF33"));
             this->optionMenu->SetScrollbarColor(COLOR("#FFFFFF66"));
@@ -139,11 +143,13 @@ namespace inst::ui {
         this->Add(this->batteryFill);
         this->Add(this->batteryCap);
         this->Add(this->timeText);
+        this->Add(this->ipText);
         this->Add(this->butText);
         this->optionMenu->AddItem(this->shopInstallMenuItem);
         this->optionMenu->AddItem(this->installMenuItem);
         this->optionMenu->AddItem(this->hddInstallMenuItem);
         this->optionMenu->AddItem(this->mtpInstallMenuItem);
+        this->optionMenu->AddItem(this->usbInstallMenuItem);
         this->optionMenu->AddItem(this->netInstallMenuItem);
         this->optionMenu->AddItem(this->sigPatchesMenuItem);
         this->optionMenu->AddItem(this->settingsMenuItem);
@@ -227,6 +233,10 @@ namespace inst::ui {
     }
 
     void MainPage::onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
+        int bottomTapX = 0;
+        if (DetectBottomHintTap(Pos, this->bottomHintTouch, 668, 52, bottomTapX)) {
+            Down |= FindBottomHintButton(this->bottomHintSegments, bottomTapX);
+        }
         if (((Down & HidNpadButton_Plus) || (Down & HidNpadButton_Minus) || (Down & HidNpadButton_B)) && mainApp->IsShown()) {
             mainApp->FadeOut();
             mainApp->Close();
@@ -275,15 +285,18 @@ namespace inst::ui {
                     MainPage::mtpInstallMenuItem_Click();
                     break;
                 case 4:
-                    this->netInstallMenuItem_Click();
+                    MainPage::usbInstallMenuItem_Click();
                     break;
                 case 5:
-                    MainPage::sigPatchesMenuItem_Click();
+                    this->netInstallMenuItem_Click();
                     break;
                 case 6:
-                    MainPage::settingsMenuItem_Click();
+                    MainPage::sigPatchesMenuItem_Click();
                     break;
                 case 7:
+                    MainPage::settingsMenuItem_Click();
+                    break;
+                case 8:
                     MainPage::exitMenuItem_Click();
                     break;
                 default:

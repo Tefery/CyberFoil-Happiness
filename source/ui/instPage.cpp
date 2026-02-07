@@ -3,6 +3,7 @@
 #include "ui/instPage.hpp"
 #include "util/config.hpp"
 #include "mtp_server.hpp"
+#include "ui/bottomHint.hpp"
 #include <switch.h>
 
 #define COLOR(hex) pu::ui::Color::FromHex(hex)
@@ -39,6 +40,8 @@ namespace inst::ui {
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
         this->timeText = TextBlock::New(0, 18, "--:--", 22);
         this->timeText->SetColor(COLOR("#FFFFFFFF"));
+        this->ipText = TextBlock::New(0, 26, "IP: --", 16);
+        this->ipText->SetColor(COLOR("#FFFFFFFF"));
         this->sysLabelText = TextBlock::New(0, 6, "System Memory", 16);
         this->sysLabelText->SetColor(COLOR("#FFFFFFFF"));
         this->sysFreeText = TextBlock::New(0, 42, "Free --", 16);
@@ -68,6 +71,7 @@ namespace inst::ui {
         this->hintText->SetColor(COLOR("#FFFFFFFF"));
         this->hintText->SetX(1280 - 10 - this->hintText->GetTextWidth());
         this->hintText->SetVisible(false);
+        this->bottomHintSegments = BuildBottomHintSegments(this->hintText->GetText(), this->hintText->GetX(), 20);
         this->progressText = TextBlock::New(0, 340, "", 30);
         this->progressText->SetColor(COLOR("#FFFFFFFF"));
         this->progressText->SetVisible(false);
@@ -101,6 +105,7 @@ namespace inst::ui {
         this->Add(this->batteryFill);
         this->Add(this->batteryCap);
         this->Add(this->timeText);
+        this->Add(this->ipText);
         this->Add(this->pageInfoText);
         this->Add(this->installInfoText);
         this->Add(this->installBar);
@@ -204,9 +209,17 @@ namespace inst::ui {
     }
 
     void instPage::onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
-        if ((Down & HidNpadButton_B) && inst::mtp::IsInstallServerRunning()) {
-            inst::mtp::StopInstallServer();
-            loadMainMenu();
+        int bottomTapX = 0;
+        if (DetectBottomHintTap(Pos, this->bottomHintTouch, 668, 52, bottomTapX)) {
+            Down |= FindBottomHintButton(this->bottomHintSegments, bottomTapX);
+        }
+        if (Down & HidNpadButton_B) {
+            if (inst::mtp::IsInstallServerRunning()) {
+                inst::mtp::StopInstallServer();
+            }
+            if (this->hintText->IsVisible()) {
+                loadMainMenu();
+            }
         }
     }
 }

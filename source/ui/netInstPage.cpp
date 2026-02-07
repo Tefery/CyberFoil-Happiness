@@ -8,6 +8,7 @@
 #include "util/curl.hpp"
 #include "util/lang.hpp"
 #include "netInstall.hpp"
+#include "ui/bottomHint.hpp"
 
 #define COLOR(hex) pu::ui::Color::FromHex(hex)
 
@@ -42,6 +43,8 @@ namespace inst::ui {
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
         this->timeText = TextBlock::New(0, 18, "--:--", 22);
         this->timeText->SetColor(COLOR("#FFFFFFFF"));
+        this->ipText = TextBlock::New(0, 26, "IP: --", 16);
+        this->ipText->SetColor(COLOR("#FFFFFFFF"));
         this->sysLabelText = TextBlock::New(0, 6, "System Memory", 16);
         this->sysLabelText->SetColor(COLOR("#FFFFFFFF"));
         this->sysFreeText = TextBlock::New(0, 42, "Free --", 16);
@@ -65,7 +68,8 @@ namespace inst::ui {
         this->pageInfoText->SetColor(COLOR("#FFFFFFFF"));
         this->butText = TextBlock::New(10, 678, "", 20);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
-        this->menu = pu::ui::elm::Menu::New(0, 156, 1280, COLOR("#FFFFFF00"), 84, (506 / 84));
+        this->setButtonsText("inst.net.buttons"_lang);
+        this->menu = pu::ui::elm::Menu::New(0, 156, 1280, COLOR("#FFFFFF00"), 50, 10);
         if (inst::config::oledMode) {
             this->menu->SetOnFocusColor(COLOR("#FFFFFF33"));
             this->menu->SetScrollbarColor(COLOR("#FFFFFF66"));
@@ -95,6 +99,7 @@ namespace inst::ui {
         this->Add(this->batteryFill);
         this->Add(this->batteryCap);
         this->Add(this->timeText);
+        this->Add(this->ipText);
         this->Add(this->butText);
         this->Add(this->pageInfoText);
         this->Add(this->menu);
@@ -129,7 +134,7 @@ namespace inst::ui {
     }
 
     void netInstPage::startNetwork() {
-        this->butText->SetText("inst.net.buttons"_lang);
+        this->setButtonsText("inst.net.buttons"_lang);
         this->menu->SetVisible(false);
         this->menu->ClearItems();
         this->infoImage->SetVisible(true);
@@ -176,7 +181,7 @@ namespace inst::ui {
             mainApp->CallForRender(); // If we re-render a few times during this process the main screen won't flicker
             sourceString = "inst.net.source_string"_lang;
             this->pageInfoText->SetText("inst.net.top_info"_lang);
-            this->butText->SetText("inst.net.buttons1"_lang);
+            this->setButtonsText("inst.net.buttons1"_lang);
             this->drawMenuItems(true);
             this->menu->SetSelectedIndex(0);
             mainApp->CallForRender();
@@ -204,6 +209,10 @@ namespace inst::ui {
     }
 
     void netInstPage::onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
+        int bottomTapX = 0;
+        if (DetectBottomHintTap(Pos, this->bottomHintTouch, 668, 52, bottomTapX)) {
+            Down |= FindBottomHintButton(this->bottomHintSegments, bottomTapX);
+        }
         if (Down & HidNpadButton_B) {
             if (this->menu->GetItems().size() > 0){
                 if (this->selectedUrls.size() == 0) {
@@ -236,5 +245,10 @@ namespace inst::ui {
             }
             this->startInstall(false);
         }
+    }
+
+    void netInstPage::setButtonsText(const std::string& text) {
+        this->butText->SetText(text);
+        this->bottomHintSegments = BuildBottomHintSegments(text, 10, 20);
     }
 }

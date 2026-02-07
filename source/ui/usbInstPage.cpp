@@ -5,6 +5,7 @@
 #include "util/lang.hpp"
 #include "util/usb_util.hpp"
 #include "usbInstall.hpp"
+#include "ui/bottomHint.hpp"
 
 
 #define COLOR(hex) pu::ui::Color::FromHex(hex)
@@ -37,6 +38,8 @@ namespace inst::ui {
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
         this->timeText = TextBlock::New(0, 18, "--:--", 22);
         this->timeText->SetColor(COLOR("#FFFFFFFF"));
+        this->ipText = TextBlock::New(0, 26, "IP: --", 16);
+        this->ipText->SetColor(COLOR("#FFFFFFFF"));
         this->sysLabelText = TextBlock::New(0, 6, "System Memory", 16);
         this->sysLabelText->SetColor(COLOR("#FFFFFFFF"));
         this->sysFreeText = TextBlock::New(0, 42, "Free --", 16);
@@ -60,7 +63,8 @@ namespace inst::ui {
         this->pageInfoText->SetColor(COLOR("#FFFFFFFF"));
         this->butText = TextBlock::New(10, 678, "", 20);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
-        this->menu = pu::ui::elm::Menu::New(0, 156, 1280, COLOR("#FFFFFF00"), 84, (506 / 84));
+        this->setButtonsText("inst.usb.buttons"_lang);
+        this->menu = pu::ui::elm::Menu::New(0, 156, 1280, COLOR("#FFFFFF00"), 50, 10);
         if (inst::config::oledMode) {
             this->menu->SetOnFocusColor(COLOR("#FFFFFF33"));
             this->menu->SetScrollbarColor(COLOR("#FFFFFF66"));
@@ -90,6 +94,7 @@ namespace inst::ui {
         this->Add(this->batteryFill);
         this->Add(this->batteryCap);
         this->Add(this->timeText);
+        this->Add(this->ipText);
         this->Add(this->butText);
         this->Add(this->pageInfoText);
         this->Add(this->menu);
@@ -124,7 +129,7 @@ namespace inst::ui {
 
     void usbInstPage::startUsb() {
         this->pageInfoText->SetText("inst.usb.top_info"_lang);
-        this->butText->SetText("inst.usb.buttons"_lang);
+        this->setButtonsText("inst.usb.buttons"_lang);
         this->menu->SetVisible(false);
         this->menu->ClearItems();
         this->infoImage->SetVisible(true);
@@ -137,7 +142,7 @@ namespace inst::ui {
         } else {
             mainApp->CallForRender(); // If we re-render a few times during this process the main screen won't flicker
             this->pageInfoText->SetText("inst.usb.top_info2"_lang);
-            this->butText->SetText("inst.usb.buttons2"_lang);
+            this->setButtonsText("inst.usb.buttons2"_lang);
             this->drawMenuItems(true);
             this->menu->SetSelectedIndex(0);
             mainApp->CallForRender();
@@ -157,6 +162,10 @@ namespace inst::ui {
     }
 
     void usbInstPage::onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
+        int bottomTapX = 0;
+        if (DetectBottomHintTap(Pos, this->bottomHintTouch, 668, 52, bottomTapX)) {
+            Down |= FindBottomHintButton(this->bottomHintSegments, bottomTapX);
+        }
         if (Down & HidNpadButton_B) {
             tin::util::USBCmdManager::SendExitCmd();
             mainApp->LoadLayout(mainApp->mainPage);
@@ -185,5 +194,10 @@ namespace inst::ui {
             }
             this->startInstall();
         }
+    }
+
+    void usbInstPage::setButtonsText(const std::string& text) {
+        this->butText->SetText(text);
+        this->bottomHintSegments = BuildBottomHintSegments(text, 10, 20);
     }
 }

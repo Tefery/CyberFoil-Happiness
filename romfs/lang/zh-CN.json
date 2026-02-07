@@ -5,7 +5,7 @@
             "hdd": "通过 USB SSD/HDD 安装",
             "net": "通过局域网或网络安装",
             "shop": "通过 Ownfoil 安装",
-            "usb": "通过 USB 安装",
+            "usb": "通过 NS-USBloader 安装",
             "sig": "管理签名补丁",
             "set": "设置",
             "exit": "退出"

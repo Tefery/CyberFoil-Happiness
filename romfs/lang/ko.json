@@ -5,7 +5,7 @@
             "hdd": "USB SSD/HDD에서 설치",
             "net": "LAN 또는 인터넷을 통해 설치",
             "shop": "Ownfoil에서 설치",
-            "usb": "USB를 통해 설치",
+            "usb": "NS-USBloader에서 설치",
             "sig": "서명 패치 관리",
             "set": "설정",
             "exit": "종료"

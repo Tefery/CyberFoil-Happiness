@@ -5,7 +5,7 @@
             "hdd": "使用 USB SSD/HDD 進行安裝",
             "net": "使用網路進行安裝",
             "shop": "使用 Ownfoil 安裝",
-            "usb": "使用USB進行安裝",
+            "usb": "使用 NS-USBloader 進行安裝",
             "sig": "管理簽名修補程式",
             "set": "設定",
             "exit": "退出"

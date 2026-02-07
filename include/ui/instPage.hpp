@@ -1,5 +1,6 @@
 #pragma once
 #include <pu/Plutonium>
+#include "ui/bottomHint.hpp"
 
 using namespace pu::ui::elm;
 namespace inst::ui {
@@ -20,6 +21,7 @@ namespace inst::ui {
             TextBlock::Ref progressText;
             TextBlock::Ref progressDetailText;
             TextBlock::Ref timeText;
+            TextBlock::Ref ipText;
             TextBlock::Ref sysLabelText;
             TextBlock::Ref sysFreeText;
             TextBlock::Ref sdLabelText;
@@ -49,5 +51,7 @@ namespace inst::ui {
             Rectangle::Ref infoRect;
             Rectangle::Ref topRect;
             Rectangle::Ref botRect;
+            BottomHintTouchState bottomHintTouch;
+            std::vector<BottomHintSegment> bottomHintSegments;
     };
 }
