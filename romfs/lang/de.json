@@ -34,7 +34,19 @@
             "title": "Applet-Modus wird nicht unterstützt",
             "desc": "Es kann zu Problemen bei der Verwendung des CyberFoil im Applet-Modus kommen.\nWenn du Probleme hast, starte den CyberFoil über einen installierten Titel (halte R gedrückt, während du ein Spiel startest)!"
         },
-        "buttons": " Auswählen     Beenden"
+        "buttons": " Auswählen     Beenden",
+        "info": {
+            "button": "Info",
+            "shop": "Durchsuche Shop-Bereiche und wähle Titel zur Installation aus dem Ownfoil eShop.",
+            "sd": "Installiere NSP/NSZ/XCI/XCZ-Dateien von deiner SD-Karte.",
+            "hdd": "Installiere Dateien direkt von einer angeschlossenen USB-SSD oder Festplatte.",
+            "mtp": "Verbinde einen PC per USB und installiere durch Kopieren von Dateien in den MTP-Installationsordner.",
+            "usb": "Installiere per USB mit Tools wie NS-USBloader.",
+            "net": "Installiere Dateien über LAN oder Internetquellen.",
+            "sig": "Signatur-Patches installieren, aktualisieren oder entfernen.",
+            "set": "CyberFoil-Einstellungen und Shop-Optionen ändern.",
+            "exit": "CyberFoil schließen und zum HOME-Menü zurückkehren."
+        }
     },
     "inst": {
         "net": {

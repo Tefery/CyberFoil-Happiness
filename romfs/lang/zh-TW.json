@@ -34,7 +34,19 @@
             "title": "不支援Applet模式",
             "desc": "您可以嘗試在“Applet模式”下使用本程式,但如果出現問題請切換到“非Applet模式”再運行。\n切換方法：\n 退回系統桌面選中任意一個遊戲，按住後點進入遊戲，直到跳回hbmenu界面再鬆開按鈕!\n然後再選擇CyberFoil，屆時將不會彈出此對話框！"
         },
-        "buttons": " 選擇  退出"
+        "buttons": " 選擇  退出",
+        "info": {
+            "button": "資訊",
+            "shop": "瀏覽商店分區，並從 Ownfoil eShop 選擇要安裝的遊戲。",
+            "sd": "安裝儲存在 SD 卡中的 NSP/NSZ/XCI/XCZ 檔案。",
+            "hdd": "直接從已連接的 USB SSD 或硬碟安裝檔案。",
+            "mtp": "透過 USB 連接電腦，將檔案複製到 MTP 安裝資料夾後進行安裝。",
+            "usb": "使用 NS-USBloader 等工具透過 USB 安裝。",
+            "net": "從區域網路或網際網路來源安裝檔案。",
+            "sig": "安裝、更新或移除簽名修補程式。",
+            "set": "變更 CyberFoil 偏好與商店設定。",
+            "exit": "關閉 CyberFoil 並返回 HOME。"
+        }
     },
     "inst": {
         "net": {

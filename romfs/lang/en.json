@@ -34,7 +34,19 @@
             "title": "Applet Mode not supported",
             "desc": "You may experience issues using CyberFoil in Applet Mode. If you do\nhave problems, please switch to running CyberFoil over an installed\ntitle (hold R while starting a game)!"
         },
-        "buttons": " Select     Exit"
+        "buttons": " Select     Exit",
+        "info": {
+            "button": "Info",
+            "shop": "Browse shop sections and select titles to install from your Ownfoil eShop.",
+            "sd": "Install NSP/NSZ/XCI/XCZ files stored on your SD card.",
+            "hdd": "Install files directly from a connected USB SSD or hard drive.",
+            "mtp": "Connect a PC over USB and install by copying files to the MTP install folder.",
+            "usb": "Install over USB from tools like NS-USBloader.",
+            "net": "Install files from LAN or internet sources.",
+            "sig": "Install, update, or remove signature patches.",
+            "set": "Change CyberFoil preferences and shop settings.",
+            "exit": "Close CyberFoil and return to HOME."
+        }
     },
     "inst": {
         "net": {

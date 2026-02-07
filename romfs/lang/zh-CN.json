@@ -34,7 +34,19 @@
             "title": "不支持 Applet 模式",
             "desc": "在 Applet 模式下使用 CyberFoil 可能会遇到问题，\n如果遇到问题，请切换 CyberFoil 的运行模式！\n(退回主界面，按住  并打开任意游戏，进入 hbmenu 后再打开 CyberFoil 即可)"
         },
-        "buttons": " 选择     退出"
+        "buttons": " 选择     退出",
+        "info": {
+            "button": "信息",
+            "shop": "浏览商店分区，并从 Ownfoil eShop 中选择要安装的标题。",
+            "sd": "安装存储在 SD 卡中的 NSP/NSZ/XCI/XCZ 文件。",
+            "hdd": "直接从已连接的 USB SSD 或移动硬盘安装文件。",
+            "mtp": "通过 USB 连接电脑，将文件复制到 MTP 安装文件夹后进行安装。",
+            "usb": "使用 NS-USBloader 等工具通过 USB 安装。",
+            "net": "从局域网或互联网来源安装文件。",
+            "sig": "安装、更新或移除签名补丁。",
+            "set": "修改 CyberFoil 偏好和商店设置。",
+            "exit": "关闭 CyberFoil 并返回 HOME。"
+        }
     },
     "inst": {
         "net": {

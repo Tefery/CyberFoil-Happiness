@@ -89,9 +89,10 @@ namespace inst::ui {
         this->batteryOutline = Rectangle::New(0, 0, 24, 12, COLOR("#FFFFFF66"));
         this->batteryFill = Rectangle::New(0, 0, 0, 10, COLOR("#4CD964FF"));
         this->batteryCap = Rectangle::New(0, 0, 3, 6, COLOR("#FFFFFF66"));
-        this->butText = TextBlock::New(10, 678, "main.buttons"_lang, 20);
+        const std::string mainButtonsText = "main.buttons"_lang + "     " + "main.info.button"_lang;
+        this->butText = TextBlock::New(10, 678, mainButtonsText, 20);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
-        this->bottomHintSegments = BuildBottomHintSegments("main.buttons"_lang, 10, 20);
+        this->bottomHintSegments = BuildBottomHintSegments(mainButtonsText, 10, 20);
         this->installMenuItem = pu::ui::elm::MenuItem::New("main.menu.sd"_lang);
         this->installMenuItem->SetColor(COLOR("#FFFFFFFF"));
         this->installMenuItem->SetIcon("romfs:/images/icons/micro-sd.png");
@@ -331,6 +332,52 @@ namespace inst::ui {
         }
     }
 
+    void MainPage::showSelectedMainInfo() {
+        std::string title;
+        std::string desc;
+        switch (this->selectedMainIndex) {
+            case 0:
+                title = "main.menu.shop"_lang;
+                desc = "main.info.shop"_lang;
+                break;
+            case 1:
+                title = "main.menu.sd"_lang;
+                desc = "main.info.sd"_lang;
+                break;
+            case 2:
+                title = "main.menu.hdd"_lang;
+                desc = "main.info.hdd"_lang;
+                break;
+            case 3:
+                title = "main.menu.mtp"_lang;
+                desc = "main.info.mtp"_lang;
+                break;
+            case 4:
+                title = "main.menu.usb"_lang;
+                desc = "main.info.usb"_lang;
+                break;
+            case 5:
+                title = "main.menu.net"_lang;
+                desc = "main.info.net"_lang;
+                break;
+            case 6:
+                title = "main.menu.sig"_lang;
+                desc = "main.info.sig"_lang;
+                break;
+            case 7:
+                title = "main.menu.set"_lang;
+                desc = "main.info.set"_lang;
+                break;
+            case 8:
+                title = "main.menu.exit"_lang;
+                desc = "main.info.exit"_lang;
+                break;
+            default:
+                return;
+        }
+        mainApp->CreateShowDialog(title, desc, {"common.ok"_lang}, true);
+    }
+
     void MainPage::onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
         int bottomTapX = 0;
         if (DetectBottomHintTap(Pos, this->bottomHintTouch, 668, 52, bottomTapX)) {
@@ -339,6 +386,9 @@ namespace inst::ui {
         if (((Down & HidNpadButton_Plus) || (Down & HidNpadButton_Minus) || (Down & HidNpadButton_B)) && mainApp->IsShown()) {
             mainApp->FadeOut();
             mainApp->Close();
+        }
+        if (Down & HidNpadButton_Y) {
+            this->showSelectedMainInfo();
         }
         if (Down & (HidNpadButton_Left | HidNpadButton_StickLLeft)) {
             if ((this->selectedMainIndex % kMainGridCols) > 0) {
