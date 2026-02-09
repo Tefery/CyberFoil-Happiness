@@ -1,12 +1,12 @@
-name: Build CyberFoil (dev)
+name: Build CyberFoil (master)
 
 on:
   push:
     branches:
-      - DEV
+      - master
   pull_request:
     branches:
-      - DEV
+      - master
 
 permissions:
   contents: read
@@ -55,6 +55,6 @@ jobs:
       - name: Upload cyberfoil.nro artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cyberfoil-dev-nro
+          name: cyberfoil-master-nro
           path: ./cyberfoil.nro
           if-no-files-found: error
