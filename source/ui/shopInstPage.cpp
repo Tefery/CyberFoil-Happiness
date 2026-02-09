@@ -1726,6 +1726,8 @@ namespace inst::ui {
             if (Down & HidNpadButton_ZR) {
                 std::string query = inst::util::softwareKeyboard("inst.shop.search_hint"_lang, this->searchQuery, 60);
                 this->searchQuery = query;
+                this->shopGridPage = -1;
+                this->gridPage = -1;
                 this->updateSectionText();
                 this->drawMenuItems(false);
             }
@@ -1896,6 +1898,8 @@ namespace inst::ui {
         if (Down & HidNpadButton_ZR) {
             std::string query = inst::util::softwareKeyboard("inst.shop.search_hint"_lang, this->searchQuery, 60);
             this->searchQuery = query;
+            this->shopGridPage = -1;
+            this->gridPage = -1;
             this->updateSectionText();
             this->drawMenuItems(false);
         }
