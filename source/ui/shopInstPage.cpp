@@ -3,6 +3,7 @@
 #include <functional>
 #include <unordered_map>
 #include <cctype>
+#include <cstdint>
 #include <cstdlib>
 #include <switch.h>
 #include "ui/MainApplication.hpp"
@@ -34,6 +35,176 @@ namespace {
         for (char c : hex) {
             if (std::isxdigit(static_cast<unsigned char>(c)))
                 out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+        }
+        return out;
+    }
+
+    std::uint32_t DecodeUtf8CodePoint(const std::string& text, std::size_t& i)
+    {
+        const unsigned char c0 = static_cast<unsigned char>(text[i]);
+        if (c0 < 0x80) {
+            i += 1;
+            return c0;
+        }
+        if ((c0 & 0xE0) == 0xC0 && i + 1 < text.size()) {
+            const unsigned char c1 = static_cast<unsigned char>(text[i + 1]);
+            if ((c1 & 0xC0) == 0x80) {
+                const std::uint32_t cp = ((c0 & 0x1F) << 6) | (c1 & 0x3F);
+                if (cp >= 0x80) {
+                    i += 2;
+                    return cp;
+                }
+            }
+        } else if ((c0 & 0xF0) == 0xE0 && i + 2 < text.size()) {
+            const unsigned char c1 = static_cast<unsigned char>(text[i + 1]);
+            const unsigned char c2 = static_cast<unsigned char>(text[i + 2]);
+            if ((c1 & 0xC0) == 0x80 && (c2 & 0xC0) == 0x80) {
+                const std::uint32_t cp = ((c0 & 0x0F) << 12) | ((c1 & 0x3F) << 6) | (c2 & 0x3F);
+                if (cp >= 0x800 && !(cp >= 0xD800 && cp <= 0xDFFF)) {
+                    i += 3;
+                    return cp;
+                }
+            }
+        } else if ((c0 & 0xF8) == 0xF0 && i + 3 < text.size()) {
+            const unsigned char c1 = static_cast<unsigned char>(text[i + 1]);
+            const unsigned char c2 = static_cast<unsigned char>(text[i + 2]);
+            const unsigned char c3 = static_cast<unsigned char>(text[i + 3]);
+            if ((c1 & 0xC0) == 0x80 && (c2 & 0xC0) == 0x80 && (c3 & 0xC0) == 0x80) {
+                const std::uint32_t cp = ((c0 & 0x07) << 18) | ((c1 & 0x3F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+                if (cp >= 0x10000 && cp <= 0x10FFFF) {
+                    i += 4;
+                    return cp;
+                }
+            }
+        }
+        i += 1;
+        return c0;
+    }
+
+    void AppendUtf8(std::string& out, std::uint32_t cp)
+    {
+        if (cp <= 0x7F) {
+            out.push_back(static_cast<char>(cp));
+        } else if (cp <= 0x7FF) {
+            out.push_back(static_cast<char>(0xC0 | ((cp >> 6) & 0x1F)));
+            out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        } else if (cp <= 0xFFFF) {
+            out.push_back(static_cast<char>(0xE0 | ((cp >> 12) & 0x0F)));
+            out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+            out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        } else {
+            out.push_back(static_cast<char>(0xF0 | ((cp >> 18) & 0x07)));
+            out.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+            out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+            out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));
+        }
+    }
+
+    bool IsCombiningMark(std::uint32_t cp)
+    {
+        return (cp >= 0x0300 && cp <= 0x036F)
+            || (cp >= 0x1AB0 && cp <= 0x1AFF)
+            || (cp >= 0x1DC0 && cp <= 0x1DFF)
+            || (cp >= 0x20D0 && cp <= 0x20FF)
+            || (cp >= 0xFE20 && cp <= 0xFE2F);
+    }
+
+    char FoldLatinDiacritic(std::uint32_t cp)
+    {
+        switch (cp) {
+            case 0x00C0: case 0x00C1: case 0x00C2: case 0x00C3: case 0x00C4: case 0x00C5:
+            case 0x00E0: case 0x00E1: case 0x00E2: case 0x00E3: case 0x00E4: case 0x00E5:
+            case 0x0100: case 0x0101: case 0x0102: case 0x0103: case 0x0104: case 0x0105:
+                return 'a';
+            case 0x00C7: case 0x00E7: case 0x0106: case 0x0107: case 0x0108: case 0x0109:
+            case 0x010A: case 0x010B: case 0x010C: case 0x010D:
+                return 'c';
+            case 0x00D0: case 0x00F0: case 0x010E: case 0x010F: case 0x0110: case 0x0111:
+                return 'd';
+            case 0x00C8: case 0x00C9: case 0x00CA: case 0x00CB: case 0x00E8: case 0x00E9:
+            case 0x00EA: case 0x00EB: case 0x0112: case 0x0113: case 0x0114: case 0x0115:
+            case 0x0116: case 0x0117: case 0x0118: case 0x0119: case 0x011A: case 0x011B:
+                return 'e';
+            case 0x011C: case 0x011D: case 0x011E: case 0x011F: case 0x0120: case 0x0121:
+            case 0x0122: case 0x0123:
+                return 'g';
+            case 0x0124: case 0x0125: case 0x0126: case 0x0127:
+                return 'h';
+            case 0x00CC: case 0x00CD: case 0x00CE: case 0x00CF: case 0x00EC: case 0x00ED:
+            case 0x00EE: case 0x00EF: case 0x0128: case 0x0129: case 0x012A: case 0x012B:
+            case 0x012C: case 0x012D: case 0x012E: case 0x012F: case 0x0130: case 0x0131:
+                return 'i';
+            case 0x0134: case 0x0135:
+                return 'j';
+            case 0x0136: case 0x0137: case 0x0138:
+                return 'k';
+            case 0x0139: case 0x013A: case 0x013B: case 0x013C: case 0x013D: case 0x013E:
+            case 0x013F: case 0x0140: case 0x0141: case 0x0142:
+                return 'l';
+            case 0x00D1: case 0x00F1: case 0x0143: case 0x0144: case 0x0145: case 0x0146:
+            case 0x0147: case 0x0148:
+                return 'n';
+            case 0x00D2: case 0x00D3: case 0x00D4: case 0x00D5: case 0x00D6: case 0x00D8:
+            case 0x00F2: case 0x00F3: case 0x00F4: case 0x00F5: case 0x00F6: case 0x00F8:
+            case 0x014C: case 0x014D: case 0x014E: case 0x014F: case 0x0150: case 0x0151:
+                return 'o';
+            case 0x0154: case 0x0155: case 0x0156: case 0x0157: case 0x0158: case 0x0159:
+                return 'r';
+            case 0x015A: case 0x015B: case 0x015C: case 0x015D: case 0x015E: case 0x015F:
+            case 0x0160: case 0x0161:
+                return 's';
+            case 0x0162: case 0x0163: case 0x0164: case 0x0165: case 0x0166: case 0x0167:
+                return 't';
+            case 0x00D9: case 0x00DA: case 0x00DB: case 0x00DC: case 0x00F9: case 0x00FA:
+            case 0x00FB: case 0x00FC: case 0x0168: case 0x0169: case 0x016A: case 0x016B:
+            case 0x016C: case 0x016D: case 0x016E: case 0x016F: case 0x0170: case 0x0171:
+            case 0x0172: case 0x0173:
+                return 'u';
+            case 0x00DD: case 0x00FD: case 0x00FF: case 0x0176: case 0x0177: case 0x0178:
+                return 'y';
+            case 0x0179: case 0x017A: case 0x017B: case 0x017C: case 0x017D: case 0x017E:
+                return 'z';
+            default:
+                return 0;
+        }
+    }
+
+    std::string NormalizeSearchKey(const std::string& text)
+    {
+        std::string out;
+        out.reserve(text.size());
+        for (std::size_t i = 0; i < text.size();) {
+            const std::uint32_t cp = DecodeUtf8CodePoint(text, i);
+            if (cp < 0x80) {
+                out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(cp))));
+                continue;
+            }
+            if (IsCombiningMark(cp))
+                continue;
+
+            const char folded = FoldLatinDiacritic(cp);
+            if (folded != 0) {
+                out.push_back(folded);
+                continue;
+            }
+            if (cp == 0x00DF) {
+                out += "ss";
+                continue;
+            }
+            if (cp == 0x00C6 || cp == 0x00E6) {
+                out += "ae";
+                continue;
+            }
+            if (cp == 0x0152 || cp == 0x0153) {
+                out += "oe";
+                continue;
+            }
+            if (cp == 0x00DE || cp == 0x00FE) {
+                out += "th";
+                continue;
+            }
+
+            AppendUtf8(out, cp);
         }
         return out;
     }
@@ -807,12 +978,10 @@ namespace inst::ui {
         this->visibleItems.clear();
         const auto& items = this->getCurrentItems();
         if (!this->searchQuery.empty()) {
+            const std::string normalizedQuery = NormalizeSearchKey(this->searchQuery);
             for (const auto& item : items) {
-                std::string name = item.name;
-                std::string query = this->searchQuery;
-                std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-                std::transform(query.begin(), query.end(), query.begin(), ::tolower);
-                if (name.find(query) != std::string::npos)
+                std::string name = NormalizeSearchKey(item.name);
+                if (name.find(normalizedQuery) != std::string::npos)
                     this->visibleItems.push_back(item);
             }
         } else {
