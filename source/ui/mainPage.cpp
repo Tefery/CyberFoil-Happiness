@@ -381,7 +381,22 @@ namespace inst::ui {
         mainApp->CreateShowDialog(title, desc, {"common.ok"_lang}, true);
     }
 
+    void ShowHappyResult(bool show) {
+        if (!inst::config::gayMode) {
+            if (Down & HidNpadButton_X) {
+                this->awooImage->SetVisible(false);
+                this->boobsImage->SetVisible(true);
+            } else if (Up & HidNpadButton_X) {
+                this->awooImage->SetVisible(true);
+                this->boobsImage->SetVisible(false);
+            }
+        }
+    }
+
     void MainPage::onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
+
+        ShowHappyResult(Down & HidNpadButton_X);
+
         int bottomTapX = 0;
         if (DetectBottomHintTap(Pos, this->bottomHintTouch, 668, 52, bottomTapX)) {
             Down |= FindBottomHintButton(this->bottomHintSegments, bottomTapX);
@@ -446,16 +461,6 @@ namespace inst::ui {
             }
             this->touchActive = false;
             this->touchMoved = false;
-        }
-
-        if (!inst::config::gayMode) {
-            if (Down & HidNpadButton_X) {
-                this->awooImage->SetVisible(false);
-                this->boobsImage->SetVisible(true);
-            } else if (Up & HidNpadButton_X) {
-                this->awooImage->SetVisible(true);
-                this->boobsImage->SetVisible(false);
-            }
         }
 
         if ((Down & HidNpadButton_A) || touchSelect)
