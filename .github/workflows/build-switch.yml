@@ -8,11 +8,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    container:
+      image: devkitpro/devkita64:20251231
 
     steps:
       - name: Checkout (with submodules)
@@ -21,35 +24,36 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Build inside devkitPro container
-        uses: addnab/docker-run-action@v3
-        with:
-            image: devkitpro/devkita64:latest
-            options: -v ${{ github.workspace }}:/repo -w /repo
-            run: |
-                dkp-pacman -Syu --noconfirm
-                dkp-pacman -S --noconfirm --needed switch-ntfs-3g switch-lwext4
-                make -j"$(nproc)"
-
-      - name: Collect build outputs
+      - name: Build
+        shell: bash
         run: |
-          mkdir -p dist
-          find . -type f \( \
-            -name "*.nro" -o -name "*.nsp" -o -name "*.nso" -o \
-            -name "*.npdm" -o -name "*.nacp" -o -name "*.elf" \
-          \) -print -exec cp -v {} dist/ \;
-          echo "---- dist/ ----"
-          ls -lah dist
+          set -euo pipefail
+          start_ts=$(date +%s)
+          dkp-pacman -S --noconfirm --needed switch-ntfs-3g switch-lwext4
+          make -j"$(nproc)"
 
-      - name: Upload artifact
+          end_ts=$(date +%s)
+          duration=$((end_ts - start_ts))
+
+          if [ -f "./cyberfoil.nro" ]; then
+            nro_status="present"
+            nro_size=$(stat -c%s "./cyberfoil.nro" 2>/dev/null || stat -f%z "./cyberfoil.nro")
+          else
+            nro_status="missing"
+            nro_size="0"
+          fi
+
+          {
+            echo "## Build Summary"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Runner: $(uname -a)"
+            echo "- Duration: ${duration}s"
+            echo "- Output: cyberfoil.nro (${nro_status}, ${nro_size} bytes)"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload cyberfoil.nro artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CyberFoil-Happiness-${{ github.sha }}
-          path: dist/*
+          name: cyberfoil-dev-nro
+          path: ./cyberfoil.nro
           if-no-files-found: error
-
-      - name: Publish GitHub Release (only tags v*)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*
