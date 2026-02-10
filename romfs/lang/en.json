@@ -34,7 +34,19 @@
             "title": "Applet Mode not supported",
             "desc": "You may experience issues using CyberFoil in Applet Mode. If you do\nhave problems, please switch to running CyberFoil over an installed\ntitle (hold R while starting a game)!"
         },
-        "buttons": " Select     Exit"
+        "buttons": " Select     Exit",
+        "info": {
+            "button": "Info",
+            "shop": "Browse shop sections and select titles to install from your Ownfoil eShop.",
+            "sd": "Install NSP/NSZ/XCI/XCZ files stored on your SD card.",
+            "hdd": "Install files directly from a connected USB SSD or hard drive.",
+            "mtp": "Connect a PC over USB and install by copying files to the MTP install folder.",
+            "usb": "Install over USB from tools like NS-USBloader.",
+            "net": "Install files from LAN or internet sources.",
+            "sig": "Install, update, or remove signature patches.",
+            "set": "Change CyberFoil preferences and shop settings.",
+            "exit": "Close CyberFoil and return to HOME."
+        }
     },
     "inst": {
         "net": {
@@ -79,6 +91,8 @@
             "search_hint": "Search all titles",
             "update_prompt_title": "Install updates?",
             "update_prompt_desc": "Include available updates for selected titles? Updates found: ",
+            "dlc_prompt_title": "Install DLC?",
+            "dlc_prompt_desc": "Include available DLC for selected titles? DLC found: ",
             "motd_title": "Message of the day",
             "buttons_installed": " Details     Refresh    / Section     Cancel",
             "detail_type": "Type: ",
@@ -208,12 +222,14 @@
             "shop_pass": "Ownfoil password: ",
             "shop_hide_installed": "Hide installed titles in eShop",
             "shop_hide_installed_section": "Hide Installed section in eShop",
+            "shop_start_grid_mode": "Start shop in grid mode",
             "shop_reset_icons": "Reset shop icon cache",
             "language": "Language: ",
             "check_update": "Check for updates to CyberFoil",
             "credits": "Credits",
             "sound": "Enable sounds",
-            "oled": "Enable OLED mode"
+            "oled": "Enable OLED mode",
+            "mtp_album": "Show Album drive during MTP install mode"
         },
         "nca_warn": {
             "title": "Warning!",

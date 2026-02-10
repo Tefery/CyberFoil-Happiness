@@ -34,7 +34,19 @@
             "title": "Applet Mode non è supportata",
             "desc": "Puoi incontrare problemi utilizzando CyberFoil in Applet Mode. Se\nriscontri problemi, ti prego di utilizzare CyberFoil avviandolo attraverso un gioco\ngià installato (tieni premuto R mentre avvii un gioco)!"
         },
-        "buttons": " Seleziona     Esci"
+        "buttons": " Seleziona     Esci",
+        "info": {
+            "button": "Info",
+            "shop": "Sfoglia le sezioni dello shop e seleziona i titoli da installare dal tuo Ownfoil eShop.",
+            "sd": "Installa file NSP/NSZ/XCI/XCZ salvati sulla tua scheda SD.",
+            "hdd": "Installa file direttamente da un SSD o disco rigido USB collegato.",
+            "mtp": "Collega un PC via USB e installa copiando i file nella cartella di installazione MTP.",
+            "usb": "Installa via USB con strumenti come NS-USBloader.",
+            "net": "Installa file da fonti LAN o internet.",
+            "sig": "Installa, aggiorna o rimuovi le signature patch.",
+            "set": "Modifica le preferenze di CyberFoil e le impostazioni dello shop.",
+            "exit": "Chiudi CyberFoil e torna al menu HOME."
+        }
     },
     "inst": {
         "net": {
@@ -79,6 +91,8 @@
             "search_hint": "Cerca in tutti i titoli",
             "update_prompt_title": "Installare gli aggiornamenti?",
             "update_prompt_desc": "Includere gli aggiornamenti disponibili per i titoli selezionati? Aggiornamenti trovati: ",
+            "dlc_prompt_title": "Install DLC?",
+            "dlc_prompt_desc": "Include available DLC for selected titles? DLC found: ",
             "motd_title": "Messaggio del giorno",
             "buttons_installed": " Dettagli     Refresh    / Section     Cancel",
             "detail_type": "Tipo: ",
@@ -208,12 +222,14 @@
             "shop_pass": "Password Ownfoil: ",
             "shop_hide_installed": "Nascondi i titoli installati nell'eShop",
             "shop_hide_installed_section": "Nascondi la sezione Installati nell\u2019eShop",
+            "shop_start_grid_mode": "Avvia il negozio in modalità griglia",
             "shop_reset_icons": "Reimpostare la cache delle icone del negozio",
             "language": "Lingua: ",
             "check_update": "Controlla aggiornamenti di CyberFoil ora",
             "credits": "Crediti",
             "sound": "Abilita i suoni",
-            "oled": "Abilita la modalità OLED"
+            "oled": "Abilita la modalità OLED",
+            "mtp_album": "Mostra unità Album in modalità installazione MTP"
         },
         "nca_warn": {
             "title": "Attenzione!",

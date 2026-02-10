@@ -62,5 +62,14 @@ namespace inst::ui {
             pu::ui::elm::MenuItem::Ref sigPatchesMenuItem;
             pu::ui::elm::MenuItem::Ref settingsMenuItem;
             pu::ui::elm::MenuItem::Ref exitMenuItem;
+            std::vector<Rectangle::Ref> mainGridTiles;
+            std::vector<Image::Ref> mainGridIcons;
+            std::vector<TextBlock::Ref> mainGridLabels;
+            Rectangle::Ref mainGridHighlight;
+            int selectedMainIndex = 0;
+            void updateMainGridSelection();
+            int getMainGridIndexFromTouch(int x, int y) const;
+            void activateSelectedMainItem();
+            void showSelectedMainInfo();
     };
 }

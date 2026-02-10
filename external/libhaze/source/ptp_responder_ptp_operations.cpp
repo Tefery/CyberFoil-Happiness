@@ -316,7 +316,12 @@ namespace haze {
         R_TRY(Fs(obj).OpenFile(obj->GetName(), FsOpenMode_Read, std::addressof(file)));
 
         /* Ensure we maintain a clean state on exit. */
-        ON_SCOPE_EXIT { Fs(obj).CloseFile(std::addressof(file)); };
+        bool close_file_on_exit = true;
+        ON_SCOPE_EXIT {
+            if (close_file_on_exit) {
+                Fs(obj).CloseFile(std::addressof(file));
+            }
+        };
 
         /* Get the file's size. */
         s64 file_size = 0;
@@ -460,7 +465,12 @@ namespace haze {
         R_TRY(Fs(obj).OpenFile(obj->GetName(), FsOpenMode_Write | FsOpenMode_Append, std::addressof(file)));
 
         /* Ensure we maintain a clean state on exit. */
-        ON_SCOPE_EXIT { Fs(obj).CloseFile(std::addressof(file)); };
+        bool close_file_on_exit = true;
+        ON_SCOPE_EXIT {
+            if (close_file_on_exit) {
+                Fs(obj).CloseFile(std::addressof(file));
+            }
+        };
 
         /* Dummy file size for the threaded transfer. */
         auto file_size = 4_GB;
@@ -487,7 +497,12 @@ namespace haze {
         };
 
         WriteCallbackFile(CallbackType_WriteBegin, obj->GetName());
-        ON_SCOPE_EXIT { WriteCallbackFile(CallbackType_WriteEnd, obj->GetName()); };
+        bool write_end_on_exit = true;
+        ON_SCOPE_EXIT {
+            if (write_end_on_exit) {
+                WriteCallbackFile(CallbackType_WriteEnd, obj->GetName());
+            }
+        };
 
         auto mode = sphaira::thread::Mode::MultiThreaded;
         if (!Fs(obj).MultiThreadTransfer(0, false)) {
@@ -524,6 +539,17 @@ namespace haze {
                 R_SUCCEED();
             }, mode
         ));
+
+        if (offset != file_size) {
+            R_TRY(Fs(obj).SetFileSize(std::addressof(file), offset));
+            file_size = offset;
+        }
+
+        /* Ensure file close/finalize happens before acknowledging success to host. */
+        WriteCallbackFile(CallbackType_WriteEnd, obj->GetName());
+        write_end_on_exit = false;
+        Fs(obj).CloseFile(std::addressof(file));
+        close_file_on_exit = false;
 
         /* Write the success response. */
         R_RETURN(this->WriteResponse(PtpResponseCode_Ok));

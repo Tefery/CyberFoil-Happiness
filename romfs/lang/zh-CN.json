@@ -34,7 +34,19 @@
             "title": "不支持 Applet 模式",
             "desc": "在 Applet 模式下使用 CyberFoil 可能会遇到问题，\n如果遇到问题，请切换 CyberFoil 的运行模式！\n(退回主界面，按住  并打开任意游戏，进入 hbmenu 后再打开 CyberFoil 即可)"
         },
-        "buttons": " 选择     退出"
+        "buttons": " 选择     退出",
+        "info": {
+            "button": "信息",
+            "shop": "浏览商店分区，并从 Ownfoil eShop 中选择要安装的标题。",
+            "sd": "安装存储在 SD 卡中的 NSP/NSZ/XCI/XCZ 文件。",
+            "hdd": "直接从已连接的 USB SSD 或移动硬盘安装文件。",
+            "mtp": "通过 USB 连接电脑，将文件复制到 MTP 安装文件夹后进行安装。",
+            "usb": "使用 NS-USBloader 等工具通过 USB 安装。",
+            "net": "从局域网或互联网来源安装文件。",
+            "sig": "安装、更新或移除签名补丁。",
+            "set": "修改 CyberFoil 偏好和商店设置。",
+            "exit": "关闭 CyberFoil 并返回 HOME。"
+        }
     },
     "inst": {
         "net": {
@@ -79,6 +91,8 @@
             "search_hint": "搜索所有标题",
             "update_prompt_title": "安装更新？",
             "update_prompt_desc": "是否为已选择标题一并安装可用更新？ 已发现更新数量：",
+            "dlc_prompt_title": "Install DLC?",
+            "dlc_prompt_desc": "Include available DLC for selected titles? DLC found: ",
             "motd_title": "每日消息",
             "buttons_installed": " 详情     刷新    / 分区     取消",
             "detail_type": "类型: ",
@@ -208,12 +222,14 @@
             "shop_pass": "Ownfoil 密码：",
             "shop_hide_installed": "在 eShop 中隐藏已安装的标题",
             "shop_hide_installed_section": "\u9690\u85cf eShop \u7684\u201c\u5df2\u5b89\u88c5\u201d\u5206\u533a",
+            "shop_start_grid_mode": "以网格模式启动商店",
             "shop_reset_icons": "重置商店图标缓存",
             "language": "语言：",
             "check_update": "检查 CyberFoil 更新",
             "credits": "致谢",
             "sound": "启用声音",
-            "oled": "启用 OLED 模式"
+            "oled": "启用 OLED 模式",
+            "mtp_album": "在 MTP 安装模式下显示相册驱动器"
         },
         "nca_warn": {
             "title": "警告！",

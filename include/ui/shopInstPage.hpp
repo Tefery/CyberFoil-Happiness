@@ -74,6 +74,9 @@ namespace inst::ui {
             TextBlock::Ref gridTitleText;
             TextBlock::Ref imageLoadingText;
             TextBlock::Ref debugText;
+            TextBlock::Ref emptySectionText;
+            TextBlock::Ref searchInfoText;
+            void centerPageInfoText();
             void drawMenuItems(bool clearItems);
             void selectTitle(int selectedIndex);
             void updateRememberedSelection();

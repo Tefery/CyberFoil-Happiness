@@ -34,7 +34,19 @@
             "title": "Modo applet não suportado",
             "desc": "Poderá ter problemas se usar o CyberFoil em modo Applet. Se\ntiver problemas, execute o CyberFoil através de um título\ninstalado (mantenha R primido enquanto inicia um jogo)!"
         },
-        "buttons": " Selecionar     Sair"
+        "buttons": " Selecionar     Sair",
+        "info": {
+            "button": "Info",
+            "shop": "Navegue pelas secções da loja e selecione títulos para instalar a partir da Ownfoil eShop.",
+            "sd": "Instale ficheiros NSP/NSZ/XCI/XCZ guardados no cartão SD.",
+            "hdd": "Instale ficheiros diretamente de um SSD ou disco rígido USB ligado.",
+            "mtp": "Ligue um PC por USB e instale ao copiar ficheiros para a pasta de instalação MTP.",
+            "usb": "Instale por USB com ferramentas como o NS-USBloader.",
+            "net": "Instale ficheiros a partir de fontes LAN ou internet.",
+            "sig": "Instale, atualize ou remova os signature patches.",
+            "set": "Altere as preferências do CyberFoil e as definições da loja.",
+            "exit": "Feche o CyberFoil e volte ao menu HOME."
+        }
     },
     "inst": {
         "net": {
@@ -79,6 +91,8 @@
             "search_hint": "Pesquisar em todos os títulos",
             "update_prompt_title": "Instalar atualizações?",
             "update_prompt_desc": "Incluir as atualizações disponíveis para os títulos selecionados? Atualizações encontradas: ",
+            "dlc_prompt_title": "Install DLC?",
+            "dlc_prompt_desc": "Include available DLC for selected titles? DLC found: ",
             "motd_title": "Mensagem do dia",
             "buttons_installed": " Detalhes     Atualizar    / Secção     Cancelar",
             "detail_type": "Tipo: ",
@@ -208,12 +222,14 @@
             "shop_pass": "Palavra-passe Ownfoil: ",
             "shop_hide_installed": "Ocultar títulos instalados na eShop",
             "shop_hide_installed_section": "Ocultar a se\u00e7\u00e3o Instalados na eShop",
+            "shop_start_grid_mode": "Iniciar a loja no modo grelha",
             "shop_reset_icons": "Repor a cache dos ícones da loja",
             "language": "Idioma: ",
             "check_update": "Procurar atualizações do CyberFoil",
             "credits": "Créditos",
             "sound": "Ativar sons",
-            "oled": "Ativar modo OLED"
+            "oled": "Ativar modo OLED",
+            "mtp_album": "Mostrar unidade Álbum no modo de instalação MTP"
         },
         "nca_warn": {
             "title": "Aviso!",

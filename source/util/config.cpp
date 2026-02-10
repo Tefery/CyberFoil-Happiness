@@ -17,12 +17,14 @@ namespace inst::config {
     bool gayMode;
     bool soundEnabled;
     bool oledMode;
+    bool mtpExposeAlbum;
     bool ignoreReqVers;
     bool overClock;
     bool usbAck;
     bool validateNCAs;
     bool shopHideInstalled;
     bool shopHideInstalledSection;
+    bool shopStartGridMode;
 
     void setConfig() {
         nlohmann::json j = {
@@ -32,6 +34,7 @@ namespace inst::config {
             {"gayMode", gayMode},
             {"soundEnabled", soundEnabled},
             {"oledMode", oledMode},
+            {"mtpExposeAlbum", mtpExposeAlbum},
             {"ignoreReqVers", ignoreReqVers},
             {"languageSetting", languageSetting},
             {"overClock", overClock},
@@ -44,6 +47,7 @@ namespace inst::config {
             {"shopPass", shopPass},
             {"shopHideInstalled", shopHideInstalled},
             {"shopHideInstalledSection", shopHideInstalledSection},
+            {"shopStartGridMode", shopStartGridMode},
             {"shopRememberSelection", false},
             {"shopSelection", nlohmann::json::array()}
         };
@@ -59,9 +63,10 @@ namespace inst::config {
         deletePrompt = true;
         gayMode = true;
         soundEnabled = true;
-        oledMode = false;
+        oledMode = true;
+        mtpExposeAlbum = false;
         ignoreReqVers = true;
-        overClock = false;
+        overClock = true;
         usbAck = false;
         validateNCAs = true;
         lastNetUrl = "https://";
@@ -70,6 +75,7 @@ namespace inst::config {
         shopPass.clear();
         shopHideInstalled = false;
         shopHideInstalledSection = false;
+        shopStartGridMode = false;
 
         try {
             std::ifstream file(inst::config::configPath);
@@ -81,6 +87,7 @@ namespace inst::config {
             if (j.contains("gayMode")) gayMode = j["gayMode"].get<bool>();
             if (j.contains("soundEnabled")) soundEnabled = j["soundEnabled"].get<bool>();
             if (j.contains("oledMode")) oledMode = j["oledMode"].get<bool>();
+            if (j.contains("mtpExposeAlbum")) mtpExposeAlbum = j["mtpExposeAlbum"].get<bool>();
             if (j.contains("ignoreReqVers")) ignoreReqVers = j["ignoreReqVers"].get<bool>();
             if (j.contains("languageSetting")) languageSetting = j["languageSetting"].get<int>();
             if (j.contains("overClock")) overClock = j["overClock"].get<bool>();
@@ -93,6 +100,7 @@ namespace inst::config {
             if (j.contains("shopPass")) shopPass = j["shopPass"].get<std::string>();
             if (j.contains("shopHideInstalled")) shopHideInstalled = j["shopHideInstalled"].get<bool>();
             if (j.contains("shopHideInstalledSection")) shopHideInstalledSection = j["shopHideInstalledSection"].get<bool>();
+            if (j.contains("shopStartGridMode")) shopStartGridMode = j["shopStartGridMode"].get<bool>();
         }
         catch (...) {
             // If loading values from the config fails, we just load the defaults and overwrite the old config

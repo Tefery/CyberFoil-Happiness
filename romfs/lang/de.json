@@ -34,7 +34,19 @@
             "title": "Applet-Modus wird nicht unterstützt",
             "desc": "Es kann zu Problemen bei der Verwendung des CyberFoil im Applet-Modus kommen.\nWenn du Probleme hast, starte den CyberFoil über einen installierten Titel (halte R gedrückt, während du ein Spiel startest)!"
         },
-        "buttons": " Auswählen     Beenden"
+        "buttons": " Auswählen     Beenden",
+        "info": {
+            "button": "Info",
+            "shop": "Durchsuche Shop-Bereiche und wähle Titel zur Installation aus dem Ownfoil eShop.",
+            "sd": "Installiere NSP/NSZ/XCI/XCZ-Dateien von deiner SD-Karte.",
+            "hdd": "Installiere Dateien direkt von einer angeschlossenen USB-SSD oder Festplatte.",
+            "mtp": "Verbinde einen PC per USB und installiere durch Kopieren von Dateien in den MTP-Installationsordner.",
+            "usb": "Installiere per USB mit Tools wie NS-USBloader.",
+            "net": "Installiere Dateien über LAN oder Internetquellen.",
+            "sig": "Signatur-Patches installieren, aktualisieren oder entfernen.",
+            "set": "CyberFoil-Einstellungen und Shop-Optionen ändern.",
+            "exit": "CyberFoil schließen und zum HOME-Menü zurückkehren."
+        }
     },
     "inst": {
         "net": {
@@ -79,6 +91,8 @@
             "search_hint": "Alle Titel durchsuchen",
             "update_prompt_title": "Updates installieren?",
             "update_prompt_desc": "Verfügbare Updates für ausgewählte Titel einbeziehen? Gefundene Updates: ",
+            "dlc_prompt_title": "Install DLC?",
+            "dlc_prompt_desc": "Include available DLC for selected titles? DLC found: ",
             "motd_title": "Nachricht des Tages",
             "buttons_installed": " Details     Aktualisieren    / Abschnitt     Abbrechen",
             "detail_type": "Typ: ",
@@ -208,12 +222,14 @@
             "shop_pass": "Ownfoil Passwort: ",
             "shop_hide_installed": "Installierte Titel im eShop ausblenden",
             "shop_hide_installed_section": "Installiert-Abschnitt im eShop ausblenden",
+            "shop_start_grid_mode": "Shop im Rastermodus starten",
             "shop_reset_icons": "Shop-Icon-Cache zurücksetzen",
             "language": "Sprache: ",
             "check_update": "Suche nach Updates für CyberFoil",
             "credits": "Anerkennung",
             "sound": "Töne aktivieren",
-            "oled": "OLED-Modus aktivieren"
+            "oled": "OLED-Modus aktivieren",
+            "mtp_album": "Album-Laufwerk im MTP-Installationsmodus anzeigen"
         },
         "nca_warn": {
             "title": "Warnung!",
