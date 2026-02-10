@@ -6,6 +6,7 @@
             "net": "Instalar através da LAN ou da Internet",
             "shop": "Instalar a partir do Ownfoil",
             "usb": "Instalar a partir do NS-USBloader",
+            "mtp": "Instalar a partir do MTP",
             "sig": "Gerir patches de assinaturas",
             "set": "Definições",
             "exit": "Sair"
@@ -33,7 +34,19 @@
             "title": "Modo applet não suportado",
             "desc": "Poderá ter problemas se usar o CyberFoil em modo Applet. Se\ntiver problemas, execute o CyberFoil através de um título\ninstalado (mantenha R primido enquanto inicia um jogo)!"
         },
-        "buttons": " Selecionar     Sair"
+        "buttons": " Selecionar     Sair",
+        "info": {
+            "button": "Info",
+            "shop": "Navegue pelas secções da loja e selecione títulos para instalar a partir da Ownfoil eShop.",
+            "sd": "Instale ficheiros NSP/NSZ/XCI/XCZ guardados no cartão SD.",
+            "hdd": "Instale ficheiros diretamente de um SSD ou disco rígido USB ligado.",
+            "mtp": "Ligue um PC por USB e instale ao copiar ficheiros para a pasta de instalação MTP.",
+            "usb": "Instale por USB com ferramentas como o NS-USBloader.",
+            "net": "Instale ficheiros a partir de fontes LAN ou internet.",
+            "sig": "Instale, atualize ou remova os signature patches.",
+            "set": "Altere as preferências do CyberFoil e as definições da loja.",
+            "exit": "Feche o CyberFoil e volte ao menu HOME."
+        }
     },
     "inst": {
         "net": {
@@ -130,6 +143,21 @@
             "opt0": "Cartão SD",
             "opt1": "Memória Interna"
         },
+        "mtp": {
+            "target": {
+                "title": "Instalação via MTP",
+                "desc": "Onde deve ser instalado?"
+            },
+            "waiting": {
+                "title": "Instalação via MTP",
+                "desc": "Ligue-se ao PC e carregue os ficheiros para a pasta de instalação MTP.",
+                "hint": "Prima B para parar o MTP."
+            },
+            "error": {
+                "title": "Erro MTP",
+                "desc": "Falha na inicialização do servidor MTP."
+            }
+        },
         "info_page": {
             "top_info0": "A instalar ",
             "preparing": "A preparar a instalação...",
@@ -194,6 +222,8 @@
             "shop_pass": "Palavra-passe Ownfoil: ",
             "shop_hide_installed": "Ocultar títulos instalados na eShop",
             "shop_hide_installed_section": "Ocultar a se\u00e7\u00e3o Instalados na eShop",
+            "shop_start_grid_mode": "Iniciar a loja no modo grelha",
+            "shop_reset_icons": "Repor a cache dos ícones da loja",
             "language": "Idioma: ",
             "check_update": "Procurar atualizações do CyberFoil",
             "credits": "Créditos",
@@ -211,6 +241,11 @@
             "url_hint": "Introduza o URL da sua loja Ownfoil (exemplo: http://192.168.1.2:8465)",
             "user_hint": "Introduza o seu nome de utilizador Ownfoil (opcional)",
             "pass_hint": "Introduza a sua palavra-passe Ownfoil (opcional)"
+        },
+        "cache_reset": {
+            "title": "Repor a cache dos ícones da loja?",
+            "desc": "Isto irá eliminar todos os ícones da loja em cache e forçar um novo download na próxima vez que abrir a loja.",
+            "confirm": "Repor"
         },
         "update": {
             "title": "Atualização disponível",

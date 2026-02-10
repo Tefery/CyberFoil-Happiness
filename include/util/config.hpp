@@ -27,6 +27,7 @@ namespace inst::config {
     extern bool usbAck;
     extern bool shopHideInstalled;
     extern bool shopHideInstalledSection;
+    extern bool shopStartGridMode;
 
     void setConfig();
     void parseConfig();

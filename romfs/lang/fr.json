@@ -6,6 +6,7 @@
             "net": "Installer à partir d'un LAN ou d'internet",
             "shop": "Installer depuis Ownfoil",
             "usb": "Installer via NS-USBloader",
+            "mtp": "Installer via MTP",
             "sig": "Gérer les sigpatches",
             "set": " Paramètres",
             "exit": " Quitter"
@@ -33,7 +34,19 @@
             "title": "Le mode Applet n'est pas compatible",
             "desc": "Vous pouvez rencontrer des problèmes en utilisant CyberFoil en mode Applet.\n\n Si vous avez des problèmes, veuillez lancer CyberFoil en mode 'non-Applet' (maintenez R pendant le démarrage d'un jeu)!"
         },
-        "buttons": " Select     Quitter"
+        "buttons": " Select     Quitter",
+        "info": {
+            "button": "Infos",
+            "shop": "Parcourez les sections de la boutique et sélectionnez des titres à installer depuis votre Ownfoil eShop.",
+            "sd": "Installez des fichiers NSP/NSZ/XCI/XCZ stockés sur votre carte SD.",
+            "hdd": "Installez des fichiers directement depuis un SSD ou disque dur USB connecté.",
+            "mtp": "Connectez un PC en USB et installez en copiant les fichiers dans le dossier d'installation MTP.",
+            "usb": "Installez via USB avec des outils comme NS-USBloader.",
+            "net": "Installez des fichiers depuis le LAN ou des sources internet.",
+            "sig": "Installez, mettez à jour ou supprimez les signature patches.",
+            "set": "Modifiez les préférences CyberFoil et les paramètres de la boutique.",
+            "exit": "Fermez CyberFoil et retournez au menu HOME."
+        }
     },
     "inst": {
         "net": {
@@ -130,6 +143,21 @@
             "opt0": "Carte SD",
             "opt1": "Stockage Interne"
         },
+        "mtp": {
+            "target": {
+                "title": "Installation via MTP",
+                "desc": "Où doit-il être installé?"
+            },
+            "waiting": {
+                "title": "Installation via MTP",
+                "desc": "Connectez-vous au PC et copiez les fichiers dans le dossier d’installation MTP.",
+                "hint": "Appuyez sur B pour arrêter le MTP."
+            },
+            "error": {
+                "title": "Erreur MTP",
+                "desc": "Échec de l’initialisation du serveur MTP."
+            }
+        },
         "info_page": {
             "top_info0": "Installation ",
             "preparing": "Préparation de l'installation...",
@@ -194,6 +222,8 @@
             "shop_pass": "Mot de passe Ownfoil: ",
             "shop_hide_installed": "Masquer les titres installés dans l’eShop",
             "shop_hide_installed_section": "Masquer la section Install\u00e9s dans l\u2019eShop",
+            "shop_start_grid_mode": "Démarrer la boutique en mode grille",
+            "shop_reset_icons": "Réinitialiser le cache des icônes de la boutique",
             "language": "Langage: ",
             "check_update": "Vérifier les mises à jour de CyberFoil",
             "credits": "Crédits",
@@ -211,6 +241,11 @@
             "url_hint": "Entrez l’URL de votre boutique Ownfoil (exemple : http://192.168.1.2:8465)",
             "user_hint": "Entrez votre nom d’utilisateur Ownfoil (facultatif)",
             "pass_hint": "Entrez votre mot de passe Ownfoil (facultatif)"
+        },
+        "cache_reset": {
+            "title": "Réinitialiser le cache des icônes de la boutique ?",
+            "desc": "Cela supprimera toutes les icônes de boutique mises en cache et forcera un nouveau téléchargement la prochaine fois que vous ouvrirez la boutique.",
+            "confirm": "Réinitialiser"
         },
         "update": {
             "title": "Mise à jour disponible",

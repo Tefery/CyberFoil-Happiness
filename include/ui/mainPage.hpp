@@ -70,5 +70,6 @@ namespace inst::ui {
             void updateMainGridSelection();
             int getMainGridIndexFromTouch(int x, int y) const;
             void activateSelectedMainItem();
+            void showSelectedMainInfo();
     };
 }

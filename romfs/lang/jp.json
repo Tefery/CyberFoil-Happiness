@@ -6,6 +6,7 @@
             "net": "ネットワーク経由でインストール",
             "shop": "Ownfoilからインストール",
             "usb": "NS-USBloaderからインストール",
+            "mtp": "MTPからインストール",
             "sig": "署名パッチを管理する",
             "set": "設定",
             "exit": "終了"
@@ -33,7 +34,19 @@
             "title": "アプレットモードはサポートされていません",
             "desc": "アプレットモードでCyberFoilを使用すると問題が発生する場合があります。\n問題が発生した場合は、インストール済みのタイトルでCyberFoilを実行するように切り替えてください\n(ゲームの開始中にRを押したままにしてください)!"
         },
-        "buttons": " 選択     終了"
+        "buttons": " 選択     終了",
+        "info": {
+            "button": "情報",
+            "shop": "ショップのセクションを閲覧し、Ownfoil eShop からインストールするタイトルを選択します。",
+            "sd": "SDカードに保存された NSP/NSZ/XCI/XCZ ファイルをインストールします。",
+            "hdd": "接続された USB SSD またはハードドライブから直接ファイルをインストールします。",
+            "mtp": "USBでPCを接続し、MTPインストールフォルダにファイルをコピーしてインストールします。",
+            "usb": "NS-USBloader などのツールを使って USB 経由でインストールします。",
+            "net": "LAN またはインターネットのソースからファイルをインストールします。",
+            "sig": "署名パッチをインストール、更新、または削除します。",
+            "set": "CyberFoil の設定とショップ設定を変更します。",
+            "exit": "CyberFoil を終了して HOME に戻ります。"
+        }
     },
     "inst": {
         "net": {
@@ -130,6 +143,21 @@
             "opt0": "SDカード",
             "opt1": "内部ストレージ"
         },
+        "mtp": {
+            "target": {
+                "title": "MTP 経由のインストール",
+                "desc": "どこにインストールしますか?"
+            },
+            "waiting": {
+                "title": "MTP 経由のインストール",
+                "desc": "PC に接続し、ファイルを MTP インストールフォルダーにアップロードしてください。",
+                "hint": "B を押して MTP を停止します。"
+            },
+            "error": {
+                "title": "MTP エラー",
+                "desc": "MTP サーバーの初期化に失敗しました。"
+            }
+        },
         "info_page": {
             "top_info0": "インストール中 ",
             "preparing": "インストールの準備...",
@@ -194,6 +222,8 @@
             "shop_pass": "Ownfoil パスワード: ",
             "shop_hide_installed": "eShop のインストール済みタイトルを非表示にする",
             "shop_hide_installed_section": "eShop\u306e\u300c\u30a4\u30f3\u30b9\u30c8\u30fc\u30eb\u6e08\u307f\u300d\u30bb\u30af\u30b7\u30e7\u30f3\u3092\u975e\u8868\u793a",
+            "shop_start_grid_mode": "ショップをグリッド表示で開始",
+            "shop_reset_icons": "ショップアイコンのキャッシュをリセット",
             "language": "言語: ",
             "check_update": "CyberFoilのアップデートを確認",
             "credits": "クレジット",
@@ -211,6 +241,11 @@
             "url_hint": "Ownfoil ショップの URL を入力してください (例: http://192.168.1.2:8465)",
             "user_hint": "Ownfoil のユーザー名を入力してください (任意)",
             "pass_hint": "Ownfoil のパスワードを入力してください (任意)"
+        },
+        "cache_reset": {
+            "title": "ショップアイコンのキャッシュをリセットしますか？",
+            "desc": "これによりキャッシュされたショップアイコンがすべて削除され、次回ショップを開いたときに再ダウンロードされます。",
+            "confirm": "リセット"
         },
         "update": {
             "title": "更新可能",

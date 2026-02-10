@@ -48,7 +48,7 @@ INCLUDES	:=	include include/ui include/data include/install include/nx include/n
 			include/Plutonium/Plutonium/Output-switch/include external/libhaze/include
 APP_TITLE	:=	CyberFoil
 APP_AUTHOR	:=	luketanti
-APP_VERSION	:=	1.3.11-dev
+APP_VERSION	:=	1.3.11
 ICON		:=	romfs/images/icon.jpg
 ROMFS		:=	romfs
 

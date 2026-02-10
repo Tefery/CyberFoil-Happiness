@@ -24,6 +24,7 @@ namespace inst::config {
     bool validateNCAs;
     bool shopHideInstalled;
     bool shopHideInstalledSection;
+    bool shopStartGridMode;
 
     void setConfig() {
         nlohmann::json j = {
@@ -46,6 +47,7 @@ namespace inst::config {
             {"shopPass", shopPass},
             {"shopHideInstalled", shopHideInstalled},
             {"shopHideInstalledSection", shopHideInstalledSection},
+            {"shopStartGridMode", shopStartGridMode},
             {"shopRememberSelection", false},
             {"shopSelection", nlohmann::json::array()}
         };
@@ -62,7 +64,7 @@ namespace inst::config {
         gayMode = true;
         soundEnabled = true;
         oledMode = true;
-        mtpExposeAlbum = true;
+        mtpExposeAlbum = false;
         ignoreReqVers = true;
         overClock = true;
         usbAck = false;
@@ -73,6 +75,7 @@ namespace inst::config {
         shopPass.clear();
         shopHideInstalled = false;
         shopHideInstalledSection = false;
+        shopStartGridMode = false;
 
         try {
             std::ifstream file(inst::config::configPath);
@@ -97,6 +100,7 @@ namespace inst::config {
             if (j.contains("shopPass")) shopPass = j["shopPass"].get<std::string>();
             if (j.contains("shopHideInstalled")) shopHideInstalled = j["shopHideInstalled"].get<bool>();
             if (j.contains("shopHideInstalledSection")) shopHideInstalledSection = j["shopHideInstalledSection"].get<bool>();
+            if (j.contains("shopStartGridMode")) shopStartGridMode = j["shopStartGridMode"].get<bool>();
         }
         catch (...) {
             // If loading values from the config fails, we just load the defaults and overwrite the old config

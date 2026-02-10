@@ -1,10 +1,7 @@
 name: Build CyberFoil (release)
 
 on:
-  push:
-    tags:
-      - "*.*.*"
-      - "v*.*.*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -22,36 +19,6 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-
-      - name: Verify tag matches APP_VERSION in Makefile
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          TAG="${GITHUB_REF_NAME}"
-          TAG="${TAG#v}"   # allow tags like v1.3.9 as well
-
-          if [ ! -f Makefile ]; then
-            echo "ERROR: Makefile not found at repo root"
-            exit 1
-          fi
-
-          # Extract APP_VERSION from Makefile line like: APP_VERSION := 1.3.9
-          APP_VERSION="$(sed -nE 's/^[[:space:]]*APP_VERSION[[:space:]]*:?=[[:space:]]*//p' Makefile | head -n 1 | tr -d '\r' | tr -d '[:space:]')"
-
-          if [ -z "$APP_VERSION" ]; then
-            echo "ERROR: Could not read APP_VERSION from Makefile"
-            exit 1
-          fi
-
-          echo "Tag version:      $TAG"
-          echo "Makefile version: $APP_VERSION"
-
-          if [ "$TAG" != "$APP_VERSION" ]; then
-            echo "ERROR: Tag ($TAG) does not match APP_VERSION ($APP_VERSION)."
-            echo "Fix: update APP_VERSION in Makefile or tag the correct version."
-            exit 1
-          fi
 
       - name: Build + verify expected NRO name/location
         shell: bash
