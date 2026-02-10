@@ -49,7 +49,7 @@ INCLUDES	:=	include include/ui include/data include/install include/nx include/n
 APP_TITLE	:=	CyberFoil
 APP_AUTHOR	:=	luketanti
 APP_VERSION	:=	1.3.11.H
-ICON		:=	romfs/images/icon.png
+ICON		:=	romfs/images/icon.jpg
 ROMFS		:=	romfs
 
 #---------------------------------------------------------------------------------
@@ -148,8 +148,8 @@ ifeq ($(strip $(ICON)),)
 	ifneq (,$(findstring $(TARGET).jpg,$(icons)))
 		export APP_ICON := $(TOPDIR)/$(TARGET).jpg
 	else
-		ifneq (,$(findstring icon.png,$(icons)))
-			export APP_ICON := $(TOPDIR)/icon.png
+		ifneq (,$(findstring icon.jpg,$(icons)))
+			export APP_ICON := $(TOPDIR)/icon.jpg
 		endif
 	endif
 else
