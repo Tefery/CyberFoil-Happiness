@@ -622,7 +622,7 @@ namespace inst::ui {
                     int action = inst::ui::mainApp->CreateShowDialog(
                         selected.title,
                         "Choose an action for this shop.",
-                        {"Use this shop", favouriteLabel, "Delete shop", "Cancel"},
+                        {"Use this shop", "Edit shop", favouriteLabel, "Delete shop", "Cancel"},
                         false
                     );
 
@@ -630,13 +630,118 @@ namespace inst::ui {
                         if (inst::config::SetActiveShop(selected, true))
                             this->refreshOptions();
                     } else if (action == 1) {
+                        const bool wasActive = IsActiveShop(selected);
+                        inst::config::ShopProfile edited = selected;
+
+                        std::string shopTitle = TrimString(inst::util::softwareKeyboard("Enter shop title (required)", edited.title, 80));
+                        if (shopTitle.empty()) {
+                            inst::ui::mainApp->CreateShowDialog("Invalid shop", "Title is required.", {"common.ok"_lang}, true);
+                            break;
+                        }
+
+                        int protocolChoice = inst::ui::mainApp->CreateShowDialog("Shop protocol", "Choose the protocol used by this shop.", {"HTTP", "HTTPS"}, false);
+                        if (protocolChoice < 0)
+                            break;
+                        edited.protocol = (protocolChoice == 1) ? "https" : "http";
+
+                        std::string shopHost = TrimString(inst::util::softwareKeyboard("Enter shop host or IP", edited.host, 200));
+                        if (shopHost.empty()) {
+                            inst::ui::mainApp->CreateShowDialog("Invalid shop", "Host is required.", {"common.ok"_lang}, true);
+                            break;
+                        }
+                        if (shopHost.rfind("http://", 0) == 0)
+                            shopHost = shopHost.substr(7);
+                        else if (shopHost.rfind("https://", 0) == 0)
+                            shopHost = shopHost.substr(8);
+                        std::size_t pathPos = shopHost.find('/');
+                        if (pathPos != std::string::npos)
+                            shopHost = shopHost.substr(0, pathPos);
+                        shopHost = TrimString(shopHost);
+
+                        int defaultPort = inst::config::DefaultPortForProtocol(edited.protocol);
+                        int currentPort = edited.port;
+                        if (currentPort <= 0 || currentPort > 65535)
+                            currentPort = defaultPort;
+                        int shopPort = currentPort;
+
+                        std::string defaultPortLabel = "Use default (" + std::to_string(defaultPort) + ")";
+                        std::string keepPortLabel = "Keep current (" + std::to_string(currentPort) + ")";
+                        int portMode = inst::ui::mainApp->CreateShowDialog("Shop port", "Pick which port to use.", {defaultPortLabel, "Custom", keepPortLabel}, false);
+                        if (portMode < 0)
+                            break;
+                        if (portMode == 0) {
+                            shopPort = defaultPort;
+                        } else if (portMode == 1) {
+                            std::string currentPortText = std::to_string(currentPort);
+                            std::string portText = TrimString(inst::util::softwareKeyboard("Enter shop port (1-65535)", currentPortText, 6));
+                            if (portText.empty()) {
+                                inst::ui::mainApp->CreateShowDialog("Invalid port", "Port is required in custom mode.", {"common.ok"_lang}, true);
+                                break;
+                            }
+                            try {
+                                int parsedPort = std::stoi(portText);
+                                if (parsedPort <= 0 || parsedPort > 65535)
+                                    throw std::out_of_range("port");
+                                shopPort = parsedPort;
+                            } catch (...) {
+                                inst::ui::mainApp->CreateShowDialog("Invalid port", "Port must be between 1 and 65535.", {"common.ok"_lang}, true);
+                                break;
+                            }
+                        }
+
+                        std::size_t hostColon = shopHost.rfind(':');
+                        if (hostColon != std::string::npos && shopHost.find(':') == hostColon) {
+                            std::string hostPart = TrimString(shopHost.substr(0, hostColon));
+                            std::string inlinePort = TrimString(shopHost.substr(hostColon + 1));
+                            if (!hostPart.empty() && !inlinePort.empty()) {
+                                try {
+                                    int parsedPort = std::stoi(inlinePort);
+                                    if (parsedPort > 0 && parsedPort <= 65535) {
+                                        shopHost = hostPart;
+                                        if (portMode == 0)
+                                            shopPort = parsedPort;
+                                    }
+                                } catch (...) {
+                                    inst::ui::mainApp->CreateShowDialog("Invalid host", "Host contains an invalid inline port.", {"common.ok"_lang}, true);
+                                    break;
+                                }
+                            } else {
+                                inst::ui::mainApp->CreateShowDialog("Invalid host", "Host format is invalid.", {"common.ok"_lang}, true);
+                                break;
+                            }
+                        }
+
+                        if (shopHost.empty()) {
+                            inst::ui::mainApp->CreateShowDialog("Invalid shop", "Host is required.", {"common.ok"_lang}, true);
+                            break;
+                        }
+
+                        std::string shopUser = inst::util::softwareKeyboard("options.shop.user_hint"_lang, edited.username, 100);
+                        std::string shopPass = inst::util::softwareKeyboard("options.shop.pass_hint"_lang, edited.password, 100);
+
+                        edited.title = shopTitle;
+                        edited.host = shopHost;
+                        edited.port = shopPort;
+                        edited.username = shopUser;
+                        edited.password = shopPass;
+
+                        std::string error;
+                        if (!inst::config::SaveShop(edited, &error)) {
+                            inst::ui::mainApp->CreateShowDialog("Failed to save shop", error.empty() ? "Unknown error." : error, {"common.ok"_lang}, true);
+                            break;
+                        }
+
+                        if (wasActive)
+                            inst::config::SetActiveShop(edited, true);
+                        this->refreshOptions();
+                    } else if (action == 2) {
                         selected.favourite = !selected.favourite;
                         std::string error;
                         if (!inst::config::SaveShop(selected, &error))
                             inst::ui::mainApp->CreateShowDialog("Failed to save shop", error.empty() ? "Unknown error." : error, {"common.ok"_lang}, true);
                         else
                             this->refreshOptions();
-                    } else if (action == 2) {
+                    } else if (action == 3) {
                         int confirmDelete = inst::ui::mainApp->CreateShowDialog("Delete shop?", "This cannot be undone.", {"Delete", "common.cancel"_lang}, false);
                         if (confirmDelete == 0) {
                             if (!inst::config::DeleteShop(selected.fileName)) {
@@ -664,6 +769,7 @@ namespace inst::ui {
                     int protocolChoice = inst::ui::mainApp->CreateShowDialog("Shop protocol", "Choose the protocol used by this shop.", {"HTTP", "HTTPS"}, false);
                     if (protocolChoice < 0)
                         break;
+                    const std::string shopProtocol = (protocolChoice == 1) ? "https" : "http";
 
                     std::string shopHost = TrimString(inst::util::softwareKeyboard("Enter shop host or IP", "", 200));
                     if (shopHost.empty()) {
@@ -679,12 +785,14 @@ namespace inst::ui {
                         shopHost = shopHost.substr(0, pathPos);
                     shopHost = TrimString(shopHost);
 
-                    int shopPort = 80;
-                    int portMode = inst::ui::mainApp->CreateShowDialog("Shop port", "Use default port 80?", {"Use 80", "Custom"}, false);
+                    const int defaultPort = inst::config::DefaultPortForProtocol(shopProtocol);
+                    int shopPort = defaultPort;
+                    const std::string useDefaultPortLabel = "Use default (" + std::to_string(defaultPort) + ")";
+                    int portMode = inst::ui::mainApp->CreateShowDialog("Shop port", "Pick which port to use.", {useDefaultPortLabel, "Custom"}, false);
                     if (portMode < 0)
                         break;
                     if (portMode == 1) {
-                        std::string portText = TrimString(inst::util::softwareKeyboard("Enter shop port (1-65535)", "80", 6));
+                        std::string portText = TrimString(inst::util::softwareKeyboard("Enter shop port (1-65535)", std::to_string(defaultPort), 6));
                         if (portText.empty()) {
                             inst::ui::mainApp->CreateShowDialog("Invalid port", "Port is required in custom mode.", {"common.ok"_lang}, true);
                             break;
@@ -735,7 +843,7 @@ namespace inst::ui {
 
                     inst::config::ShopProfile newShop;
                     newShop.title = shopTitle;
-                    newShop.protocol = (protocolChoice == 1) ? "https" : "http";
+                    newShop.protocol = shopProtocol;
                     newShop.host = shopHost;
                     newShop.port = shopPort;
                     newShop.username = shopUser;

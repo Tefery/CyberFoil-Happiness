@@ -59,6 +59,11 @@ namespace inst::config {
             return "http";
         }
 
+        int DefaultPortForNormalizedProtocol(const std::string& normalizedProtocol)
+        {
+            return normalizedProtocol == "https" ? 443 : 8465;
+        }
+
         bool EnsureShopsDirectory()
         {
             std::error_code ec;
@@ -164,7 +169,7 @@ namespace inst::config {
                 return false;
 
             host.clear();
-            port = 80;
+            port = DefaultPortForNormalizedProtocol(protocol);
             if (!url.empty() && url.front() == '[') {
                 std::size_t closingBracket = url.find(']');
                 if (closingBracket == std::string::npos)
@@ -221,9 +226,10 @@ namespace inst::config {
 
             inst::config::ShopProfile parsed;
             parsed.protocol = "http";
-            parsed.port = 80;
+            parsed.port = DefaultPortForNormalizedProtocol(parsed.protocol);
             parsed.favourite = false;
-            parsed.protocol = shopNode->value("protocol", "http");
+            parsed.protocol = NormalizeProtocol(shopNode->value("protocol", "http"));
+            parsed.port = DefaultPortForNormalizedProtocol(parsed.protocol);
             parsed.host = shopNode->value("host", "");
             parsed.username = shopNode->value("username", "");
             parsed.password = shopNode->value("password", "");
@@ -269,7 +275,7 @@ namespace inst::config {
             parsed.host = Trim(parsed.host);
             parsed.title = Trim(parsed.title);
             if (parsed.port <= 0 || parsed.port > 65535)
-                parsed.port = 80;
+                parsed.port = DefaultPortForNormalizedProtocol(parsed.protocol);
             if (parsed.host.empty() || parsed.title.empty())
                 return false;
 
@@ -319,7 +325,7 @@ namespace inst::config {
 
             std::string protocol;
             std::string host;
-            int port = 80;
+            int port = DefaultPortForProtocol("http");
             if (!ParseShopUrl(inst::config::shopUrl, protocol, host, port))
                 return;
 
@@ -337,6 +343,11 @@ namespace inst::config {
         }
     }
 
+    int DefaultPortForProtocol(const std::string& protocol)
+    {
+        return DefaultPortForNormalizedProtocol(NormalizeProtocol(protocol));
+    }
+
     std::string BuildShopUrl(const ShopProfile& shop)
     {
         std::string host = Trim(shop.host);
@@ -346,7 +357,7 @@ namespace inst::config {
         std::string protocol = NormalizeProtocol(shop.protocol);
         int port = shop.port;
         if (port <= 0 || port > 65535)
-            port = 80;
+            port = DefaultPortForNormalizedProtocol(protocol);
 
         return protocol + "://" + host + ":" + std::to_string(port);
     }
@@ -389,7 +400,7 @@ namespace inst::config {
         normalized.host = Trim(normalized.host);
         normalized.title = Trim(normalized.title);
         if (normalized.port <= 0 || normalized.port > 65535)
-            normalized.port = 80;
+            normalized.port = DefaultPortForNormalizedProtocol(normalized.protocol);
 
         if (normalized.host.empty())
             return fail("Host is required.");

@@ -36,7 +36,7 @@ namespace inst::config {
         std::string fileName;
         std::string protocol;
         std::string host;
-        int port = 80;
+        int port = 8465;
         std::string username;
         std::string password;
         std::string title;
@@ -44,6 +44,7 @@ namespace inst::config {
         std::int64_t updatedAt = 0;
     };
 
+    int DefaultPortForProtocol(const std::string& protocol);
     std::string BuildShopUrl(const ShopProfile& shop);
     std::vector<ShopProfile> LoadShops();
     bool SaveShop(const ShopProfile& shop, std::string* error = nullptr);
