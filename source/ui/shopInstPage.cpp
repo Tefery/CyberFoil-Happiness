@@ -25,7 +25,7 @@ namespace {
     constexpr int kGridGap = 6;
     constexpr int kGridWidth = (kGridCols * kGridTileWidth) + ((kGridCols - 1) * kGridGap);
     constexpr int kGridStartX = (1280 - kGridWidth) / 2;
-    constexpr int kGridStartY = 140;
+    constexpr int kGridStartY = 120;
     constexpr int kGridItemsPerPage = kGridCols * kGridRows;
 
     std::string NormalizeHex(std::string hex)
@@ -348,16 +348,16 @@ namespace inst::ui {
         const auto topColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#170909FF");
         const auto infoColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
         const auto botColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
-        this->topRect = Rectangle::New(0, 0, 1280, 94, topColor);
-        this->infoRect = Rectangle::New(0, 95, 1280, 60, infoColor);
+        this->topRect = Rectangle::New(0, 0, 1280, 74, topColor);
+        this->infoRect = Rectangle::New(0, 75, 1280, 60, infoColor);
         this->botRect = Rectangle::New(0, 660, 1280, 60, botColor);
         if (inst::config::gayMode) {
-            this->titleImage = Image::New(-113, 0, "romfs:/images/logo.png");
-            this->appVersionText = TextBlock::New(367, 49, "v" + inst::config::appVersion, 22);
+            this->titleImage = Image::New(-113, -8, "romfs:/images/logo.png");
+            this->appVersionText = TextBlock::New(367, 29, "v" + inst::config::appVersion, 22);
         }
         else {
-            this->titleImage = Image::New(0, 0, "romfs:/images/logo.png");
-            this->appVersionText = TextBlock::New(480, 49, "v" + inst::config::appVersion, 22);
+            this->titleImage = Image::New(0, -8, "romfs:/images/logo.png");
+            this->appVersionText = TextBlock::New(480, 29, "v" + inst::config::appVersion, 22);
         }
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
         this->timeText = TextBlock::New(0, 18, "--:--", 22);
@@ -383,15 +383,15 @@ namespace inst::ui {
         this->batteryOutline = Rectangle::New(0, 0, 24, 12, COLOR("#FFFFFF66"));
         this->batteryFill = Rectangle::New(0, 0, 0, 10, COLOR("#4CD964FF"));
         this->batteryCap = Rectangle::New(0, 0, 3, 6, COLOR("#FFFFFF66"));
-        this->pageInfoText = TextBlock::New(10, 101, "", 34);
+        this->pageInfoText = TextBlock::New(10, 81, "", 34);
         this->pageInfoText->SetColor(COLOR("#FFFFFFFF"));
-        this->searchInfoText = TextBlock::New(0, 111, "", 20);
+        this->searchInfoText = TextBlock::New(0, 91, "", 20);
         this->searchInfoText->SetColor(COLOR("#FFFFFFFF"));
         this->searchInfoText->SetVisible(false);
         this->butText = TextBlock::New(10, 678, "", 20);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
         this->setButtonsText("inst.shop.buttons_loading"_lang);
-        this->menu = pu::ui::elm::Menu::New(0, 156, 1280, COLOR("#FFFFFF00"), 28, 18, 18);
+        this->menu = pu::ui::elm::Menu::New(0, 136, 1280, COLOR("#FFFFFF00"), 28, 18, 18);
         if (inst::config::oledMode) {
             this->menu->SetOnFocusColor(COLOR("#FFFFFF33"));
             this->menu->SetScrollbarColor(COLOR("#FFFFFF66"));
@@ -432,7 +432,7 @@ namespace inst::ui {
         this->gridTitleText = TextBlock::New(10, 649, "", 18);
         this->gridTitleText->SetColor(COLOR("#FFFFFFFF"));
         this->gridTitleText->SetVisible(false);
-        this->imageLoadingText = TextBlock::New(0, 118, "Fetching images...", 18);
+        this->imageLoadingText = TextBlock::New(0, 98, "Fetching images...", 18);
         this->imageLoadingText->SetColor(COLOR("#FFFFFFFF"));
         this->imageLoadingText->SetVisible(false);
         this->debugText = TextBlock::New(10, 620, "", 18);
@@ -1458,6 +1458,11 @@ namespace inst::ui {
         mainApp->CallForRender();
 
         std::string shopUrl = inst::config::shopUrl;
+        if (shopUrl.empty()) {
+            std::vector<inst::config::ShopProfile> shops = inst::config::LoadShops();
+            if (!shops.empty() && inst::config::SetActiveShop(shops.front(), true))
+                shopUrl = inst::config::shopUrl;
+        }
         if (shopUrl.empty()) {
             shopUrl = inst::util::softwareKeyboard("options.shop.url_hint"_lang, "http://", 200);
             if (shopUrl.empty()) {

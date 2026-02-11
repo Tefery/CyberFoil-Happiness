@@ -408,11 +408,11 @@ namespace inst::ui {
 
             const int cardWidth = 180;
             const int cardGap = 12;
-            const int timeY = 44;
-            const int iconY = 70;
-            const int cardsTopY = 44;
-            const int barY = 62;
-            const int freeY = 72;
+            const int timeY = 24;
+            const int iconY = 50;
+            const int cardsTopY = 24;
+            const int barY = 42;
+            const int freeY = 52;
             const int netSize = 6;
             const int wifiBarW = 4;
             const int wifiBarGap = 2;

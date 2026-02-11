@@ -24,7 +24,7 @@ namespace inst::ui {
     constexpr int kMainGridGapX = 20;
     constexpr int kMainGridGapY = 18;
     constexpr int kMainGridStartX = (1280 - ((kMainGridCols * kMainGridTileWidth) + ((kMainGridCols - 1) * kMainGridGapX))) / 2;
-    constexpr int kMainGridStartY = 120;
+    constexpr int kMainGridStartY = 100;
 
     void mainMenuThread() {
         bool menuLoaded = mainApp->IsShown();
@@ -55,15 +55,15 @@ namespace inst::ui {
         }
         const auto topColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#170909FF");
         const auto botColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
-        this->topRect = Rectangle::New(0, 0, 1280, 94, topColor);
-        this->botRect = Rectangle::New(0, 659, 1280, 61, botColor);
+        this->topRect = Rectangle::New(0, 0, 1280, 74, topColor);
+        this->botRect = Rectangle::New(0, 660, 1280, 60, botColor);
         if (inst::config::gayMode) {
-            this->titleImage = Image::New(-113, 0, "romfs:/images/logo.png");
-            this->appVersionText = TextBlock::New(367, 49, "v" + inst::config::appVersion, 22);
+            this->titleImage = Image::New(-113, -8, "romfs:/images/logo.png");
+            this->appVersionText = TextBlock::New(367, 29, "v" + inst::config::appVersion, 22);
         }
         else {
-            this->titleImage = Image::New(0, 0, "romfs:/images/logo.png");
-            this->appVersionText = TextBlock::New(480, 49, "v" + inst::config::appVersion, 22);
+            this->titleImage = Image::New(0, -8, "romfs:/images/logo.png");
+            this->appVersionText = TextBlock::New(480, 29, "v" + inst::config::appVersion, 22);
         }
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
         this->timeText = TextBlock::New(0, 18, "--:--", 22);

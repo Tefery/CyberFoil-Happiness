@@ -48,11 +48,15 @@ namespace inst::ui {
             int selectedSection = 0;
             bool tabsFocused = false;
             int lockedMenuIndex = 0;
+            std::vector<int> sectionMenuIndices;
             std::vector<TextBlock::Ref> sectionTexts;
             std::vector<Rectangle::Ref> sectionHighlights;
             void setSectionNavText();
             void setSettingsMenuText();
             void refreshOptions(bool resetSelection = false);
+            void rememberCurrentSectionMenuIndex();
+            void restoreSelectedSectionMenuIndex();
+            void setSelectedSectionAndRefresh(int newSection);
             int getSectionFromTouch(int x, int y) const;
             std::string getMenuOptionIcon(bool ourBool);
             std::string getMenuLanguage(int ourLangCode);
