@@ -45,6 +45,7 @@ namespace inst::ui {
             std::string searchQuery;
             std::string previewKey;
             bool debugVisible = false;
+            bool descriptionVisible = false;
             int gridSelectedIndex = 0;
             int gridPage = -1;
             bool shopGridMode = false;
@@ -76,6 +77,8 @@ namespace inst::ui {
             TextBlock::Ref debugText;
             TextBlock::Ref emptySectionText;
             TextBlock::Ref searchInfoText;
+            Rectangle::Ref descriptionRect;
+            TextBlock::Ref descriptionText;
             void centerPageInfoText();
             void drawMenuItems(bool clearItems);
             void selectTitle(int selectedIndex);
@@ -94,5 +97,7 @@ namespace inst::ui {
             bool isAllSection() const;
             bool isInstalledSection() const;
             void showInstalledDetails();
+            void showCurrentDescriptionDialog();
+            void updateDescriptionPanel();
     };
 }

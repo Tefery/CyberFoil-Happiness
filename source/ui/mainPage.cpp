@@ -2,8 +2,11 @@
 #include <switch.h>
 #include "ui/MainApplication.hpp"
 #include "ui/mainPage.hpp"
+#include "ui/instPage.hpp"
 #include "util/util.hpp"
 #include "util/config.hpp"
+#include "util/offline_db_update.hpp"
+#include "util/error.hpp"
 #include "util/lang.hpp"
 #include "sigInstall.hpp"
 #include "data/buffered_placeholder_writer.hpp"
@@ -17,6 +20,7 @@ namespace inst::ui {
     extern MainApplication *mainApp;
     bool appletFinished = false;
     bool updateFinished = false;
+    bool offlineDbUpdateCheckFinished = false;
     constexpr int kMainGridCols = 3;
     constexpr int kMainGridRows = 3;
     constexpr int kMainGridTileWidth = 360;
@@ -42,6 +46,45 @@ namespace inst::ui {
         if (!updateFinished && menuLoaded && inst::config::updateInfo.size()) {
             updateFinished = true;
             optionsPage::askToUpdate(inst::config::updateInfo);
+        }
+        if (!offlineDbUpdateCheckFinished && (!inst::config::offlineDbAutoCheckOnStartup || inst::util::getIPAddress() == "1.0.0.127"))
+            offlineDbUpdateCheckFinished = true;
+        if (!offlineDbUpdateCheckFinished && menuLoaded) {
+            inst::offline::dbupdate::CheckResult checkResult;
+            if (inst::offline::dbupdate::TryGetStartupCheckResult(checkResult)) {
+                offlineDbUpdateCheckFinished = true;
+                if (!checkResult.success) {
+                    LOG_DEBUG("Offline DB startup check failed: %s\n", checkResult.error.c_str());
+                } else if (checkResult.updateAvailable) {
+                    std::string prompt = "A new Offline DB update is available.";
+                    if (!checkResult.localVersion.empty())
+                        prompt += "\nCurrent: " + checkResult.localVersion;
+                    if (!checkResult.remoteVersion.empty())
+                        prompt += "\nLatest: " + checkResult.remoteVersion;
+                    prompt += "\n\nInstall now?";
+                    int applyNow = mainApp->CreateShowDialog("Offline DB update", prompt, {"Update", "Later"}, false);
+                    if (applyNow == 0) {
+                        inst::ui::instPage::loadInstallScreen();
+                        inst::ui::instPage::setTopInstInfoText("Updating Offline DB");
+                        inst::ui::instPage::setInstInfoText("Preparing...");
+                        inst::ui::instPage::setInstBarPerc(0);
+                        const auto apply = inst::offline::dbupdate::ApplyUpdate(inst::config::offlineDbManifestUrl, false,
+                            [](const std::string& stage, double percent) {
+                                inst::ui::instPage::setInstInfoText(stage);
+                                inst::ui::instPage::setInstBarPerc(percent);
+                            });
+                        mainApp->LoadLayout(mainApp->mainPage);
+                        if (!apply.success) {
+                            mainApp->CreateShowDialog("Offline DB update", "Update failed:\n" + apply.error, {"common.ok"_lang}, true);
+                        } else {
+                            std::string done = apply.updated ? "Offline DB updated successfully." : "Offline DB is already up to date.";
+                            if (!apply.version.empty())
+                                done += "\nVersion: " + apply.version;
+                            mainApp->CreateShowDialog("Offline DB update", done, {"common.ok"_lang}, true);
+                        }
+                    }
+                }
+            }
         }
     }
 

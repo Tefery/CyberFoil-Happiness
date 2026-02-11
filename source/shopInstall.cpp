@@ -5,6 +5,7 @@
 #include <curl/curl.h>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <thread>
 #include <unordered_map>
@@ -17,6 +18,7 @@
 #include "install/install_xci.hpp"
 #include "nx/nca_writer.h"
 #include "util/file_util.hpp"
+#include "util/offline_title_db.hpp"
 #include "util/title_util.hpp"
 #include "ui/MainApplication.hpp"
 #include "ui/instPage.hpp"
@@ -154,6 +156,8 @@ namespace {
         return baseUrl + "/" + urlPath;
     }
 
+    std::uint64_t GetOfflineLookupTitleId(const shopInstStuff::ShopItem& item);
+
     std::string GetShopIconCachePath(const shopInstStuff::ShopItem& item)
     {
         if (!item.hasIconUrl)
@@ -187,6 +191,25 @@ namespace {
 
     void UpdateInstallIcon(const shopInstStuff::ShopItem& item)
     {
+        const bool offlinePackAvailable = inst::offline::HasPackedIcons();
+
+        if (item.hasTitleId) {
+            const std::uint64_t lookupTitleId = GetOfflineLookupTitleId(item);
+            if (lookupTitleId != 0) {
+                std::vector<std::uint8_t> iconData;
+                if (inst::offline::TryGetIconData(lookupTitleId, iconData) && !iconData.empty()) {
+                    inst::ui::instPage::setInstallIconData(iconData.data(), static_cast<std::uint32_t>(iconData.size()));
+                    return;
+                }
+            }
+        }
+
+        // When offline icon pack is present, never hit network icon URLs.
+        if (offlinePackAvailable) {
+            inst::ui::instPage::clearInstallIcon();
+            return;
+        }
+
         if (!item.hasIconUrl) {
             inst::ui::instPage::clearInstallIcon();
             return;
@@ -324,18 +347,38 @@ namespace {
         return false;
     }
 
+    bool NormalizeAppTypeValue(std::int32_t rawValue, std::int32_t& out)
+    {
+        switch (rawValue) {
+            case NcmContentMetaType_Application:
+            case 0:
+                out = NcmContentMetaType_Application;
+                return true;
+            case NcmContentMetaType_Patch:
+            case 1:
+                out = NcmContentMetaType_Patch;
+                return true;
+            case NcmContentMetaType_AddOnContent:
+            case 2:
+                out = NcmContentMetaType_AddOnContent;
+                return true;
+            default:
+                return false;
+        }
+    }
+
     bool TryParseAppType(const nlohmann::json& entry, std::int32_t& out)
     {
         if (!entry.contains("app_type"))
             return false;
         const auto& value = entry["app_type"];
         if (value.is_number_integer()) {
-            out = value.get<std::int32_t>();
-            return true;
+            const std::int32_t parsed = value.get<std::int32_t>();
+            return NormalizeAppTypeValue(parsed, out);
         }
         if (value.is_number_unsigned()) {
-            out = static_cast<std::int32_t>(value.get<std::uint32_t>());
-            return true;
+            const std::int32_t parsed = static_cast<std::int32_t>(value.get<std::uint32_t>());
+            return NormalizeAppTypeValue(parsed, out);
         }
         if (value.is_string()) {
             std::string type = value.get<std::string>();
@@ -354,8 +397,313 @@ namespace {
                 out = NcmContentMetaType_AddOnContent;
                 return true;
             }
+            char* end = nullptr;
+            long parsed = std::strtol(type.c_str(), &end, 10);
+            if (end != nullptr && *end == '\0' && parsed >= std::numeric_limits<std::int32_t>::min() && parsed <= std::numeric_limits<std::int32_t>::max()) {
+                return NormalizeAppTypeValue(static_cast<std::int32_t>(parsed), out);
+            }
         }
         return false;
+    }
+
+    bool InferAppTypeFromSectionId(const std::string& sectionId, std::int32_t& out)
+    {
+        if (sectionId.empty())
+            return false;
+        std::string id = sectionId;
+        std::transform(id.begin(), id.end(), id.begin(), ::tolower);
+        if (id == "updates" || id == "update") {
+            out = NcmContentMetaType_Patch;
+            return true;
+        }
+        if (id == "dlc" || id == "addon" || id == "add-on" || id == "add_ons") {
+            out = NcmContentMetaType_AddOnContent;
+            return true;
+        }
+        if (id == "base") {
+            out = NcmContentMetaType_Application;
+            return true;
+        }
+        return false;
+    }
+
+    std::string NormalizeHexString(const std::string& value)
+    {
+        std::string out;
+        out.reserve(value.size());
+        for (unsigned char c : value) {
+            if (std::isxdigit(c))
+                out.push_back(static_cast<char>(std::tolower(c)));
+        }
+        return out;
+    }
+
+    bool InferAppTypeFromAppId(const std::string& appId, std::int32_t& out)
+    {
+        std::string normalized = NormalizeHexString(appId);
+        if (normalized.size() < 3)
+            return false;
+        const std::string suffix = normalized.substr(normalized.size() - 3);
+        if (suffix == "800") {
+            out = NcmContentMetaType_Patch;
+            return true;
+        }
+        if (suffix == "000") {
+            out = NcmContentMetaType_Application;
+            return true;
+        }
+        out = NcmContentMetaType_AddOnContent;
+        return true;
+    }
+
+    bool InferAppTypeFromTitleId(std::uint64_t titleId, std::int32_t& out)
+    {
+        const std::uint64_t suffix = titleId & 0xFFFULL;
+        if (suffix == 0x800ULL) {
+            out = NcmContentMetaType_Patch;
+            return true;
+        }
+        if (suffix == 0x000ULL) {
+            out = NcmContentMetaType_Application;
+            return true;
+        }
+        out = NcmContentMetaType_AddOnContent;
+        return true;
+    }
+
+    bool TryParseTitleIdFromAppId(const std::string& appId, std::uint64_t& out)
+    {
+        if (appId.empty())
+            return false;
+        std::string text = appId;
+        const auto start = text.find_first_not_of(" \t\r\n");
+        if (start == std::string::npos)
+            return false;
+        const auto end = text.find_last_not_of(" \t\r\n");
+        text = text.substr(start, (end - start) + 1);
+        if (text.rfind("0x", 0) == 0 || text.rfind("0X", 0) == 0)
+            text = text.substr(2);
+        if (text.size() != 16)
+            return false;
+        return TryParseHexU64(text, out);
+    }
+
+    std::string TrimAscii(const std::string& value)
+    {
+        const auto start = value.find_first_not_of(" \t\r\n");
+        if (start == std::string::npos)
+            return std::string();
+        const auto end = value.find_last_not_of(" \t\r\n");
+        return value.substr(start, (end - start) + 1);
+    }
+
+    bool TryExtractHexTitleIdToken(const std::string& token, std::string& outHex)
+    {
+        std::string text = TrimAscii(token);
+        if (text.rfind("0x", 0) == 0 || text.rfind("0X", 0) == 0)
+            text = text.substr(2);
+        if (text.size() != 16)
+            return false;
+        for (unsigned char c : text) {
+            if (!std::isxdigit(c))
+                return false;
+        }
+        outHex = NormalizeHexString(text);
+        return true;
+    }
+
+    void CollectHexTitleIdCandidates(const std::string& text, std::vector<std::string>& out)
+    {
+        auto isHexAt = [&](std::size_t idx) {
+            return std::isxdigit(static_cast<unsigned char>(text[idx])) != 0;
+        };
+
+        for (std::size_t i = 0; i < text.size();) {
+            if (!isHexAt(i)) {
+                i++;
+                continue;
+            }
+
+            std::size_t j = i;
+            while (j < text.size() && isHexAt(j))
+                j++;
+
+            const std::size_t runLen = j - i;
+            if (runLen >= 16) {
+                // Prefer exact 16-char tokens; fallback to the first 16 chars of longer runs.
+                const std::size_t candidateCount = runLen / 16;
+                for (std::size_t k = 0; k < candidateCount; k++) {
+                    std::string candidate = text.substr(i + (k * 16), 16);
+                    std::string normalized = NormalizeHexString(candidate);
+                    if (normalized.size() == 16)
+                        out.push_back(normalized);
+                }
+            }
+
+            i = j;
+        }
+    }
+
+    std::string ChooseLegacyTitleIdToken(const std::vector<std::string>& hexTokens, std::int32_t appType)
+    {
+        if (hexTokens.empty())
+            return std::string();
+
+        auto endsWith = [](const std::string& value, const char* suffix) -> bool {
+            const std::size_t suffixLen = std::char_traits<char>::length(suffix);
+            return value.size() >= suffixLen && value.compare(value.size() - suffixLen, suffixLen, suffix) == 0;
+        };
+
+        if (appType == NcmContentMetaType_Patch) {
+            for (const auto& token : hexTokens) {
+                if (endsWith(token, "800"))
+                    return token;
+            }
+        } else if (appType == NcmContentMetaType_AddOnContent) {
+            for (const auto& token : hexTokens) {
+                if (!endsWith(token, "000") && !endsWith(token, "800"))
+                    return token;
+            }
+        } else if (appType == NcmContentMetaType_Application) {
+            for (const auto& token : hexTokens) {
+                if (endsWith(token, "000"))
+                    return token;
+            }
+        }
+
+        return hexTokens.front();
+    }
+
+    std::string FormatTitleIdHexUpper(std::uint64_t titleId)
+    {
+        char buf[17] = {0};
+        std::snprintf(buf, sizeof(buf), "%016llX", static_cast<unsigned long long>(titleId));
+        return std::string(buf);
+    }
+
+    void ApplyLegacyMetadataFromName(const std::string& name, shopInstStuff::ShopItem& item)
+    {
+        std::vector<std::string> hexTokens;
+        std::size_t pos = 0;
+        while (true) {
+            const auto open = name.find('[', pos);
+            if (open == std::string::npos)
+                break;
+            const auto close = name.find(']', open + 1);
+            if (close == std::string::npos)
+                break;
+            std::string token = TrimAscii(name.substr(open + 1, close - open - 1));
+            std::string lower = token;
+            std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+            if (lower == "base") {
+                item.appType = NcmContentMetaType_Application;
+            } else if (lower == "upd" || lower == "update" || lower == "patch") {
+                item.appType = NcmContentMetaType_Patch;
+            } else if (lower == "dlc" || lower == "addon") {
+                item.appType = NcmContentMetaType_AddOnContent;
+            } else if (lower.size() >= 2 && lower[0] == 'v') {
+                const std::string number = lower.substr(1);
+                if (!number.empty() && std::all_of(number.begin(), number.end(), ::isdigit)) {
+                    item.appVersion = static_cast<std::uint32_t>(std::strtoull(number.c_str(), nullptr, 10));
+                    item.hasAppVersion = true;
+                }
+            } else {
+                std::string hexToken;
+                if (TryExtractHexTitleIdToken(token, hexToken))
+                    hexTokens.push_back(hexToken);
+            }
+            pos = close + 1;
+        }
+
+        if (hexTokens.empty())
+            CollectHexTitleIdCandidates(name, hexTokens);
+
+        if (!hexTokens.empty()) {
+            const std::string chosen = ChooseLegacyTitleIdToken(hexTokens, item.appType);
+            if (!chosen.empty()) {
+                item.appId = chosen;
+                item.hasAppId = true;
+                std::uint64_t parsedTitleId = 0;
+                if (TryParseHexU64(chosen, parsedTitleId)) {
+                    item.titleId = parsedTitleId;
+                    item.hasTitleId = true;
+                }
+            }
+        }
+
+        if (item.appType < 0 && item.hasAppId)
+            InferAppTypeFromAppId(item.appId, item.appType);
+        if (item.appType < 0 && item.hasTitleId)
+            InferAppTypeFromTitleId(item.titleId, item.appType);
+    }
+
+    bool TryResolveBaseTitleId(const shopInstStuff::ShopItem& item, std::uint64_t& outBaseId)
+    {
+        // Some shops publish title_id as the base title even for UPDATE/DLC entries.
+        if (item.hasTitleId && ((item.titleId & 0xFFFULL) == 0x000ULL)) {
+            outBaseId = item.titleId;
+            return true;
+        }
+
+        std::uint64_t parsedAppId = 0;
+        const bool hasParsedAppId = item.hasAppId && TryParseTitleIdFromAppId(item.appId, parsedAppId);
+        if (hasParsedAppId) {
+            std::int32_t inferredFromApp = -1;
+            InferAppTypeFromTitleId(parsedAppId, inferredFromApp);
+            NcmContentMetaType metaType = NcmContentMetaType_Application;
+            if (inferredFromApp >= 0)
+                metaType = static_cast<NcmContentMetaType>(inferredFromApp);
+            outBaseId = tin::util::GetBaseTitleId(parsedAppId, metaType);
+            return outBaseId != 0;
+        }
+
+        if (!item.hasTitleId)
+            return false;
+
+        std::int32_t inferredType = item.appType;
+        if (inferredType >= 0) {
+            std::int32_t normalizedType = -1;
+            if (NormalizeAppTypeValue(inferredType, normalizedType))
+                inferredType = normalizedType;
+            else
+                inferredType = -1;
+        }
+        if (inferredType < 0)
+            InferAppTypeFromTitleId(item.titleId, inferredType);
+
+        NcmContentMetaType metaType = NcmContentMetaType_Application;
+        if (inferredType >= 0)
+            metaType = static_cast<NcmContentMetaType>(inferredType);
+        outBaseId = tin::util::GetBaseTitleId(item.titleId, metaType);
+        return outBaseId != 0;
+    }
+
+    std::uint64_t GetOfflineLookupTitleId(const shopInstStuff::ShopItem& item)
+    {
+        std::uint64_t baseTitleId = 0;
+        if (!TryResolveBaseTitleId(item, baseTitleId))
+            return 0;
+        return baseTitleId;
+    }
+
+    void ApplyOfflineDataToItem(shopInstStuff::ShopItem& item, bool hasExplicitName)
+    {
+        const std::uint64_t lookupTitleId = GetOfflineLookupTitleId(item);
+        if (lookupTitleId == 0)
+            return;
+
+        inst::offline::TitleMetadata meta;
+        if (inst::offline::TryGetMetadata(lookupTitleId, meta)) {
+            if ((!hasExplicitName || item.name.empty()) && !meta.name.empty())
+                item.name = meta.name;
+            if (item.size == 0 && meta.hasSize)
+                item.size = meta.size;
+            if (!item.hasAppVersion && meta.hasVersion) {
+                item.appVersion = meta.version;
+                item.hasAppVersion = true;
+            }
+        }
+
     }
 
     std::vector<shopInstStuff::ShopSection> ParseShopSectionsBody(const std::string& body, const std::string& baseUrl, std::string& error)
@@ -404,7 +752,8 @@ namespace {
                     std::string fullUrl = BuildFullUrl(baseUrl, urlPath);
 
                     std::string name;
-                    if (entry.contains("name")) {
+                    const bool hasExplicitName = entry.contains("name");
+                    if (hasExplicitName) {
                         name = entry["name"].get<std::string>();
                     } else if (!fragment.empty()) {
                         name = DecodeUrlSegment(fragment);
@@ -430,6 +779,21 @@ namespace {
                         if (entry.contains("app_id") && entry["app_id"].is_string()) {
                             item.appId = entry["app_id"].get<std::string>();
                             item.hasAppId = !item.appId.empty();
+                            if (!item.hasTitleId) {
+                                std::uint64_t parsedAppId = 0;
+                                if (TryParseTitleIdFromAppId(item.appId, parsedAppId)) {
+                                    item.titleId = parsedAppId;
+                                    item.hasTitleId = true;
+                                }
+                            }
+                        }
+                        if (item.appType < 0) {
+                            if (item.hasAppId)
+                                InferAppTypeFromAppId(item.appId, item.appType);
+                            if (item.appType < 0 && item.hasTitleId)
+                                InferAppTypeFromTitleId(item.titleId, item.appType);
+                            if (item.appType < 0)
+                                InferAppTypeFromSectionId(parsed.id, item.appType);
                         }
                         if (entry.contains("icon_url") && entry["icon_url"].is_string()) {
                             std::string iconUrl = entry["icon_url"].get<std::string>();
@@ -444,6 +808,7 @@ namespace {
                                 item.hasIconUrl = true;
                             }
                         }
+                        ApplyOfflineDataToItem(item, hasExplicitName);
                         parsed.items.push_back(item);
                     }
                 }
@@ -604,7 +969,32 @@ namespace shopInstStuff {
                 }
 
                 if (!fullUrl.empty() && !name.empty()) {
-                    items.push_back({name, fullUrl, "", "", size});
+                    ShopItem item{name, fullUrl, "", "", size};
+                    ApplyLegacyMetadataFromName(name, item);
+
+                    if (entry.contains("icon_url") && entry["icon_url"].is_string()) {
+                        std::string iconUrl = entry["icon_url"].get<std::string>();
+                        if (!iconUrl.empty()) {
+                            item.iconUrl = BuildFullUrl(baseUrl, iconUrl);
+                            item.hasIconUrl = true;
+                        }
+                    } else if (entry.contains("iconUrl") && entry["iconUrl"].is_string()) {
+                        std::string iconUrl = entry["iconUrl"].get<std::string>();
+                        if (!iconUrl.empty()) {
+                            item.iconUrl = BuildFullUrl(baseUrl, iconUrl);
+                            item.hasIconUrl = true;
+                        }
+                    }
+
+                    if (!item.hasIconUrl) {
+                        std::uint64_t baseTitleId = 0;
+                        if (TryResolveBaseTitleId(item, baseTitleId) && baseTitleId != 0) {
+                            item.iconUrl = BuildFullUrl(baseUrl, "/api/shop/icon/" + FormatTitleIdHexUpper(baseTitleId));
+                            item.hasIconUrl = true;
+                        }
+                    }
+
+                    items.push_back(item);
                 }
             }
         }

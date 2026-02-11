@@ -9,6 +9,7 @@
 #include "util/util.hpp"
 #include "util/config.hpp"
 #include "util/curl.hpp"
+#include "util/offline_db_update.hpp"
 #include "util/unzip.hpp"
 #include "util/lang.hpp"
 #include "ui/instPage.hpp"
@@ -274,6 +275,11 @@ namespace inst::ui {
 
         if (this->selectedSection == 1) {
             std::vector<inst::config::ShopProfile> shops = inst::config::LoadShops();
+            std::string dbVersion = inst::offline::dbupdate::GetInstalledVersion();
+            if (dbVersion.empty())
+                dbVersion = "not installed";
+            else
+                dbVersion = inst::util::shortenString(dbVersion, 24, false);
             addItem("Active shop: " + inst::util::shortenString(ActiveShopLabel(shops), 42, false), false, false);
             addItem("Memorized shops: " + std::to_string(shops.size()), false, false);
             addItem("Add new shop", false, false);
@@ -281,6 +287,8 @@ namespace inst::ui {
             addItem("options.menu_items.shop_hide_installed_section"_lang, true, inst::config::shopHideInstalledSection);
             addItem("options.menu_items.shop_start_grid_mode"_lang, true, inst::config::shopStartGridMode);
             addItem("options.menu_items.shop_reset_icons"_lang, false, false);
+            addItem("Offline DB auto-check on startup", true, inst::config::offlineDbAutoCheckOnStartup);
+            addItem("Offline DB update (" + dbVersion + ")", false, false);
             return;
         }
 
@@ -481,7 +489,7 @@ namespace inst::ui {
                 if ((selectedIndex < 0) || (selectedIndex >= static_cast<int>(sizeof(kGeneralMap) / sizeof(kGeneralMap[0])))) return;
                 selectedIndex = kGeneralMap[selectedIndex];
             } else if (this->selectedSection == 1) {
-                static const int kShopMap[] = {9, 20, 21, 12, 13, 19, 14};
+                static const int kShopMap[] = {9, 20, 21, 12, 13, 19, 14, 23, 22};
                 if ((selectedIndex < 0) || (selectedIndex >= static_cast<int>(sizeof(kShopMap) / sizeof(kShopMap[0])))) return;
                 selectedIndex = kShopMap[selectedIndex];
             } else {
@@ -878,6 +886,70 @@ namespace inst::ui {
                         }
                     }
                     break;
+                case 23:
+                    inst::config::offlineDbAutoCheckOnStartup = !inst::config::offlineDbAutoCheckOnStartup;
+                    inst::config::setConfig();
+                    this->refreshOptions();
+                    break;
+                case 22: {
+                    if (inst::util::getIPAddress() == "1.0.0.127") {
+                        inst::ui::mainApp->CreateShowDialog("main.net.title"_lang, "main.net.desc"_lang, {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    const std::string manifestUrl = inst::config::offlineDbManifestUrl;
+                    if (manifestUrl.empty()) {
+                        inst::ui::mainApp->CreateShowDialog("Offline DB update", "Manifest URL is empty. Set offlineDbManifestUrl in config.json.", {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    const auto check = inst::offline::dbupdate::CheckForUpdate(manifestUrl);
+                    if (!check.success) {
+                        inst::ui::mainApp->CreateShowDialog("Offline DB update", "Check failed:\n" + check.error, {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    if (!check.updateAvailable) {
+                        std::string body = "Offline DB is up to date.";
+                        if (!check.remoteVersion.empty())
+                            body += "\nVersion: " + check.remoteVersion;
+                        inst::ui::mainApp->CreateShowDialog("Offline DB update", body, {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    std::string prompt = "A new offline DB is available.";
+                    if (!check.localVersion.empty())
+                        prompt += "\nCurrent: " + check.localVersion;
+                    if (!check.remoteVersion.empty())
+                        prompt += "\nLatest: " + check.remoteVersion;
+                    prompt += "\n\nDownload and install now?";
+                    int applyNow = inst::ui::mainApp->CreateShowDialog("Offline DB update", prompt, {"Update", "common.cancel"_lang}, false);
+                    if (applyNow != 0)
+                        break;
+
+                    inst::ui::instPage::loadInstallScreen();
+                    inst::ui::instPage::setTopInstInfoText("Updating Offline DB");
+                    inst::ui::instPage::setInstInfoText("Preparing...");
+                    inst::ui::instPage::setInstBarPerc(0);
+                    const auto apply = inst::offline::dbupdate::ApplyUpdate(manifestUrl, false,
+                        [](const std::string& stage, double percent) {
+                            inst::ui::instPage::setInstInfoText(stage);
+                            inst::ui::instPage::setInstBarPerc(percent);
+                        });
+                    mainApp->LoadLayout(mainApp->optionspage);
+
+                    if (!apply.success) {
+                        inst::ui::mainApp->CreateShowDialog("Offline DB update", "Update failed:\n" + apply.error, {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    this->refreshOptions();
+                    std::string done = apply.updated ? "Offline DB updated successfully." : "Offline DB is already up to date.";
+                    if (!apply.version.empty())
+                        done += "\nVersion: " + apply.version;
+                    inst::ui::mainApp->CreateShowDialog("Offline DB update", done, {"common.ok"_lang}, true);
+                    break;
+                }
                 case 19:
                     inst::config::shopStartGridMode = !inst::config::shopStartGridMode;
                     inst::config::setConfig();

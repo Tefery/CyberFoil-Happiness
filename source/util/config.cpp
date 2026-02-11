@@ -12,6 +12,7 @@ namespace inst::config {
     std::string gAuthKey;
     std::string sigPatchesUrl;
     std::string lastNetUrl;
+    std::string offlineDbManifestUrl;
     std::string shopUrl;
     std::string shopUser;
     std::string shopPass;
@@ -30,6 +31,7 @@ namespace inst::config {
     bool shopHideInstalled;
     bool shopHideInstalledSection;
     bool shopStartGridMode;
+    bool offlineDbAutoCheckOnStartup;
 
     namespace {
         std::string ToLower(std::string value)
@@ -478,12 +480,14 @@ namespace inst::config {
             {"usbAck", usbAck},
             {"validateNCAs", validateNCAs},
             {"lastNetUrl", lastNetUrl},
+            {"offlineDbManifestUrl", offlineDbManifestUrl},
             {"shopUrl", shopUrl},
             {"shopUser", shopUser},
             {"shopPass", shopPass},
             {"shopHideInstalled", shopHideInstalled},
             {"shopHideInstalledSection", shopHideInstalledSection},
             {"shopStartGridMode", shopStartGridMode},
+            {"offlineDbAutoCheckOnStartup", offlineDbAutoCheckOnStartup},
             {"shopRememberSelection", false},
             {"shopSelection", nlohmann::json::array()}
         };
@@ -506,12 +510,14 @@ namespace inst::config {
         usbAck = false;
         validateNCAs = true;
         lastNetUrl = "https://";
+        offlineDbManifestUrl = "https://github.com/luketanti/CyberFoil-DB/releases/latest/download/offline_db_manifest.json";
         shopUrl.clear();
         shopUser.clear();
         shopPass.clear();
         shopHideInstalled = false;
         shopHideInstalledSection = false;
         shopStartGridMode = false;
+        offlineDbAutoCheckOnStartup = true;
 
         try {
             std::ifstream file(inst::config::configPath);
@@ -531,12 +537,14 @@ namespace inst::config {
             if (j.contains("usbAck")) usbAck = j["usbAck"].get<bool>();
             if (j.contains("validateNCAs")) validateNCAs = j["validateNCAs"].get<bool>();
             if (j.contains("lastNetUrl")) lastNetUrl = j["lastNetUrl"].get<std::string>();
+            if (j.contains("offlineDbManifestUrl")) offlineDbManifestUrl = j["offlineDbManifestUrl"].get<std::string>();
             if (j.contains("shopUrl")) shopUrl = j["shopUrl"].get<std::string>();
             if (j.contains("shopUser")) shopUser = j["shopUser"].get<std::string>();
             if (j.contains("shopPass")) shopPass = j["shopPass"].get<std::string>();
             if (j.contains("shopHideInstalled")) shopHideInstalled = j["shopHideInstalled"].get<bool>();
             if (j.contains("shopHideInstalledSection")) shopHideInstalledSection = j["shopHideInstalledSection"].get<bool>();
             if (j.contains("shopStartGridMode")) shopStartGridMode = j["shopStartGridMode"].get<bool>();
+            if (j.contains("offlineDbAutoCheckOnStartup")) offlineDbAutoCheckOnStartup = j["offlineDbAutoCheckOnStartup"].get<bool>();
         }
         catch (...) {
             // If loading values from the config fails, we just load the defaults and overwrite the old config

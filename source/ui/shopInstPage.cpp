@@ -5,12 +5,14 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
+#include <sstream>
 #include <switch.h>
 #include "ui/MainApplication.hpp"
 #include "ui/shopInstPage.hpp"
 #include "util/config.hpp"
 #include "util/curl.hpp"
 #include "util/lang.hpp"
+#include "util/offline_title_db.hpp"
 #include "util/title_util.hpp"
 #include "util/util.hpp"
 #include "ui/bottomHint.hpp"
@@ -221,41 +223,92 @@ namespace {
         return true;
     }
 
+    bool TryResolveBaseTitleId(const shopInstStuff::ShopItem& item, std::uint64_t& outBaseId);
+
     bool DeriveBaseTitleId(const shopInstStuff::ShopItem& item, std::uint64_t& out)
     {
-        if (item.hasTitleId) {
-            out = item.titleId;
+        return TryResolveBaseTitleId(item, out);
+    }
+
+    bool NormalizeAppTypeValue(std::int32_t rawValue, std::int32_t& out)
+    {
+        switch (rawValue) {
+            case NcmContentMetaType_Application:
+            case 0:
+                out = NcmContentMetaType_Application;
+                return true;
+            case NcmContentMetaType_Patch:
+            case 1:
+                out = NcmContentMetaType_Patch;
+                return true;
+            case NcmContentMetaType_AddOnContent:
+            case 2:
+                out = NcmContentMetaType_AddOnContent;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    bool TryResolveBaseTitleId(const shopInstStuff::ShopItem& item, std::uint64_t& outBaseId)
+    {
+        // Some shops publish title_id as the base title even for UPDATE/DLC entries.
+        if (item.hasTitleId && ((item.titleId & 0xFFFULL) == 0x000ULL)) {
+            outBaseId = item.titleId;
             return true;
         }
-        if (!item.hasAppId)
-            return false;
-        std::string appId = NormalizeHex(item.appId);
-        if (appId.size() < 16)
-            return false;
-        std::string baseId;
-        if (item.appType == NcmContentMetaType_Patch) {
-            baseId = appId.substr(0, appId.size() - 3) + "000";
-        } else if (item.appType == NcmContentMetaType_AddOnContent) {
-            std::string basePart = appId.substr(0, appId.size() - 3);
-            if (basePart.empty())
-                return false;
-            char* end = nullptr;
-            unsigned long long baseValue = std::strtoull(basePart.c_str(), &end, 16);
-            if (end == basePart.c_str() || (end && *end != '\0') || baseValue == 0)
-                return false;
-            baseValue -= 1;
-            char buf[17] = {0};
-            std::snprintf(buf, sizeof(buf), "%0*llx", (int)basePart.size(), baseValue);
-            baseId = std::string(buf) + "000";
-        } else {
-            baseId = appId;
+
+        std::uint64_t parsedAppId = 0;
+        bool hasParsedAppId = false;
+        if (item.hasAppId) {
+            std::string appId = NormalizeHex(item.appId);
+            if (appId.size() == 16)
+                hasParsedAppId = TryParseHexU64(appId, parsedAppId);
         }
-        return TryParseHexU64(baseId, out);
+
+        if (hasParsedAppId) {
+            const std::uint64_t suffix = parsedAppId & 0xFFFULL;
+            NcmContentMetaType metaType = NcmContentMetaType_Application;
+            if (suffix == 0x800ULL)
+                metaType = NcmContentMetaType_Patch;
+            else if (suffix != 0x000ULL)
+                metaType = NcmContentMetaType_AddOnContent;
+            outBaseId = tin::util::GetBaseTitleId(parsedAppId, metaType);
+            return outBaseId != 0;
+        }
+
+        if (!item.hasTitleId)
+            return false;
+
+        std::int32_t inferredType = item.appType;
+        if (inferredType >= 0) {
+            std::int32_t normalizedType = -1;
+            if (NormalizeAppTypeValue(inferredType, normalizedType))
+                inferredType = normalizedType;
+            else
+                inferredType = -1;
+        }
+        if (inferredType < 0) {
+            const std::uint64_t suffix = item.titleId & 0xFFFULL;
+            if (suffix == 0x800ULL)
+                inferredType = NcmContentMetaType_Patch;
+            else if (suffix == 0x000ULL)
+                inferredType = NcmContentMetaType_Application;
+            else
+                inferredType = NcmContentMetaType_AddOnContent;
+        }
+
+        NcmContentMetaType metaType = NcmContentMetaType_Application;
+        if (inferredType >= 0)
+            metaType = static_cast<NcmContentMetaType>(inferredType);
+        outBaseId = tin::util::GetBaseTitleId(item.titleId, metaType);
+        return outBaseId != 0;
     }
 
     bool IsBaseItem(const shopInstStuff::ShopItem& item)
     {
-        if (item.appType == NcmContentMetaType_Application)
+        std::int32_t normalizedType = -1;
+        if (NormalizeAppTypeValue(item.appType, normalizedType) && normalizedType == NcmContentMetaType_Application)
             return true;
         if (item.hasAppId) {
             std::string appId = NormalizeHex(item.appId);
@@ -265,6 +318,29 @@ namespace {
             return (item.titleId & 0xFFF) == 0;
         }
         return false;
+    }
+
+    bool TryGetOfflineIconBaseId(const shopInstStuff::ShopItem& item, std::uint64_t& outBaseId)
+    {
+        return TryResolveBaseTitleId(item, outBaseId);
+    }
+
+    bool HasOfflineIconForItem(const shopInstStuff::ShopItem& item, std::uint64_t* outBaseId = nullptr)
+    {
+        std::uint64_t baseId = 0;
+        if (!TryGetOfflineIconBaseId(item, baseId))
+            return false;
+        if (outBaseId)
+            *outBaseId = baseId;
+        return inst::offline::HasIcon(baseId);
+    }
+
+    bool TryLoadOfflineIconForItem(const shopInstStuff::ShopItem& item, std::vector<std::uint8_t>& outData)
+    {
+        std::uint64_t baseId = 0;
+        if (!TryGetOfflineIconBaseId(item, baseId))
+            return false;
+        return inst::offline::TryGetIconData(baseId, outData);
     }
 
     bool IsBaseTitleCurrentlyInstalled(u64 baseTitleId)
@@ -304,7 +380,7 @@ namespace {
         text->SetX(textX);
     }
 
-    std::string FormatGridSizeSuffix(std::uint64_t bytes)
+    std::string FormatSizeText(std::uint64_t bytes)
     {
         if (bytes == 0)
             return std::string();
@@ -316,7 +392,29 @@ namespace {
             std::snprintf(buf, sizeof(buf), "%.1f GB", bytes / gb);
         else
             std::snprintf(buf, sizeof(buf), "%.0f MB", bytes / mb);
-        return " [" + std::string(buf) + "]";
+        return std::string(buf);
+    }
+
+    std::string FormatGridSizeSuffix(std::uint64_t bytes)
+    {
+        const std::string formatted = FormatSizeText(bytes);
+        if (formatted.empty())
+            return std::string();
+        return " [" + formatted + "]";
+    }
+
+    std::string FormatReleaseDate(std::uint32_t yyyymmdd)
+    {
+        if (yyyymmdd == 0)
+            return std::string();
+        const std::uint32_t year = yyyymmdd / 10000;
+        const std::uint32_t month = (yyyymmdd / 100) % 100;
+        const std::uint32_t day = yyyymmdd % 100;
+        if (year == 0 || month == 0 || day == 0)
+            return std::to_string(yyyymmdd);
+        char buf[16] = {0};
+        std::snprintf(buf, sizeof(buf), "%04u-%02u-%02u", year, month, day);
+        return std::string(buf);
     }
 
     std::string BuildGridTitleWithSize(const shopInstStuff::ShopItem& item)
@@ -331,6 +429,86 @@ namespace {
         if (nameLimit < 8)
             nameLimit = 8;
         return inst::util::shortenString(item.name, nameLimit, true) + suffix;
+    }
+
+    std::string NormalizeDescriptionWhitespace(const std::string& text)
+    {
+        std::string out;
+        out.reserve(text.size());
+        bool inSpace = false;
+        for (char c : text) {
+            if (c == '\r')
+                continue;
+            if (c == '\n' || c == '\t' || c == ' ') {
+                if (!inSpace) {
+                    out.push_back(' ');
+                    inSpace = true;
+                }
+                continue;
+            }
+            out.push_back(c);
+            inSpace = false;
+        }
+        // Trim
+        const auto first = out.find_first_not_of(' ');
+        if (first == std::string::npos)
+            return std::string();
+        const auto last = out.find_last_not_of(' ');
+        return out.substr(first, (last - first) + 1);
+    }
+
+    std::string WrapDescriptionText(const std::string& text, std::size_t maxLineChars, std::size_t maxLines)
+    {
+        if (text.empty() || maxLineChars == 0 || maxLines == 0)
+            return std::string();
+
+        std::istringstream iss(text);
+        std::vector<std::string> lines;
+        std::string word;
+        std::string line;
+        bool truncated = false;
+
+        while (iss >> word) {
+            if (word.size() > maxLineChars)
+                word = word.substr(0, maxLineChars);
+
+            if (line.empty()) {
+                line = word;
+            } else if ((line.size() + 1 + word.size()) <= maxLineChars) {
+                line += " " + word;
+            } else {
+                lines.push_back(line);
+                if (lines.size() >= maxLines) {
+                    truncated = true;
+                    break;
+                }
+                line = word;
+            }
+        }
+
+        if (!truncated && !line.empty() && lines.size() < maxLines)
+            lines.push_back(line);
+        else if (!line.empty() && lines.size() >= maxLines)
+            truncated = true;
+
+        if (lines.empty())
+            return std::string();
+
+        if (truncated) {
+            std::string& last = lines.back();
+            if (last.size() + 3 <= maxLineChars)
+                last += "...";
+            else if (maxLineChars >= 3)
+                last = last.substr(0, maxLineChars - 3) + "...";
+        }
+
+        std::string out;
+        for (std::size_t i = 0; i < lines.size(); i++) {
+            if (i > 0)
+                out.push_back('\n');
+            out += lines[i];
+        }
+        return out;
     }
 }
 
@@ -441,6 +619,11 @@ namespace inst::ui {
         this->emptySectionText = TextBlock::New(0, 350, "", 28);
         this->emptySectionText->SetColor(COLOR("#FFFFFFFF"));
         this->emptySectionText->SetVisible(false);
+        this->descriptionRect = Rectangle::New(10, 508, 1260, 142, inst::config::oledMode ? COLOR("#000000CC") : COLOR("#170909CC"));
+        this->descriptionRect->SetVisible(false);
+        this->descriptionText = TextBlock::New(22, 518, "", 18);
+        this->descriptionText->SetColor(COLOR("#FFFFFFFF"));
+        this->descriptionText->SetVisible(false);
         this->Add(this->topRect);
         this->Add(this->infoRect);
         this->Add(this->botRect);
@@ -483,6 +666,8 @@ namespace inst::ui {
         this->Add(this->imageLoadingText);
         this->Add(this->debugText);
         this->Add(this->emptySectionText);
+        this->Add(this->descriptionRect);
+        this->Add(this->descriptionText);
     }
 
     bool shopInstPage::isAllSection() const {
@@ -796,10 +981,15 @@ namespace inst::ui {
         if (selectedIndex < 0 || selectedIndex >= (int)this->visibleItems.size())
             return;
         const auto& item = this->visibleItems[selectedIndex];
+        std::uint64_t offlineIconBaseId = 0;
+        const bool hasOfflineIcon = HasOfflineIconForItem(item, &offlineIconBaseId);
+        const bool offlinePackAvailable = inst::offline::HasPackedIcons();
 
         std::string key;
         if (item.url.empty()) {
             key = "installed:" + std::to_string(item.titleId);
+        } else if (hasOfflineIcon) {
+            key = "offline:" + std::to_string(static_cast<unsigned long long>(offlineIconBaseId));
         } else if (item.hasIconUrl) {
             key = item.iconUrl;
         } else {
@@ -861,7 +1051,18 @@ namespace inst::ui {
             return;
         }
 
-        if (item.hasIconUrl) {
+        if (hasOfflineIcon) {
+            std::vector<std::uint8_t> offlineIconData;
+            if (TryLoadOfflineIconForItem(item, offlineIconData) && !offlineIconData.empty()) {
+                this->previewImage->SetJpegImage(offlineIconData.data(), static_cast<s32>(offlineIconData.size()));
+                applyPreviewLayout();
+                this->previewImage->SetVisible(true);
+                updateLoadingText();
+                return;
+            }
+        }
+
+        if (!offlinePackAvailable && item.hasIconUrl) {
             std::string cacheDir = inst::config::appDir + "/shop_icons";
             if (!std::filesystem::exists(cacheDir))
                 std::filesystem::create_directory(cacheDir);
@@ -1021,11 +1222,13 @@ namespace inst::ui {
             if (this->gridSelectedIndex >= (int)this->visibleItems.size())
                 this->gridSelectedIndex = 0;
             this->updateInstalledGrid();
+            this->updateDescriptionPanel();
             return;
         }
 
         if (this->shopGridMode) {
             this->updateShopGrid();
+            this->updateDescriptionPanel();
             return;
         }
 
@@ -1083,6 +1286,7 @@ namespace inst::ui {
             if (sel < 0 || sel >= (int)this->menu->GetItems().size())
                 this->menu->SetSelectedIndex(0);
         }
+        this->updateDescriptionPanel();
     }
 
     void shopInstPage::updateInstalledGrid() {
@@ -1092,6 +1296,7 @@ namespace inst::ui {
             this->gridHighlight->SetVisible(false);
             this->gridTitleText->SetVisible(false);
             this->gridPage = -1;
+            this->updateDescriptionPanel();
             return;
         }
 
@@ -1105,6 +1310,7 @@ namespace inst::ui {
             this->gridHighlight->SetVisible(false);
             this->gridTitleText->SetVisible(false);
             this->gridPage = -1;
+            this->updateDescriptionPanel();
             return;
         }
 
@@ -1152,6 +1358,16 @@ namespace inst::ui {
                     }
                 }
 
+                if (!applied && item.hasTitleId) {
+                    std::vector<std::uint8_t> offlineIconData;
+                    if (TryLoadOfflineIconForItem(item, offlineIconData) && !offlineIconData.empty()) {
+                        this->gridImages[i]->SetJpegImage(offlineIconData.data(), static_cast<s32>(offlineIconData.size()));
+                        this->gridImages[i]->SetWidth(kGridTileWidth);
+                        this->gridImages[i]->SetHeight(kGridTileHeight);
+                        applied = true;
+                    }
+                }
+
                 if (!applied) {
                     this->gridImages[i]->SetImage("romfs:/images/icons/title-placeholder.png");
                     this->gridImages[i]->SetWidth(kGridTileWidth);
@@ -1187,6 +1403,7 @@ namespace inst::ui {
         } else {
             this->gridTitleText->SetVisible(false);
         }
+        this->updateDescriptionPanel();
     }
 
     void shopInstPage::updateShopGrid() {
@@ -1201,6 +1418,7 @@ namespace inst::ui {
                 icon->SetVisible(false);
             this->imageLoadingText->SetVisible(false);
             this->shopGridPage = -1;
+            this->updateDescriptionPanel();
             return;
         }
 
@@ -1215,6 +1433,7 @@ namespace inst::ui {
         int page = this->shopGridIndex / kGridItemsPerPage;
         int pageStart = page * kGridItemsPerPage;
         int maxIndex = (int)this->visibleItems.size();
+        const bool offlinePackAvailable = inst::offline::HasPackedIcons();
 
         bool didDownload = false;
         if (page != this->shopGridPage) {
@@ -1227,6 +1446,10 @@ namespace inst::ui {
                 if (itemIndex >= maxIndex)
                     continue;
                 const auto& item = this->visibleItems[itemIndex];
+                if (HasOfflineIconForItem(item))
+                    continue;
+                if (offlinePackAvailable)
+                    continue;
                 if (!item.hasIconUrl)
                     continue;
                 std::string urlPath = item.iconUrl;
@@ -1276,7 +1499,13 @@ namespace inst::ui {
 
                 const auto& item = this->visibleItems[itemIndex];
                 bool applied = false;
-                if (item.hasIconUrl) {
+                std::vector<std::uint8_t> offlineIconData;
+                if (TryLoadOfflineIconForItem(item, offlineIconData) && !offlineIconData.empty()) {
+                    this->gridImages[i]->SetJpegImage(offlineIconData.data(), static_cast<s32>(offlineIconData.size()));
+                    this->gridImages[i]->SetWidth(kGridTileWidth);
+                    this->gridImages[i]->SetHeight(kGridTileHeight);
+                    applied = true;
+                } else if (!offlinePackAvailable && item.hasIconUrl) {
                     std::string urlPath = item.iconUrl;
                     std::string ext = ".jpg";
                     auto queryPos = urlPath.find('?');
@@ -1394,6 +1623,7 @@ namespace inst::ui {
         } else {
             this->gridTitleText->SetVisible(false);
         }
+        this->updateDescriptionPanel();
     }
 
     void shopInstPage::selectTitle(int selectedIndex) {
@@ -1431,6 +1661,7 @@ namespace inst::ui {
     }
 
     void shopInstPage::startShop(bool forceRefresh) {
+        this->descriptionVisible = false;
         this->setButtonsText("inst.shop.buttons_loading"_lang);
         this->menu->SetVisible(false);
         this->menu->ClearItems();
@@ -1440,6 +1671,8 @@ namespace inst::ui {
         this->imageLoadingText->SetVisible(false);
         this->gridHighlight->SetVisible(false);
         this->gridTitleText->SetVisible(false);
+        this->descriptionRect->SetVisible(false);
+        this->descriptionText->SetVisible(false);
         for (auto& img : this->gridImages)
             img->SetVisible(false);
         for (auto& highlight : this->shopGridSelectHighlights)
@@ -1705,6 +1938,11 @@ namespace inst::ui {
                 this->drawMenuItems(false);
                 this->updatePreview();
             }
+            this->updateDescriptionPanel();
+            return;
+        }
+        if (Down & HidNpadButton_ZL) {
+            this->showCurrentDescriptionDialog();
             return;
         }
         if (this->shopGridMode) {
@@ -1878,6 +2116,7 @@ namespace inst::ui {
                 this->touchActive = false;
                 this->touchMoved = false;
             }
+            this->updateDescriptionPanel();
             return;
         }
         if ((Down & HidNpadButton_A) || (Up & TouchPseudoKey)) {
@@ -2065,6 +2304,7 @@ namespace inst::ui {
             this->updatePreview();
             this->updateShopGrid();
         }
+        this->updateDescriptionPanel();
         this->updateDebug();
     }
 
@@ -2096,11 +2336,107 @@ namespace inst::ui {
         else
             body += "inst.shop.detail_version"_lang + "0";
 
+        std::uint64_t baseTitleId = 0;
+        if (DeriveBaseTitleId(item, baseTitleId)) {
+            inst::offline::TitleMetadata meta;
+            if (inst::offline::TryGetMetadata(baseTitleId, meta)) {
+                if (!meta.publisher.empty())
+                    body += "\nPublisher: " + meta.publisher;
+                if (meta.hasReleaseDate)
+                    body += "\nRelease: " + FormatReleaseDate(meta.releaseDate);
+                if (meta.hasSize)
+                    body += "\nSize: " + FormatSizeText(meta.size);
+                if (meta.hasIsDemo)
+                    body += "\nDemo: " + std::string(meta.isDemo ? "Yes" : "No");
+            }
+        }
+
         mainApp->CreateShowDialog(item.name, body, {"common.ok"_lang}, true);
     }
 
+    void shopInstPage::showCurrentDescriptionDialog() {
+        if (this->visibleItems.empty())
+            return;
+
+        int selectedIndex = this->shopGridMode ? this->shopGridIndex : this->menu->GetSelectedIndex();
+        if (this->isInstalledSection() && this->shopGridMode)
+            selectedIndex = this->gridSelectedIndex;
+        if (selectedIndex < 0 || selectedIndex >= static_cast<int>(this->visibleItems.size()))
+            return;
+
+        const auto& item = this->visibleItems[selectedIndex];
+        std::string description;
+        std::uint64_t baseTitleId = 0;
+        if (DeriveBaseTitleId(item, baseTitleId)) {
+            inst::offline::TitleMetadata meta;
+            if (inst::offline::TryGetMetadata(baseTitleId, meta)) {
+                if (!meta.description.empty())
+                    description = meta.description;
+                else if (!meta.intro.empty())
+                    description = meta.intro;
+            }
+        }
+
+        description = NormalizeDescriptionWhitespace(description);
+        if (description.empty())
+            description = "No description available for this title.";
+
+        const std::string wrapped = WrapDescriptionText(description, 70, 13);
+        std::string title = item.name.empty() ? "Description" : inst::util::shortenString(item.name, 60, true);
+        mainApp->CreateShowDialog(title, wrapped.empty() ? description : wrapped, {"common.close"_lang}, true);
+    }
+
+    void shopInstPage::updateDescriptionPanel() {
+        if (!this->descriptionVisible) {
+            this->descriptionRect->SetVisible(false);
+            this->descriptionText->SetVisible(false);
+            return;
+        }
+
+        if (this->visibleItems.empty()) {
+            this->descriptionRect->SetVisible(false);
+            this->descriptionText->SetVisible(false);
+            return;
+        }
+
+        int selectedIndex = this->shopGridMode ? this->shopGridIndex : this->menu->GetSelectedIndex();
+        if (this->isInstalledSection() && this->shopGridMode)
+            selectedIndex = this->gridSelectedIndex;
+        if (selectedIndex < 0 || selectedIndex >= static_cast<int>(this->visibleItems.size())) {
+            this->descriptionRect->SetVisible(false);
+            this->descriptionText->SetVisible(false);
+            return;
+        }
+
+        const auto& item = this->visibleItems[selectedIndex];
+        std::string description;
+        std::uint64_t baseTitleId = 0;
+        if (DeriveBaseTitleId(item, baseTitleId)) {
+            inst::offline::TitleMetadata meta;
+            if (inst::offline::TryGetMetadata(baseTitleId, meta)) {
+                if (!meta.description.empty())
+                    description = meta.description;
+                else if (!meta.intro.empty())
+                    description = meta.intro;
+            }
+        }
+
+        description = NormalizeDescriptionWhitespace(description);
+        if (description.empty())
+            description = "No description available for this title.";
+
+        const std::string wrapped = WrapDescriptionText(description, 118, 5);
+        std::string title = inst::util::shortenString(item.name, 92, true);
+        this->descriptionText->SetText(title + "\n" + wrapped);
+        this->descriptionRect->SetVisible(true);
+        this->descriptionText->SetVisible(true);
+    }
+
     void shopInstPage::setButtonsText(const std::string& text) {
-        this->butText->SetText(text);
-        this->bottomHintSegments = BuildBottomHintSegments(text, 10, 20);
+        std::string fullText = text;
+        fullText += "     ";
+        fullText += "Show Desc";
+        this->butText->SetText(fullText);
+        this->bottomHintSegments = BuildBottomHintSegments(fullText, 10, 20);
     }
 }

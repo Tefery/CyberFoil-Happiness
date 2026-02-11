@@ -13,6 +13,7 @@ namespace inst::config {
     extern std::string gAuthKey;
     extern std::string sigPatchesUrl;
     extern std::string lastNetUrl;
+    extern std::string offlineDbManifestUrl;
     extern std::string shopUrl;
     extern std::string shopUser;
     extern std::string shopPass;
@@ -31,6 +32,7 @@ namespace inst::config {
     extern bool shopHideInstalled;
     extern bool shopHideInstalledSection;
     extern bool shopStartGridMode;
+    extern bool offlineDbAutoCheckOnStartup;
 
     struct ShopProfile {
         std::string fileName;

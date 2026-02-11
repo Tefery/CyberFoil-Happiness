@@ -60,6 +60,22 @@ Notes:
 - The Installed section lists content already on the Switch and cannot be installed from.
 - The shop list is cached for faster startup (5-minute TTL). Use X to refresh.
 
+Offline metadata/icons (no online lookups):
+- CyberFoil can use local title metadata and local icons from `sdmc:/switch/CyberFoil/offline_db/`.
+- Generate that folder from CyberFoil-DB artefacts with:
+  `python tools/export_offline_db.py --source-dir <path-to-CyberFoil-DB-artefacts> --output-dir <folder>/offline_db`
+- Or pass explicit files:
+  `python tools/export_offline_db.py --icon-db <path>/icon.db --titles-json <path>/titles.US.en.json --output-dir <folder>/offline_db`
+- To generate an update manifest for GitHub Releases, include:
+  `--manifest-base-url https://github.com/<owner>/<repo>/releases/latest/download`
+- The exporter writes `offline_db_manifest.json` with version, size, and sha256 for `titles.pack` and `icons.pack`.
+- Copy the generated `offline_db` directory to `sdmc:/switch/CyberFoil/offline_db/`.
+- Runtime files used by CyberFoil:
+  `titles.pack`, `icons.pack`, and optional local `manifest.json`.
+- `icons.pack` is read directly in-memory at runtime (no extracted icon cache files needed).
+- In Settings -> Shop, use `Offline DB update (...)` to check/download newer pack versions from the manifest URL.
+- In Settings -> Shop, `Offline DB auto-check on startup` controls whether CyberFoil checks this manifest at app launch.
+
 
 New in 1.3.11:
 - MTP installs now work reliably across repeated sessions.

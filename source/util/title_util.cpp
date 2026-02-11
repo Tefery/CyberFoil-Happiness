@@ -26,6 +26,7 @@ SOFTWARE.
 #include <vector>
 #include <switch.h>
 #include "util/error.hpp"
+#include "util/offline_title_db.hpp"
 
 namespace tin::util
 {
@@ -79,6 +80,13 @@ namespace tin::util
 
     std::string GetBaseTitleName(u64 baseTitleId)
     {
+        auto getOfflineName = [baseTitleId]() -> std::string {
+            inst::offline::TitleMetadata meta;
+            if (inst::offline::TryGetMetadata(baseTitleId, meta) && !meta.name.empty())
+                return meta.name;
+            return "Unknown";
+        };
+
         Result rc = 0;
         NsApplicationControlData appControlData;
         size_t sizeRead;
@@ -86,13 +94,13 @@ namespace tin::util
         if (R_FAILED(rc = nsGetApplicationControlData(NsApplicationControlSource_Storage, baseTitleId, &appControlData, sizeof(NsApplicationControlData), &sizeRead)))
         {
             LOG_DEBUG("Failed to get application control data. Error code: 0x%08x\n", rc);
-            return "Unknown";
+            return getOfflineName();
         }
 
         if (sizeRead < sizeof(appControlData.nacp))
         {
             LOG_DEBUG("Incorrect size for nacp\n");
-            return "Unknown";
+            return getOfflineName();
         }
 
         NacpLanguageEntry *languageEntry;
@@ -100,16 +108,18 @@ namespace tin::util
         if (R_FAILED(rc = nacpGetLanguageEntry(&appControlData.nacp, &languageEntry)))
         {
             LOG_DEBUG("Failed to get language entry. Error code: 0x%08x\n", rc);
-            return "Unknown";
+            return getOfflineName();
         }
 
         if (languageEntry == NULL)
         {
             LOG_DEBUG("Language entry is null! Error code: 0x%08x\n", rc);
-            return "Unknown";
+            return getOfflineName();
         }
 
-        return languageEntry->name;
+        if (languageEntry->name[0] != '\0')
+            return languageEntry->name;
+        return getOfflineName();
     }
 
     std::string GetTitleName(u64 titleId, NcmContentMetaType contentMetaType)

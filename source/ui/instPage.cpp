@@ -185,6 +185,21 @@ namespace inst::ui {
         mainApp->CallForRender();
     }
 
+    void instPage::setInstallIconData(const void* imageData, std::uint32_t imageSize){
+        if (imageData == nullptr || imageSize == 0) {
+            clearInstallIcon();
+            return;
+        }
+        mainApp->instpage->installIconImage->SetJpegImage(const_cast<void*>(imageData), static_cast<s32>(imageSize));
+        mainApp->instpage->installIconImage->SetX(kInstallIconX);
+        mainApp->instpage->installIconImage->SetY(kInstallIconY);
+        mainApp->instpage->installIconImage->SetWidth(kInstallIconSize);
+        mainApp->instpage->installIconImage->SetHeight(kInstallIconSize);
+        mainApp->instpage->installIconImage->SetVisible(true);
+        mainApp->instpage->awooImage->SetVisible(false);
+        mainApp->CallForRender();
+    }
+
     void instPage::clearInstallIcon(){
         mainApp->instpage->installIconImage->SetVisible(false);
         if (!inst::config::gayMode)
