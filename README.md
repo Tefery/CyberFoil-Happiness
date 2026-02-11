@@ -1,8 +1,9 @@
 # CyberFoil
 ![GitHub all releases downloads](https://img.shields.io/github/downloads/luketanti/CyberFoil/total)
 ![GitHub latest release downloads](https://img.shields.io/github/downloads/luketanti/CyberFoil/latest/total)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/gGy7hWxJeP)
 
-## Version: 1.3.11
+## Version: 1.4.0
 
 ## Buy me a Coffee at kofi -> https://ko-fi.com/cyberhazard
 
@@ -75,9 +76,18 @@ Offline metadata/icons (no online lookups):
 - `icons.pack` is read directly in-memory at runtime (no extracted icon cache files needed).
 - In Settings -> Shop, use `Offline DB update (...)` to check/download newer pack versions from the manifest URL.
 - In Settings -> Shop, `Offline DB auto-check on startup` controls whether CyberFoil checks this manifest at app launch.
+- During Offline DB download, the install screen now shows live transfer progress and speed (`MB/s`) to avoid looking frozen on large files.
+- Offline DB updater debug log is written to: `sdmc:/switch/CyberFoil/offline_db_update.log`.
 
 
-New in 1.3.11:
+New in 1.4.0:
+- Added Offline DB binary runtime support (`titles.pack` + `icons.pack`) so title metadata/icons can be used locally without online lookups.
+- Added Offline DB updater with manifest validation (size + sha256) and atomic replace/rollback behavior.
+- Added startup Offline DB auto-check option (Settings -> Shop).
+- Added Offline DB update telemetry on install screen (live percent + transferred MB + MB/s).
+- Added Offline DB update file logging (`sdmc:/switch/CyberFoil/offline_db_update.log`) for troubleshooting.
+- Improved Offline DB update reliability and crash resistance for large downloads/hash verification.
+- Improved HTTP/cURL transfer stability for long downloads and better failure handling.
 - MTP installs now work reliably across repeated sessions.
 - MTP completion plays the success sound.
 - MTP install progress now shows spinner/status with MiB/GiB transfer info.
