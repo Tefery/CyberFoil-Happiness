@@ -775,7 +775,10 @@ namespace {
                     }
 
                     if (!fullUrl.empty() && !name.empty()) {
-                        shopInstStuff::ShopItem item{name, fullUrl, "", "", size};
+                        shopInstStuff::ShopItem item;
+                        item.name = name;
+                        item.url = fullUrl;
+                        item.size = size;
                         std::uint64_t titleId = 0;
                         std::uint32_t appVersion = 0;
                         std::int32_t appType = -1;
@@ -819,6 +822,37 @@ namespace {
                             if (!iconUrl.empty()) {
                                 item.iconUrl = BuildFullUrl(baseUrl, iconUrl);
                                 item.hasIconUrl = true;
+                            }
+                        }
+                        if (entry.contains("save_id") && entry["save_id"].is_string())
+                            item.saveId = entry["save_id"].get<std::string>();
+                        else if (entry.contains("saveId") && entry["saveId"].is_string())
+                            item.saveId = entry["saveId"].get<std::string>();
+                        if (entry.contains("note") && entry["note"].is_string())
+                            item.saveNote = entry["note"].get<std::string>();
+                        else if (entry.contains("save_note") && entry["save_note"].is_string())
+                            item.saveNote = entry["save_note"].get<std::string>();
+                        else if (entry.contains("saveNote") && entry["saveNote"].is_string())
+                            item.saveNote = entry["saveNote"].get<std::string>();
+                        if (entry.contains("created_at") && entry["created_at"].is_string())
+                            item.saveCreatedAt = entry["created_at"].get<std::string>();
+                        else if (entry.contains("createdAt") && entry["createdAt"].is_string())
+                            item.saveCreatedAt = entry["createdAt"].get<std::string>();
+                        if (entry.contains("created_ts")) {
+                            if (entry["created_ts"].is_number_unsigned())
+                                item.saveCreatedTs = entry["created_ts"].get<std::uint64_t>();
+                            else if (entry["created_ts"].is_number_integer()) {
+                                const auto parsedCreatedTs = entry["created_ts"].get<long long>();
+                                if (parsedCreatedTs > 0)
+                                    item.saveCreatedTs = static_cast<std::uint64_t>(parsedCreatedTs);
+                            }
+                        } else if (entry.contains("createdTs")) {
+                            if (entry["createdTs"].is_number_unsigned())
+                                item.saveCreatedTs = entry["createdTs"].get<std::uint64_t>();
+                            else if (entry["createdTs"].is_number_integer()) {
+                                const auto parsedCreatedTs = entry["createdTs"].get<long long>();
+                                if (parsedCreatedTs > 0)
+                                    item.saveCreatedTs = static_cast<std::uint64_t>(parsedCreatedTs);
                             }
                         }
                         ApplyOfflineDataToItem(item, hasExplicitName);
@@ -982,7 +1016,10 @@ namespace shopInstStuff {
                 }
 
                 if (!fullUrl.empty() && !name.empty()) {
-                    ShopItem item{name, fullUrl, "", "", size};
+                    ShopItem item;
+                    item.name = name;
+                    item.url = fullUrl;
+                    item.size = size;
                     ApplyLegacyMetadataFromName(name, item);
 
                     if (entry.contains("icon_url") && entry["icon_url"].is_string()) {
@@ -996,6 +1033,37 @@ namespace shopInstStuff {
                         if (!iconUrl.empty()) {
                             item.iconUrl = BuildFullUrl(baseUrl, iconUrl);
                             item.hasIconUrl = true;
+                        }
+                    }
+                    if (entry.contains("save_id") && entry["save_id"].is_string())
+                        item.saveId = entry["save_id"].get<std::string>();
+                    else if (entry.contains("saveId") && entry["saveId"].is_string())
+                        item.saveId = entry["saveId"].get<std::string>();
+                    if (entry.contains("note") && entry["note"].is_string())
+                        item.saveNote = entry["note"].get<std::string>();
+                    else if (entry.contains("save_note") && entry["save_note"].is_string())
+                        item.saveNote = entry["save_note"].get<std::string>();
+                    else if (entry.contains("saveNote") && entry["saveNote"].is_string())
+                        item.saveNote = entry["saveNote"].get<std::string>();
+                    if (entry.contains("created_at") && entry["created_at"].is_string())
+                        item.saveCreatedAt = entry["created_at"].get<std::string>();
+                    else if (entry.contains("createdAt") && entry["createdAt"].is_string())
+                        item.saveCreatedAt = entry["createdAt"].get<std::string>();
+                    if (entry.contains("created_ts")) {
+                        if (entry["created_ts"].is_number_unsigned())
+                            item.saveCreatedTs = entry["created_ts"].get<std::uint64_t>();
+                        else if (entry["created_ts"].is_number_integer()) {
+                            const auto parsedCreatedTs = entry["created_ts"].get<long long>();
+                            if (parsedCreatedTs > 0)
+                                item.saveCreatedTs = static_cast<std::uint64_t>(parsedCreatedTs);
+                        }
+                    } else if (entry.contains("createdTs")) {
+                        if (entry["createdTs"].is_number_unsigned())
+                            item.saveCreatedTs = entry["createdTs"].get<std::uint64_t>();
+                        else if (entry["createdTs"].is_number_integer()) {
+                            const auto parsedCreatedTs = entry["createdTs"].get<long long>();
+                            if (parsedCreatedTs > 0)
+                                item.saveCreatedTs = static_cast<std::uint64_t>(parsedCreatedTs);
                         }
                     }
 

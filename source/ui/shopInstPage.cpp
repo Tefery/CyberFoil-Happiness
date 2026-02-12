@@ -741,6 +741,26 @@ namespace inst::ui {
         this->descriptionOverlayHintText = TextBlock::New(46, 618, "B Close    Up/Down Scroll", 18);
         this->descriptionOverlayHintText->SetColor(COLOR("#FFFFFFFF"));
         this->descriptionOverlayHintText->SetVisible(false);
+        this->saveVersionSelectorRect = Rectangle::New(90, 96, 1100, 548, inst::config::oledMode ? COLOR("#000000EE") : COLOR("#170909EE"));
+        this->saveVersionSelectorRect->SetVisible(false);
+        this->saveVersionSelectorTitleText = TextBlock::New(114, 112, "", 24);
+        this->saveVersionSelectorTitleText->SetColor(COLOR("#FFFFFFFF"));
+        this->saveVersionSelectorTitleText->SetVisible(false);
+        this->saveVersionSelectorMenu = pu::ui::elm::Menu::New(114, 152, 1052, COLOR("#FFFFFF00"), 44, 8, 20);
+        if (inst::config::oledMode) {
+            this->saveVersionSelectorMenu->SetOnFocusColor(COLOR("#FFFFFF33"));
+            this->saveVersionSelectorMenu->SetScrollbarColor(COLOR("#FFFFFF66"));
+        } else {
+            this->saveVersionSelectorMenu->SetOnFocusColor(COLOR("#00000033"));
+            this->saveVersionSelectorMenu->SetScrollbarColor(COLOR("#17090980"));
+        }
+        this->saveVersionSelectorMenu->SetVisible(false);
+        this->saveVersionSelectorDetailText = TextBlock::New(114, 524, "", 18);
+        this->saveVersionSelectorDetailText->SetColor(COLOR("#FFFFFFFF"));
+        this->saveVersionSelectorDetailText->SetVisible(false);
+        this->saveVersionSelectorHintText = TextBlock::New(114, 614, "A Download    B Back", 18);
+        this->saveVersionSelectorHintText->SetColor(COLOR("#FFFFFFFF"));
+        this->saveVersionSelectorHintText->SetVisible(false);
         this->Add(this->topRect);
         this->Add(this->infoRect);
         this->Add(this->botRect);
@@ -789,6 +809,11 @@ namespace inst::ui {
         this->Add(this->descriptionOverlayTitleText);
         this->Add(this->descriptionOverlayBodyText);
         this->Add(this->descriptionOverlayHintText);
+        this->Add(this->saveVersionSelectorRect);
+        this->Add(this->saveVersionSelectorTitleText);
+        this->Add(this->saveVersionSelectorMenu);
+        this->Add(this->saveVersionSelectorDetailText);
+        this->Add(this->saveVersionSelectorHintText);
     }
 
     bool shopInstPage::isAllSection() const {
@@ -851,7 +876,13 @@ namespace inst::ui {
     }
 
     void shopInstPage::updateButtonsText() {
-        if (this->isSaveSyncSection())
+        if (this->saveVersionSelectorVisible) {
+            if (this->saveVersionSelectorDeleteMode)
+                this->setButtonsText(" Delete Backup    / Select Version     Back");
+            else
+                this->setButtonsText(" Download    / Select Version     Back");
+        }
+        else if (this->isSaveSyncSection())
             this->setButtonsText(" Manage Save     Refresh    / Section     Cancel");
         else if (this->isInstalledSection())
             this->setButtonsText("inst.shop.buttons_installed"_lang);
@@ -960,9 +991,8 @@ namespace inst::ui {
         std::string remoteFetchWarning;
         if (!inst::save_sync::FetchRemoteSaveItems(shopUrl, inst::config::shopUser, inst::config::shopPass, apiRemoteSaveItems, remoteFetchWarning)) {
             if (!remoteFetchWarning.empty())
-                ShopDlcTrace("save sync disabled: %s", remoteFetchWarning.c_str());
-            this->saveSyncEnabled = false;
-            return;
+                ShopDlcTrace("save sync remote list warning: %s", remoteFetchWarning.c_str());
+            // Keep save sync enabled so local saves can still be shown and uploaded.
         }
         if (!apiRemoteSaveItems.empty()) {
             remoteSaveItems.insert(remoteSaveItems.end(), apiRemoteSaveItems.begin(), apiRemoteSaveItems.end());
@@ -982,20 +1012,282 @@ namespace inst::ui {
         for (const auto& entry : this->saveSyncEntries) {
             shopInstStuff::ShopItem item;
             item.name = entry.titleName;
-            if (entry.localAvailable && entry.remoteAvailable)
-                item.name += " [Console + Server]";
+            if (entry.localAvailable && entry.remoteAvailable) {
+                if (entry.remoteVersions.size() > 1) {
+                    item.name += " [Console + Server x" + std::to_string(entry.remoteVersions.size()) + "]";
+                } else {
+                    item.name += " [Console + Server]";
+                }
+            }
             else if (entry.localAvailable)
                 item.name += " [Console]";
-            else if (entry.remoteAvailable)
-                item.name += " [Server]";
+            else if (entry.remoteAvailable) {
+                if (entry.remoteVersions.size() > 1) {
+                    item.name += " [Server x" + std::to_string(entry.remoteVersions.size()) + "]";
+                } else {
+                    item.name += " [Server]";
+                }
+            }
             item.url = entry.remoteDownloadUrl;
-            item.size = entry.remoteSize;
+            if (!entry.remoteVersions.empty() && entry.remoteVersions.front().size > 0)
+                item.size = entry.remoteVersions.front().size;
+            else
+                item.size = entry.remoteSize;
             item.titleId = entry.titleId;
             item.hasTitleId = true;
             saveSection.items.push_back(std::move(item));
         }
 
         this->shopSections.push_back(std::move(saveSection));
+    }
+
+    void shopInstPage::refreshSaveSyncSection(std::uint64_t selectedTitleId, int previousSectionIndex) {
+        this->buildSaveSyncSection(this->activeShopUrl);
+
+        int saveSectionIndex = -1;
+        for (std::size_t i = 0; i < this->shopSections.size(); i++) {
+            const std::string& id = this->shopSections[i].id;
+            if (id == "saves" || id == "save") {
+                saveSectionIndex = static_cast<int>(i);
+                break;
+            }
+        }
+
+        if (saveSectionIndex >= 0) {
+            this->selectedSectionIndex = saveSectionIndex;
+        } else if (this->shopSections.empty()) {
+            this->selectedSectionIndex = 0;
+        } else {
+            if (previousSectionIndex >= static_cast<int>(this->shopSections.size()))
+                previousSectionIndex = static_cast<int>(this->shopSections.size()) - 1;
+            if (previousSectionIndex < 0)
+                previousSectionIndex = 0;
+            this->selectedSectionIndex = previousSectionIndex;
+        }
+
+        this->shopGridPage = -1;
+        this->gridPage = -1;
+        this->updateSectionText();
+        this->updateButtonsText();
+        this->drawMenuItems(false);
+
+        if (this->isSaveSyncSection() && !this->visibleItems.empty()) {
+            int restoredIndex = 0;
+            for (std::size_t i = 0; i < this->visibleItems.size(); i++) {
+                if (this->visibleItems[i].hasTitleId && this->visibleItems[i].titleId == selectedTitleId) {
+                    restoredIndex = static_cast<int>(i);
+                    break;
+                }
+            }
+
+            if (this->shopGridMode) {
+                this->shopGridIndex = restoredIndex;
+                this->updateShopGrid();
+            } else {
+                this->menu->SetSelectedIndex(restoredIndex);
+                this->updatePreview();
+                this->updateDescriptionPanel();
+            }
+        } else if (this->shopGridMode) {
+            this->updateShopGrid();
+        } else {
+            this->updatePreview();
+            this->updateDescriptionPanel();
+        }
+    }
+
+    bool shopInstPage::openSaveVersionSelector(const inst::save_sync::SaveSyncEntry& entry, int previousSectionIndex, bool deleteMode) {
+        this->saveVersionSelectorVersions.clear();
+        for (const auto& version : entry.remoteVersions) {
+            if (!version.downloadUrl.empty() || !version.saveId.empty())
+                this->saveVersionSelectorVersions.push_back(version);
+        }
+        if (this->saveVersionSelectorVersions.size() <= 1)
+            return false;
+
+        this->saveVersionSelectorTitleId = entry.titleId;
+        this->saveVersionSelectorTitleName = entry.titleName;
+        this->saveVersionSelectorLocalAvailable = entry.localAvailable;
+        this->saveVersionSelectorDeleteMode = deleteMode;
+        this->saveVersionSelectorPreviousSectionIndex = previousSectionIndex;
+
+        this->saveVersionSelectorMenu->ClearItems();
+        for (std::size_t i = 0; i < this->saveVersionSelectorVersions.size(); i++) {
+            const auto& version = this->saveVersionSelectorVersions[i];
+            std::string created = version.createdAt.empty() ? "Unknown date" : inst::util::shortenString(version.createdAt, 19, false);
+            std::string sizeText = FormatSizeText(version.size);
+            if (sizeText.empty())
+                sizeText = "-";
+            std::string note = version.note.empty() ? "-" : inst::util::shortenString(version.note, 24, false);
+            std::string row = std::to_string(i + 1) + ". " + created + " | " + sizeText + " | " + note;
+            auto menuItem = pu::ui::elm::MenuItem::New(inst::util::shortenString(row, 88, false));
+            menuItem->SetColor(COLOR("#FFFFFFFF"));
+            this->saveVersionSelectorMenu->AddItem(menuItem);
+        }
+        this->saveVersionSelectorMenu->SetOnSelectionChanged([this]() {
+            this->refreshSaveVersionSelectorDetailText();
+        });
+        this->saveVersionSelectorMenu->SetSelectedIndex(0);
+
+        this->saveVersionSelectorTitleText->SetText((deleteMode ? "Delete Save Backup: " : "Save Versions: ") + inst::util::shortenString(entry.titleName, 72, true));
+        this->saveVersionSelectorRect->SetVisible(true);
+        this->saveVersionSelectorTitleText->SetVisible(true);
+        this->saveVersionSelectorMenu->SetVisible(true);
+        this->saveVersionSelectorDetailText->SetVisible(true);
+        this->saveVersionSelectorHintText->SetVisible(true);
+        this->saveVersionSelectorVisible = true;
+        this->saveVersionSelectorHintText->SetText(deleteMode ? "A Delete Backup    B Back" : "A Download    B Back");
+        this->menu->SetVisible(false);
+        this->updateButtonsText();
+        this->refreshSaveVersionSelectorDetailText();
+        return true;
+    }
+
+    void shopInstPage::closeSaveVersionSelector(bool refreshList) {
+        if (!this->saveVersionSelectorVisible && !this->saveVersionSelectorRect->IsVisible())
+            return;
+
+        this->saveVersionSelectorVisible = false;
+        this->saveVersionSelectorTitleId = 0;
+        this->saveVersionSelectorLocalAvailable = false;
+        this->saveVersionSelectorDeleteMode = false;
+        this->saveVersionSelectorPreviousSectionIndex = 0;
+        this->saveVersionSelectorTitleName.clear();
+        this->saveVersionSelectorVersions.clear();
+        this->saveVersionSelectorRect->SetVisible(false);
+        this->saveVersionSelectorTitleText->SetVisible(false);
+        this->saveVersionSelectorMenu->SetVisible(false);
+        this->saveVersionSelectorDetailText->SetVisible(false);
+        this->saveVersionSelectorHintText->SetVisible(false);
+        this->saveVersionSelectorMenu->ClearItems();
+
+        if (!refreshList)
+            return;
+
+        this->updateButtonsText();
+        this->drawMenuItems(false);
+        if (this->shopGridMode) {
+            this->updateShopGrid();
+        } else {
+            this->updatePreview();
+        }
+        this->updateDescriptionPanel();
+    }
+
+    void shopInstPage::refreshSaveVersionSelectorDetailText() {
+        if (!this->saveVersionSelectorVisible || this->saveVersionSelectorVersions.empty()) {
+            this->saveVersionSelectorDetailText->SetText("");
+            return;
+        }
+
+        int selectedIndex = this->saveVersionSelectorMenu->GetSelectedIndex();
+        if (selectedIndex < 0)
+            selectedIndex = 0;
+        if (selectedIndex >= static_cast<int>(this->saveVersionSelectorVersions.size()))
+            selectedIndex = static_cast<int>(this->saveVersionSelectorVersions.size()) - 1;
+
+        const auto& version = this->saveVersionSelectorVersions[static_cast<std::size_t>(selectedIndex)];
+        std::string created = version.createdAt.empty() ? "Unknown date" : version.createdAt;
+        std::string sizeText = FormatSizeText(version.size);
+        if (sizeText.empty())
+            sizeText = "-";
+        std::string note = version.note.empty() ? "-" : inst::util::shortenString(version.note, 84, false);
+        std::string saveId = version.saveId.empty() ? "-" : inst::util::shortenString(version.saveId, 48, false);
+        std::string details =
+            "Selected " + std::to_string(selectedIndex + 1) + "/" + std::to_string(this->saveVersionSelectorVersions.size()) + "\n"
+            "Date: " + created + "    Size: " + sizeText + "\n"
+            "Note: " + note + "\n"
+            "ID: " + saveId;
+        this->saveVersionSelectorDetailText->SetText(details);
+    }
+
+    bool shopInstPage::handleSaveVersionSelectorInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) {
+        (void)Up;
+        (void)Held;
+        (void)Pos;
+        if (!this->saveVersionSelectorVisible)
+            return false;
+
+        if (Down & HidNpadButton_B) {
+            this->closeSaveVersionSelector(true);
+            return true;
+        }
+
+        if (Down & HidNpadButton_A) {
+            if (this->saveVersionSelectorVersions.empty())
+                return true;
+
+            int selectedIndex = this->saveVersionSelectorMenu->GetSelectedIndex();
+            if (selectedIndex < 0 || selectedIndex >= static_cast<int>(this->saveVersionSelectorVersions.size()))
+                return true;
+
+            auto it = std::find_if(this->saveSyncEntries.begin(), this->saveSyncEntries.end(), [&](const auto& entry) {
+                return entry.titleId == this->saveVersionSelectorTitleId;
+            });
+            if (it == this->saveSyncEntries.end()) {
+                this->closeSaveVersionSelector(true);
+                mainApp->CreateShowDialog("Save Sync", "Unable to resolve save entry.", {"common.ok"_lang}, true);
+                return true;
+            }
+
+            if (this->saveVersionSelectorLocalAvailable) {
+                if (!this->saveVersionSelectorDeleteMode) {
+                    const int overwriteChoice = mainApp->CreateShowDialog(
+                        "Save Sync",
+                        "Replace local save data with the server copy?",
+                        {"common.yes"_lang, "common.no"_lang},
+                        false);
+                    if (overwriteChoice != 0)
+                        return true;
+                }
+            }
+
+            const auto& selectedVersion = this->saveVersionSelectorVersions[static_cast<std::size_t>(selectedIndex)];
+            std::string error;
+            bool ok = false;
+            if (this->saveVersionSelectorDeleteMode) {
+                std::string saveIdText = selectedVersion.saveId.empty() ? "unknown" : selectedVersion.saveId;
+                const int confirmDelete = mainApp->CreateShowDialog(
+                    "Save Sync",
+                    "Delete selected server backup?\nID: " + inst::util::shortenString(saveIdText, 52, false),
+                    {"Delete", "common.cancel"_lang},
+                    false);
+                if (confirmDelete != 0)
+                    return true;
+
+                ok = inst::save_sync::DeleteSaveFromServer(
+                    this->activeShopUrl,
+                    inst::config::shopUser,
+                    inst::config::shopPass,
+                    *it,
+                    &selectedVersion,
+                    error);
+            } else {
+                ok = inst::save_sync::DownloadSaveToConsole(
+                    this->activeShopUrl,
+                    inst::config::shopUser,
+                    inst::config::shopPass,
+                    *it,
+                    &selectedVersion,
+                    error);
+            }
+            if (!ok) {
+                if (error.empty())
+                    error = "Save sync failed.";
+                mainApp->CreateShowDialog("Save Sync", error, {"common.ok"_lang}, true);
+                return true;
+            }
+
+            mainApp->CreateShowDialog("Save Sync", this->saveVersionSelectorDeleteMode ? "Save backup deleted successfully." : "Save downloaded successfully.", {"common.ok"_lang}, true);
+            const std::uint64_t selectedTitleId = this->saveVersionSelectorTitleId;
+            const int previousSectionIndex = this->saveVersionSelectorPreviousSectionIndex;
+            this->closeSaveVersionSelector(false);
+            this->refreshSaveSyncSection(selectedTitleId, previousSectionIndex);
+            return true;
+        }
+
+        this->refreshSaveVersionSelectorDetailText();
+        return true;
     }
 
     void shopInstPage::handleSaveSyncAction(int selectedIndex) {
@@ -1013,6 +1305,11 @@ namespace inst::ui {
             return;
         }
 
+        const std::uint64_t selectedTitleId = it->titleId;
+        int previousSectionIndex = this->selectedSectionIndex;
+        if (previousSectionIndex < 0)
+            previousSectionIndex = 0;
+
         std::vector<std::string> options;
         std::vector<int> actions;
         if (it->localAvailable) {
@@ -1022,6 +1319,8 @@ namespace inst::ui {
         if (it->remoteAvailable) {
             options.push_back("Download to console");
             actions.push_back(2);
+            options.push_back("Delete from server");
+            actions.push_back(3);
         }
         if (actions.empty()) {
             mainApp->CreateShowDialog("Save Sync", "No local or remote save is available for this title.", {"common.ok"_lang}, true);
@@ -1033,6 +1332,25 @@ namespace inst::ui {
         if (choice < 0 || choice >= static_cast<int>(actions.size()))
             return;
 
+        std::string uploadNote;
+        const inst::save_sync::SaveSyncRemoteVersion* selectedRemoteVersion = nullptr;
+        if (actions[choice] == 1) {
+            uploadNote = inst::util::softwareKeyboard("Save note (optional)", "", 120);
+        } else if (actions[choice] == 2 || actions[choice] == 3) {
+            std::vector<const inst::save_sync::SaveSyncRemoteVersion*> availableVersions;
+            availableVersions.reserve(it->remoteVersions.size());
+            for (const auto& version : it->remoteVersions) {
+                if (!version.downloadUrl.empty() || !version.saveId.empty())
+                    availableVersions.push_back(&version);
+            }
+
+            if (!availableVersions.empty()) {
+                selectedRemoteVersion = availableVersions.front();
+                if (availableVersions.size() > 1 && this->openSaveVersionSelector(*it, previousSectionIndex, actions[choice] == 3))
+                    return;
+            }
+        }
+
         if (actions[choice] == 2 && it->localAvailable) {
             const int overwriteChoice = mainApp->CreateShowDialog(
                 "Save Sync",
@@ -1042,13 +1360,27 @@ namespace inst::ui {
             if (overwriteChoice != 0)
                 return;
         }
+        if (actions[choice] == 3) {
+            std::string saveIdText = selectedRemoteVersion && !selectedRemoteVersion->saveId.empty()
+                ? selectedRemoteVersion->saveId
+                : "latest";
+            const int confirmDelete = mainApp->CreateShowDialog(
+                "Save Sync",
+                "Delete server backup?\nID: " + inst::util::shortenString(saveIdText, 52, false),
+                {"Delete", "common.cancel"_lang},
+                false);
+            if (confirmDelete != 0)
+                return;
+        }
 
         std::string error;
         bool ok = false;
         if (actions[choice] == 1) {
-            ok = inst::save_sync::UploadSaveToServer(this->activeShopUrl, inst::config::shopUser, inst::config::shopPass, *it, error);
+            ok = inst::save_sync::UploadSaveToServer(this->activeShopUrl, inst::config::shopUser, inst::config::shopPass, *it, uploadNote, error);
         } else if (actions[choice] == 2) {
-            ok = inst::save_sync::DownloadSaveToConsole(this->activeShopUrl, inst::config::shopUser, inst::config::shopPass, *it, error);
+            ok = inst::save_sync::DownloadSaveToConsole(this->activeShopUrl, inst::config::shopUser, inst::config::shopPass, *it, selectedRemoteVersion, error);
+        } else if (actions[choice] == 3) {
+            ok = inst::save_sync::DeleteSaveFromServer(this->activeShopUrl, inst::config::shopUser, inst::config::shopPass, *it, selectedRemoteVersion, error);
         }
 
         if (!ok) {
@@ -1058,8 +1390,15 @@ namespace inst::ui {
             return;
         }
 
-        mainApp->CreateShowDialog("Save Sync", actions[choice] == 1 ? "Save uploaded successfully." : "Save downloaded successfully.", {"common.ok"_lang}, true);
-        this->startShop(true);
+        std::string successMessage = "Save sync completed successfully.";
+        if (actions[choice] == 1)
+            successMessage = "Save uploaded successfully.";
+        else if (actions[choice] == 2)
+            successMessage = "Save downloaded successfully.";
+        else if (actions[choice] == 3)
+            successMessage = "Save backup deleted successfully.";
+        mainApp->CreateShowDialog("Save Sync", successMessage, {"common.ok"_lang}, true);
+        this->refreshSaveSyncSection(selectedTitleId, previousSectionIndex);
     }
 
     void shopInstPage::buildLegacyOwnedSections() {
@@ -2197,6 +2536,13 @@ namespace inst::ui {
         this->descriptionOverlayVisible = false;
         this->descriptionOverlayLines.clear();
         this->descriptionOverlayOffset = 0;
+        this->saveVersionSelectorVisible = false;
+        this->saveVersionSelectorTitleId = 0;
+        this->saveVersionSelectorLocalAvailable = false;
+        this->saveVersionSelectorDeleteMode = false;
+        this->saveVersionSelectorPreviousSectionIndex = 0;
+        this->saveVersionSelectorTitleName.clear();
+        this->saveVersionSelectorVersions.clear();
         this->setButtonsText("inst.shop.buttons_loading"_lang);
         this->menu->SetVisible(false);
         this->menu->ClearItems();
@@ -2212,6 +2558,12 @@ namespace inst::ui {
         this->descriptionOverlayTitleText->SetVisible(false);
         this->descriptionOverlayBodyText->SetVisible(false);
         this->descriptionOverlayHintText->SetVisible(false);
+        this->saveVersionSelectorRect->SetVisible(false);
+        this->saveVersionSelectorTitleText->SetVisible(false);
+        this->saveVersionSelectorMenu->SetVisible(false);
+        this->saveVersionSelectorMenu->ClearItems();
+        this->saveVersionSelectorDetailText->SetVisible(false);
+        this->saveVersionSelectorHintText->SetVisible(false);
         for (auto& img : this->gridImages)
             img->SetVisible(false);
         for (auto& highlight : this->shopGridSelectHighlights)
@@ -2573,6 +2925,8 @@ namespace inst::ui {
             }
             return;
         }
+        if (this->handleSaveVersionSelectorInput(Down, Up, Held, Pos))
+            return;
         if (Down & HidNpadButton_B) {
             this->updateRememberedSelection();
             mainApp->LoadLayout(mainApp->mainPage);

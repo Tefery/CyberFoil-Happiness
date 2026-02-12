@@ -57,6 +57,13 @@ namespace inst::ui {
             std::vector<std::string> descriptionOverlayLines;
             int descriptionOverlayOffset = 0;
             int descriptionOverlayVisibleLines = 16;
+            bool saveVersionSelectorVisible = false;
+            std::uint64_t saveVersionSelectorTitleId = 0;
+            bool saveVersionSelectorLocalAvailable = false;
+            bool saveVersionSelectorDeleteMode = false;
+            int saveVersionSelectorPreviousSectionIndex = 0;
+            std::string saveVersionSelectorTitleName;
+            std::vector<inst::save_sync::SaveSyncRemoteVersion> saveVersionSelectorVersions;
             int gridSelectedIndex = 0;
             int gridPage = -1;
             bool shopGridMode = false;
@@ -94,6 +101,11 @@ namespace inst::ui {
             TextBlock::Ref descriptionOverlayTitleText;
             TextBlock::Ref descriptionOverlayBodyText;
             TextBlock::Ref descriptionOverlayHintText;
+            Rectangle::Ref saveVersionSelectorRect;
+            TextBlock::Ref saveVersionSelectorTitleText;
+            TextBlock::Ref saveVersionSelectorDetailText;
+            TextBlock::Ref saveVersionSelectorHintText;
+            pu::ui::elm::Menu::Ref saveVersionSelectorMenu;
             void centerPageInfoText();
             void drawMenuItems(bool clearItems);
             void selectTitle(int selectedIndex);
@@ -115,6 +127,11 @@ namespace inst::ui {
             bool isSaveSyncSection() const;
             void showInstalledDetails();
             void buildSaveSyncSection(const std::string& shopUrl);
+            void refreshSaveSyncSection(std::uint64_t selectedTitleId, int previousSectionIndex);
+            bool openSaveVersionSelector(const inst::save_sync::SaveSyncEntry& entry, int previousSectionIndex, bool deleteMode = false);
+            void closeSaveVersionSelector(bool refreshList);
+            void refreshSaveVersionSelectorDetailText();
+            bool handleSaveVersionSelectorInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos);
             void handleSaveSyncAction(int selectedIndex);
             void showCurrentDescriptionDialog();
             bool tryGetCurrentDescription(std::string& outTitle, std::string& outDescription) const;

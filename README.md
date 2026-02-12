@@ -21,6 +21,7 @@ A NSP, NSZ, XCI, & XCZ Installer with basic eShop support for Nintendo Switch
 - Verifies NCAs by header signature before they're installed
 - Installs and manages the latest signature patches quickly and easily
 - Built-in eShop with sections, search, and cover art previews
+- Save Sync in eShop: browse console/server saves, upload with notes, download specific backup versions, and delete server backups
 - OLED mode for pure-black backgrounds
 - Forked from Awoo Installer [Huntereb Awoo Installer](https://github.com/Huntereb/Awoo-Installer)
 - Based on [Adubbz Tinfoil](https://github.com/Adubbz/Tinfoil)
@@ -58,6 +59,13 @@ Notes:
 - Encrypted shop responses are not supported.
 - The Installed section lists content already on the Switch and cannot be installed from.
 - The shop list is cached for faster startup (5-minute TTL). Use X to refresh.
+
+Save Sync:
+- Available for normal (non-legacy fallback) eShop sections when the account has backup access.
+- Shows local console saves and remote server backups in a dedicated `Saves` section.
+- Upload supports version notes.
+- Download/delete of remote backups supports per-version selection with an in-page selector layout.
+- Save operations refresh only the saves section; they do not trigger a full shop reload.
 
 Offline metadata/icons (no online lookups):
 - CyberFoil can use local title metadata and local icons from `sdmc:/switch/CyberFoil/offline_db/`.

@@ -7,6 +7,7 @@
 #include <sstream>
 #include <system_error>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <curl/curl.h>
@@ -115,12 +116,43 @@ namespace {
         return baseUrl + "/api/saves/upload/" + FormatTitleIdHex(titleId);
     }
 
-    std::string BuildDownloadUrl(const std::string& shopUrl, std::uint64_t titleId)
+    std::string NormalizeSaveIdToken(std::string value)
+    {
+        value = TrimAscii(value);
+        if (value.empty())
+            return std::string();
+        if (value.size() > 96)
+            value.resize(96);
+
+        std::string normalized;
+        normalized.reserve(value.size());
+        for (unsigned char c : value) {
+            if (std::isalnum(c) || c == '-' || c == '_' || c == '.')
+                normalized.push_back(static_cast<char>(c));
+        }
+        return normalized;
+    }
+
+    std::string BuildDownloadUrl(const std::string& shopUrl, std::uint64_t titleId, const std::string& saveId = std::string())
     {
         const std::string baseUrl = NormalizeShopUrl(shopUrl);
         if (baseUrl.empty())
             return std::string();
+        const std::string normalizedSaveId = NormalizeSaveIdToken(saveId);
+        if (!normalizedSaveId.empty())
+            return baseUrl + "/api/saves/download/" + FormatTitleIdHex(titleId) + "/" + normalizedSaveId + ".zip";
         return baseUrl + "/api/saves/download/" + FormatTitleIdHex(titleId) + ".zip";
+    }
+
+    std::string BuildDeleteUrl(const std::string& shopUrl, std::uint64_t titleId, const std::string& saveId = std::string())
+    {
+        const std::string baseUrl = NormalizeShopUrl(shopUrl);
+        if (baseUrl.empty())
+            return std::string();
+        const std::string normalizedSaveId = NormalizeSaveIdToken(saveId);
+        if (!normalizedSaveId.empty())
+            return baseUrl + "/api/saves/delete/" + FormatTitleIdHex(titleId) + "/" + normalizedSaveId;
+        return baseUrl + "/api/saves/delete/" + FormatTitleIdHex(titleId);
     }
 
     std::string BuildRemoteListUrl(const std::string& shopUrl)
@@ -528,6 +560,52 @@ namespace {
         return true;
     }
 
+    bool HttpDeleteWithAuth(const std::string& url, const std::string& user, const std::string& pass, long& outCode, std::string& outBody, std::string& error)
+    {
+        outBody.clear();
+        error.clear();
+        outCode = 0;
+
+        if (curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
+            error = "Failed to initialize HTTP client.";
+            return false;
+        }
+
+        CURL* curl = curl_easy_init();
+        if (!curl) {
+            error = "Failed to initialize HTTP request.";
+            return false;
+        }
+
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, "tinfoil");
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteToString);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &outBody);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 20000L);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 5000L);
+
+        std::string authValue;
+        if (!user.empty() || !pass.empty()) {
+            authValue = user + ":" + pass;
+            curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+            curl_easy_setopt(curl, CURLOPT_USERPWD, authValue.c_str());
+        }
+
+        const CURLcode rc = curl_easy_perform(curl);
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &outCode);
+        curl_easy_cleanup(curl);
+
+        if (rc != CURLE_OK) {
+            error = "Failed to delete remote save: " + std::string(curl_easy_strerror(rc));
+            return false;
+        }
+        return true;
+    }
+
     bool TryGetTitleIdFromJson(const nlohmann::json& obj, std::uint64_t& outTitleId)
     {
         static const char* keys[] = {"title_id", "titleId", "app_id", "appId", "id"};
@@ -554,7 +632,65 @@ namespace {
         return false;
     }
 
-    bool UploadZipMultipart(const std::string& url, const std::string& zipPath, const std::string& user, const std::string& pass, std::uint64_t titleId, std::string& error)
+    bool TryGetStringByKeys(const nlohmann::json& obj, const std::vector<const char*>& keys, std::string& out)
+    {
+        out.clear();
+        for (const auto* key : keys) {
+            if (!obj.contains(key))
+                continue;
+            const auto& value = obj[key];
+            if (!value.is_string())
+                continue;
+            out = TrimAscii(value.get<std::string>());
+            if (!out.empty())
+                return true;
+        }
+        return false;
+    }
+
+    bool TryGetU64ByKeys(const nlohmann::json& obj, const std::vector<const char*>& keys, std::uint64_t& out)
+    {
+        out = 0;
+        for (const auto* key : keys) {
+            if (!obj.contains(key))
+                continue;
+            const auto& value = obj[key];
+            if (value.is_number_unsigned()) {
+                out = value.get<std::uint64_t>();
+                return true;
+            }
+            if (value.is_number_integer()) {
+                const auto parsed = value.get<long long>();
+                if (parsed >= 0) {
+                    out = static_cast<std::uint64_t>(parsed);
+                    return true;
+                }
+            }
+            if (value.is_string()) {
+                const std::string text = TrimAscii(value.get<std::string>());
+                if (text.empty())
+                    continue;
+                bool allDigits = true;
+                for (unsigned char c : text) {
+                    if (!std::isdigit(c)) {
+                        allDigits = false;
+                        break;
+                    }
+                }
+                if (allDigits) {
+                    char* end = nullptr;
+                    unsigned long long parsed = std::strtoull(text.c_str(), &end, 10);
+                    if (end != text.c_str() && end && *end == '\0') {
+                        out = static_cast<std::uint64_t>(parsed);
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    bool UploadZipMultipart(const std::string& url, const std::string& zipPath, const std::string& user, const std::string& pass, std::uint64_t titleId, const std::string& note, std::string& error)
     {
         error.clear();
         if (curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
@@ -606,6 +742,13 @@ namespace {
         part = curl_mime_addpart(mime);
         curl_mime_name(part, "application_id");
         curl_mime_data(part, titleIdText.c_str(), CURL_ZERO_TERMINATED);
+
+        const std::string trimmedNote = TrimAscii(note);
+        if (!trimmedNote.empty()) {
+            part = curl_mime_addpart(mime);
+            curl_mime_name(part, "note");
+            curl_mime_data(part, trimmedNote.c_str(), CURL_ZERO_TERMINATED);
+        }
 
         curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
 
@@ -714,6 +857,19 @@ namespace inst::save_sync {
                 if (name.empty())
                     name = FormatTitleIdHex(titleId);
 
+                std::string saveId;
+                if (TryGetStringByKeys(save, {"save_id", "saveId", "version_id", "versionId"}, saveId))
+                    saveId = NormalizeSaveIdToken(saveId);
+
+                std::string note;
+                TryGetStringByKeys(save, {"note", "save_note", "saveNote"}, note);
+
+                std::string createdAt;
+                TryGetStringByKeys(save, {"created_at", "createdAt", "date", "timestamp"}, createdAt);
+
+                std::uint64_t createdTs = 0;
+                TryGetU64ByKeys(save, {"created_ts", "createdTs", "timestamp_unix", "timestampUnix"}, createdTs);
+
                 std::string downloadUrl;
                 if (save.contains("download_url") && save["download_url"].is_string())
                     downloadUrl = save["download_url"].get<std::string>();
@@ -722,17 +878,11 @@ namespace inst::save_sync {
                 else if (save.contains("url") && save["url"].is_string())
                     downloadUrl = save["url"].get<std::string>();
                 downloadUrl = BuildFullUrl(baseUrl, downloadUrl);
+                if (downloadUrl.empty())
+                    downloadUrl = BuildDownloadUrl(shopUrl, titleId, saveId);
 
                 std::uint64_t size = 0;
-                if (save.contains("size")) {
-                    if (save["size"].is_number_unsigned())
-                        size = save["size"].get<std::uint64_t>();
-                    else if (save["size"].is_number_integer()) {
-                        auto parsed = save["size"].get<long long>();
-                        if (parsed > 0)
-                            size = static_cast<std::uint64_t>(parsed);
-                    }
-                }
+                TryGetU64ByKeys(save, {"size", "archive_size", "archiveSize"}, size);
 
                 shopInstStuff::ShopItem item;
                 item.name = name;
@@ -740,6 +890,10 @@ namespace inst::save_sync {
                 item.size = size;
                 item.titleId = titleId;
                 item.hasTitleId = true;
+                item.saveId = saveId;
+                item.saveNote = note;
+                item.saveCreatedAt = createdAt;
+                item.saveCreatedTs = createdTs;
                 outItems.push_back(std::move(item));
             }
         } catch (...) {
@@ -775,17 +929,48 @@ namespace inst::save_sync {
 
             auto& entry = entriesByTitleId[titleId];
             entry.titleId = titleId;
-            entry.remoteAvailable = true;
-            if (!item.url.empty())
-                entry.remoteDownloadUrl = item.url;
-            if (item.size > 0)
-                entry.remoteSize = item.size;
             if (!item.name.empty())
                 entry.titleName = item.name;
+
+            SaveSyncRemoteVersion version;
+            version.saveId = NormalizeSaveIdToken(item.saveId);
+            version.note = TrimAscii(item.saveNote);
+            version.createdAt = TrimAscii(item.saveCreatedAt);
+            version.createdTs = item.saveCreatedTs;
+            version.size = item.size;
+            version.downloadUrl = item.url;
+
+            bool duplicate = false;
+            for (const auto& existing : entry.remoteVersions) {
+                if (existing.saveId == version.saveId &&
+                    existing.downloadUrl == version.downloadUrl &&
+                    existing.createdTs == version.createdTs &&
+                    existing.size == version.size) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            if (!duplicate)
+                entry.remoteVersions.push_back(std::move(version));
         }
 
         for (auto& it : entriesByTitleId) {
             auto& entry = it.second;
+            std::sort(entry.remoteVersions.begin(), entry.remoteVersions.end(), [](const auto& a, const auto& b) {
+                if (a.createdTs != b.createdTs)
+                    return a.createdTs > b.createdTs;
+                if (a.createdAt != b.createdAt)
+                    return a.createdAt > b.createdAt;
+                return a.saveId > b.saveId;
+            });
+            entry.remoteAvailable = !entry.remoteVersions.empty();
+            if (entry.remoteAvailable) {
+                if (entry.remoteDownloadUrl.empty())
+                    entry.remoteDownloadUrl = entry.remoteVersions.front().downloadUrl;
+                if (entry.remoteSize == 0)
+                    entry.remoteSize = entry.remoteVersions.front().size;
+            }
+
             if (entry.titleName.empty())
                 entry.titleName = tin::util::GetTitleName(entry.titleId, NcmContentMetaType_Application);
             if (entry.titleName.empty())
@@ -800,7 +985,7 @@ namespace inst::save_sync {
         return true;
     }
 
-    bool UploadSaveToServer(const std::string& shopUrl, const std::string& user, const std::string& pass, const SaveSyncEntry& entry, std::string& error)
+    bool UploadSaveToServer(const std::string& shopUrl, const std::string& user, const std::string& pass, const SaveSyncEntry& entry, const std::string& note, std::string& error)
     {
         error.clear();
         if (entry.titleId == 0) {
@@ -840,14 +1025,14 @@ namespace inst::save_sync {
             return false;
         }
 
-        if (!UploadZipMultipart(uploadUrl, archivePath.string(), user, pass, entry.titleId, error))
+        if (!UploadZipMultipart(uploadUrl, archivePath.string(), user, pass, entry.titleId, note, error))
             return false;
 
         std::filesystem::remove_all(tempRoot, ec);
         return true;
     }
 
-    bool DownloadSaveToConsole(const std::string& shopUrl, const std::string& user, const std::string& pass, const SaveSyncEntry& entry, std::string& error)
+    bool DownloadSaveToConsole(const std::string& shopUrl, const std::string& user, const std::string& pass, const SaveSyncEntry& entry, const SaveSyncRemoteVersion* remoteVersion, std::string& error)
     {
         error.clear();
         if (entry.titleId == 0) {
@@ -859,7 +1044,20 @@ namespace inst::save_sync {
             return false;
         }
 
+        const SaveSyncRemoteVersion* selectedRemoteVersion = remoteVersion;
+        if (!selectedRemoteVersion && !entry.remoteVersions.empty())
+            selectedRemoteVersion = &entry.remoteVersions.front();
+
+        std::string selectedSaveId;
         std::string downloadUrl = entry.remoteDownloadUrl;
+        if (selectedRemoteVersion) {
+            if (!selectedRemoteVersion->saveId.empty())
+                selectedSaveId = selectedRemoteVersion->saveId;
+            if (!selectedRemoteVersion->downloadUrl.empty())
+                downloadUrl = selectedRemoteVersion->downloadUrl;
+        }
+        if (downloadUrl.empty())
+            downloadUrl = BuildDownloadUrl(shopUrl, entry.titleId, selectedSaveId);
         if (downloadUrl.empty())
             downloadUrl = BuildDownloadUrl(shopUrl, entry.titleId);
         if (downloadUrl.empty()) {
@@ -910,6 +1108,57 @@ namespace inst::save_sync {
         }
 
         std::filesystem::remove_all(tempRoot, ec);
+        return true;
+    }
+
+    bool DeleteSaveFromServer(const std::string& shopUrl, const std::string& user, const std::string& pass, const SaveSyncEntry& entry, const SaveSyncRemoteVersion* remoteVersion, std::string& error)
+    {
+        error.clear();
+        if (entry.titleId == 0) {
+            error = "Invalid title ID for save delete.";
+            return false;
+        }
+        if (!entry.remoteAvailable && entry.remoteVersions.empty()) {
+            error = "No remote save is available for this title.";
+            return false;
+        }
+
+        const SaveSyncRemoteVersion* selectedRemoteVersion = remoteVersion;
+        if (!selectedRemoteVersion && !entry.remoteVersions.empty())
+            selectedRemoteVersion = &entry.remoteVersions.front();
+
+        std::string selectedSaveId;
+        if (selectedRemoteVersion && !selectedRemoteVersion->saveId.empty())
+            selectedSaveId = selectedRemoteVersion->saveId;
+
+        std::string deleteUrl = BuildDeleteUrl(shopUrl, entry.titleId, selectedSaveId);
+        if (deleteUrl.empty())
+            deleteUrl = BuildDeleteUrl(shopUrl, entry.titleId);
+        if (deleteUrl.empty()) {
+            error = "No delete URL available for this save.";
+            return false;
+        }
+
+        long responseCode = 0;
+        std::string responseBody;
+        if (!HttpDeleteWithAuth(deleteUrl, user, pass, responseCode, responseBody, error))
+            return false;
+
+        if (responseCode < 200 || responseCode >= 300) {
+            if (responseCode == 401 || responseCode == 403) {
+                error = "Save delete is not permitted for this account (backup access required).";
+            } else if (responseCode == 404) {
+                error = "Remote save backup was not found.";
+            } else {
+                std::ostringstream ss;
+                ss << "Save delete failed with HTTP " << responseCode;
+                if (!responseBody.empty())
+                    ss << ": " << responseBody;
+                error = ss.str();
+            }
+            return false;
+        }
+
         return true;
     }
 }

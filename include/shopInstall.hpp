@@ -10,6 +10,10 @@ namespace shopInstStuff {
         std::string url;
         std::string iconUrl;
         std::string appId;
+        std::string saveId;
+        std::string saveNote;
+        std::string saveCreatedAt;
+        std::uint64_t saveCreatedTs = 0;
         std::uint64_t size;
         std::uint64_t titleId = 0;
         std::uint32_t appVersion = 0;
