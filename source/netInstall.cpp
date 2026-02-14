@@ -28,6 +28,7 @@ SOFTWARE.
 #include <curl/curl.h>
 #include <thread>
 #include <algorithm>
+#include <mutex>
 #include <switch.h>
 #include "netInstall.hpp"
 #include "install/install_nsp.hpp"
@@ -50,6 +51,18 @@ const unsigned int MAX_URLS = 256;
 const int REMOTE_INSTALL_PORT = 2000;
 static int m_serverSocket = 0;
 static int m_clientSocket = 0;
+
+namespace {
+    bool EnsureCurlInitialized()
+    {
+        static std::once_flag flag;
+        static bool ok = false;
+        std::call_once(flag, []() {
+            ok = (curl_global_init(CURL_GLOBAL_ALL) == CURLE_OK);
+        });
+        return ok;
+    }
+}
 
 namespace inst::ui {
     extern MainApplication *mainApp;
@@ -106,8 +119,6 @@ namespace netInstStuff{
             close(m_clientSocket);
             m_clientSocket = 0;
         }
-
-        curl_global_cleanup();
     }
 
     void sendExitCommands(std::string url)
@@ -223,7 +234,9 @@ namespace netInstStuff{
 
         try
         {
-            ASSERT_OK(curl_global_init(CURL_GLOBAL_ALL), "Curl failed to initialized");
+            if (!EnsureCurlInitialized()) {
+                THROW_FORMAT("Curl failed to initialize.\n");
+            }
 
             // Initialize the server socket if it hasn't already been
             if (m_serverSocket == 0)

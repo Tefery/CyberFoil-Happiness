@@ -3,6 +3,9 @@
 #include <pu/Plutonium>
 #include "shopInstall.hpp"
 #include "ui/bottomHint.hpp"
+#include "util/save_sync.hpp"
+#include <cstddef>
+#include <vector>
 
 using namespace pu::ui::elm;
 namespace inst::ui {
@@ -15,6 +18,7 @@ namespace inst::ui {
             void startInstall();
             void onInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos);
             TextBlock::Ref pageInfoText;
+            TextBlock::Ref loadingProgressText;
             Image::Ref titleImage;
             TextBlock::Ref appVersionText;
             TextBlock::Ref timeText;
@@ -39,12 +43,29 @@ namespace inst::ui {
             std::vector<shopInstStuff::ShopItem> selectedItems;
             std::vector<shopInstStuff::ShopItem> visibleItems;
             std::vector<shopInstStuff::ShopItem> availableUpdates;
+            std::vector<inst::save_sync::SaveSyncEntry> saveSyncEntries;
+            bool nativeUpdatesSectionPresent = false;
+            bool nativeDlcSectionPresent = false;
+            bool saveSyncEnabled = false;
+            std::string activeShopUrl;
             BottomHintTouchState bottomHintTouch;
             std::vector<BottomHintSegment> bottomHintSegments;
             int selectedSectionIndex = 0;
             std::string searchQuery;
             std::string previewKey;
             bool debugVisible = false;
+            bool descriptionVisible = false;
+            bool descriptionOverlayVisible = false;
+            std::vector<std::string> descriptionOverlayLines;
+            int descriptionOverlayOffset = 0;
+            int descriptionOverlayVisibleLines = 16;
+            bool saveVersionSelectorVisible = false;
+            std::uint64_t saveVersionSelectorTitleId = 0;
+            bool saveVersionSelectorLocalAvailable = false;
+            bool saveVersionSelectorDeleteMode = false;
+            int saveVersionSelectorPreviousSectionIndex = 0;
+            std::string saveVersionSelectorTitleName;
+            std::vector<inst::save_sync::SaveSyncRemoteVersion> saveVersionSelectorVersions;
             int gridSelectedIndex = 0;
             int gridPage = -1;
             bool shopGridMode = false;
@@ -57,10 +78,34 @@ namespace inst::ui {
             int holdDirection = 0;
             u64 holdStartTick = 0;
             u64 lastHoldTick = 0;
+            int listMarqueeIndex = -1;
+            int listVisibleTopIndex = 0;
+            int listPrevSelectedIndex = -1;
+            int listRenderedSelectedIndex = -1;
+            int listMarqueeOffset = 0;
+            int listMarqueeMaxOffset = 0;
+            bool listMarqueeWindowMode = false;
+            int listMarqueeWindowChars = 0;
+            std::size_t listMarqueeWindowCharOffset = 0;
+            std::string listMarqueeFullLabel;
+            u64 listMarqueeLastTick = 0;
+            u64 listMarqueePauseUntilTick = 0;
+            u64 listMarqueeSpeedRemainder = 0;
+            u64 listMarqueeFadeStartTick = 0;
+            int listMarqueePhase = 0;
+            int listMarqueeFadeAlpha = 0;
+            int listMarqueeSingleLineHeight = 0;
+            bool listMarqueeClipEnabled = false;
+            int listMarqueeClipX = 0;
+            int listMarqueeClipY = 0;
+            int listMarqueeClipW = 0;
+            int listMarqueeClipH = 0;
             bool touchActive = false;
             bool touchMoved = false;
             u64 imageLoadingUntilTick = 0;
             TextBlock::Ref butText;
+            Rectangle::Ref loadingBarBack;
+            Rectangle::Ref loadingBarFill;
             Rectangle::Ref topRect;
             Rectangle::Ref infoRect;
             Rectangle::Ref botRect;
@@ -73,17 +118,38 @@ namespace inst::ui {
             std::vector<Image::Ref> shopGridSelectIcons;
             TextBlock::Ref gridTitleText;
             TextBlock::Ref imageLoadingText;
+            Rectangle::Ref listMarqueeMaskRect;
+            Rectangle::Ref listMarqueeTintRect;
+            pu::ui::elm::Element::Ref listMarqueeClipBegin;
+            pu::ui::elm::Element::Ref listMarqueeClipEnd;
+            Rectangle::Ref listMarqueeFadeRect;
             TextBlock::Ref debugText;
             TextBlock::Ref emptySectionText;
+            TextBlock::Ref listMarqueeOverlayText;
             TextBlock::Ref searchInfoText;
+            Rectangle::Ref descriptionRect;
+            TextBlock::Ref descriptionText;
+            Rectangle::Ref descriptionOverlayRect;
+            TextBlock::Ref descriptionOverlayTitleText;
+            TextBlock::Ref descriptionOverlayBodyText;
+            TextBlock::Ref descriptionOverlayHintText;
+            Rectangle::Ref saveVersionSelectorRect;
+            TextBlock::Ref saveVersionSelectorTitleText;
+            TextBlock::Ref saveVersionSelectorDetailText;
+            TextBlock::Ref saveVersionSelectorHintText;
+            pu::ui::elm::Menu::Ref saveVersionSelectorMenu;
             void centerPageInfoText();
+            void setLoadingProgress(int percent, bool visible);
             void drawMenuItems(bool clearItems);
             void selectTitle(int selectedIndex);
             void updateRememberedSelection();
             void updateSectionText();
             void updateButtonsText();
             void setButtonsText(const std::string& text);
+            std::string buildListMenuLabel(const shopInstStuff::ShopItem& item) const;
+            void updateListMarquee(bool force);
             void buildInstalledSection();
+            void buildLegacyOwnedSections();
             void cacheAvailableUpdates();
             void filterOwnedSections();
             void updatePreview();
@@ -93,6 +159,21 @@ namespace inst::ui {
             const std::vector<shopInstStuff::ShopItem>& getCurrentItems() const;
             bool isAllSection() const;
             bool isInstalledSection() const;
+            bool isSaveSyncSection() const;
             void showInstalledDetails();
+            void buildSaveSyncSection(const std::string& shopUrl);
+            void refreshSaveSyncSection(std::uint64_t selectedTitleId, int previousSectionIndex);
+            bool openSaveVersionSelector(const inst::save_sync::SaveSyncEntry& entry, int previousSectionIndex, bool deleteMode = false);
+            void closeSaveVersionSelector(bool refreshList);
+            void refreshSaveVersionSelectorDetailText();
+            bool handleSaveVersionSelectorInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos);
+            void handleSaveSyncAction(int selectedIndex);
+            void showCurrentDescriptionDialog();
+            bool tryGetCurrentDescription(std::string& outTitle, std::string& outDescription) const;
+            void openDescriptionOverlay();
+            void closeDescriptionOverlay();
+            void scrollDescriptionOverlay(int delta);
+            void refreshDescriptionOverlayBody();
+            void updateDescriptionPanel();
     };
 }

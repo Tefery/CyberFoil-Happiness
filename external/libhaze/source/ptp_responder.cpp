@@ -40,6 +40,7 @@ namespace haze {
         m_object_heap = object_heap;
         m_buffers = GetBuffers();
         m_fs_entries.clear();
+        m_cached_object_sizes.clear();
 
         u32 storage_id = StorageId_DefaultStorage;
 
@@ -165,6 +166,7 @@ namespace haze {
         if (m_session_open) {
             m_session_open = false;
             m_object_database.Finalize();
+            m_cached_object_sizes.clear();
         }
     }
 
@@ -179,6 +181,41 @@ namespace haze {
         PtpDataBuilder db(m_buffers->usb_bulk_write_buffer, std::addressof(m_usb_server));
         R_TRY(db.AddResponseHeader(m_request_header, code, 0));
         R_RETURN(db.Commit());
+    }
+
+    void PtpResponder::CacheObjectSizeByName(const char* name, u64 size) {
+        if (!name || name[0] == '\0') {
+            return;
+        }
+        m_cached_object_sizes[std::string(name)] = size;
+    }
+
+    void PtpResponder::CacheObjectSize(const PtpObject* obj, u64 size) {
+        if (!obj) {
+            return;
+        }
+        this->CacheObjectSizeByName(obj->GetName(), size);
+    }
+
+    bool PtpResponder::TryGetCachedObjectSize(const PtpObject* obj, s64* out_size) const {
+        if (!obj || !out_size) {
+            return false;
+        }
+
+        const auto it = m_cached_object_sizes.find(std::string(obj->GetName()));
+        if (it == m_cached_object_sizes.end()) {
+            return false;
+        }
+
+        *out_size = static_cast<s64>(it->second);
+        return true;
+    }
+
+    void PtpResponder::EraseCachedObjectSize(const char* name) {
+        if (!name || name[0] == '\0') {
+            return;
+        }
+        m_cached_object_sizes.erase(std::string(name));
     }
 
     #if 0

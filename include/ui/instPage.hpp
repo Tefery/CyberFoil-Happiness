@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <pu/Plutonium>
 #include "ui/bottomHint.hpp"
 
@@ -44,6 +45,7 @@ namespace inst::ui {
             static void clearProgressDetailText();
             static void setInstallIconFromTitleId(u64 titleId);
             static void setInstallIcon(const std::string& imagePath);
+            static void setInstallIconData(const void* imageData, std::uint32_t imageSize);
             static void clearInstallIcon();
             static void loadMainMenu();
             static void loadInstallScreen();

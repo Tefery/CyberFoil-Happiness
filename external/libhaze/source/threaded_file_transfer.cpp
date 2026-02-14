@@ -9,7 +9,7 @@
 namespace sphaira::thread {
 namespace {
 
-constexpr u64 BUFFER_SIZE = 1024*1024*1;
+constexpr u64 BUFFER_SIZE = 1024*1024*4;
 
 struct ThreadBuffer {
     ThreadBuffer() {

@@ -13,9 +13,8 @@ using json = nlohmann::json;
 namespace Language {
     json lang;
 
-    void Load() {
-        std::ifstream ifs;
-        std::string languagePath;
+    int ResolveConfiguredLanguage()
+    {
         int langInt = inst::config::languageSetting;
         if (langInt == 99) {
             SetLanguage ourLang;
@@ -24,8 +23,15 @@ namespace Language {
             setGetSystemLanguage(&lcode);
             setMakeLanguage(lcode, &ourLang);
             setExit();
-            langInt = (int)ourLang;
-        } 
+            langInt = static_cast<int>(ourLang);
+        }
+        return langInt;
+    }
+
+    void Load() {
+        std::ifstream ifs;
+        std::string languagePath;
+        int langInt = ResolveConfiguredLanguage();
         switch (langInt) {
             case SetLanguage_JA:
                 languagePath = "romfs:/lang/jp.json";
@@ -110,5 +116,42 @@ namespace Language {
         json j = Language::GetRelativeJson(lang, "inst.finished");
         srand(time(NULL));
         return(j[rand() % j.size()]);
+    }
+
+    std::string GetShopHeaderLanguage()
+    {
+        const int langInt = ResolveConfiguredLanguage();
+        switch (langInt) {
+            case SetLanguage_JA:
+                return "ja";
+            case SetLanguage_FR:
+            case SetLanguage_FRCA:
+                return "fr";
+            case SetLanguage_DE:
+                return "de";
+            case SetLanguage_IT:
+                return "it";
+            case SetLanguage_ES:
+            case SetLanguage_ES419:
+                return "es";
+            case SetLanguage_PT:
+            case SetLanguage_PTBR:
+                return "pt";
+            case SetLanguage_KO:
+                return "ko";
+            case SetLanguage_RU:
+                return "ru";
+            case SetLanguage_ZHCN:
+            case SetLanguage_ZHHANS:
+                return "zh-CN";
+            case SetLanguage_ZHTW:
+            case SetLanguage_ZHHANT:
+                return "zh-TW";
+            case SetLanguage_NL:
+                return "nl";
+            case SetLanguage_ENUS:
+            default:
+                return "en";
+        }
     }
 }

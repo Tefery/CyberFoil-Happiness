@@ -9,6 +9,11 @@ endif
 TOPDIR ?= $(CURDIR)
 include $(DEVKITPRO)/libnx/switch_rules
 
+PLUTONIUM_DIR := include/Plutonium
+PLUTONIUM_INCLUDE_SWITCH := include/Plutonium/Plutonium/Output-switch/include
+PLUTONIUM_INCLUDE_OUTPUT := include/Plutonium/Plutonium/Output/include
+PLUTONIUM_INCLUDE_SOURCE := include/Plutonium/Plutonium/Include
+
 #---------------------------------------------------------------------------------
 # TARGET is the name of the output
 # BUILD is the directory where object files & intermediate files will be placed
@@ -44,11 +49,11 @@ SOURCES		:=	source source/ui source/data source/install source/nx source/nx/ipc 
 			include/libusbhsfs/source/lwext4 include/libusbhsfs/source/sxos
 DATA		:=	data
 INCLUDES	:=	include include/ui include/data include/install include/nx include/nx/ipc include/util \
-			include/libusbhsfs/include include/libusbhsfs/source \
-			include/Plutonium/Plutonium/Output-switch/include external/libhaze/include
+				include/libusbhsfs/include include/libusbhsfs/source \
+				$(PLUTONIUM_INCLUDE_SWITCH) $(PLUTONIUM_INCLUDE_OUTPUT) $(PLUTONIUM_INCLUDE_SOURCE) external/libhaze/include
 APP_TITLE	:=	HappyFoil
 APP_AUTHOR	:=	Tefery
-APP_VERSION	:=	1.3.11.H
+APP_VERSION	:=	1.4.0.H
 ICON		:=	romfs/images/icon.jpg
 ROMFS		:=	romfs
 
@@ -180,17 +185,17 @@ all: $(BUILD)
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	#comment this out if you are hacking on the code or compilation will take forever
-	$(MAKE) --no-print-directory -C include/Plutonium -f Makefile lib
+	$(MAKE) --no-print-directory -C $(PLUTONIUM_DIR) -f Makefile lib
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
 ifeq ($(strip $(APP_JSON)),)
-	@$(MAKE) --no-print-directory -C include/Plutonium/Plutonium -f Makefile clean
+	@$(MAKE) --no-print-directory -C $(PLUTONIUM_DIR)/Plutonium -f Makefile clean
 	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf
 else
-	@$(MAKE) --no-print-directory -C include/Plutonium/Plutonium -f Makefile clean
+	@$(MAKE) --no-print-directory -C $(PLUTONIUM_DIR)/Plutonium -f Makefile clean
 	@rm -fr $(BUILD) $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf
 endif
 

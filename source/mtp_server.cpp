@@ -1,6 +1,8 @@
 #include "../include/mtp_server.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <cstdarg>
 #include <cstring>
 #include <mutex>
 #include <memory>
@@ -17,6 +19,44 @@
 
 namespace inst::mtp {
 namespace {
+
+constexpr const char* kAlbumTracePath = "sdmc:/switch/CyberFoil/mtp_album_debug.log";
+std::mutex g_album_trace_mutex;
+std::atomic<u64> g_album_trace_count{0};
+constexpr u64 kAlbumTraceMaxLines = 20000;
+
+void AlbumTrace(const char* fmt, ...) {
+    const u64 idx = g_album_trace_count.fetch_add(1, std::memory_order_relaxed);
+    if (idx >= kAlbumTraceMaxLines) {
+        return;
+    }
+
+    char msg[512] = {};
+    va_list args;
+    va_start(args, fmt);
+    std::vsnprintf(msg, sizeof(msg), fmt, args);
+    va_end(args);
+
+    std::lock_guard<std::mutex> lock(g_album_trace_mutex);
+    FILE* f = std::fopen(kAlbumTracePath, "ab");
+    if (!f) {
+        return;
+    }
+    std::fprintf(f, "%llu %s\n", static_cast<unsigned long long>(idx), msg);
+    std::fclose(f);
+}
+
+bool CopyFsEntryName(char* dst, size_t dst_size, const char* src) {
+    if (!dst || !src || dst_size == 0) {
+        return false;
+    }
+    const size_t len = std::strlen(src);
+    if (len >= dst_size) {
+        return false;
+    }
+    std::memcpy(dst, src, len + 1);
+    return true;
+}
 
 struct InstallSharedData {
     std::mutex mutex;
@@ -96,7 +136,9 @@ struct FsProxyVfs : haze::FileSystemProxyImpl {
         }
 
         FsDirectoryEntry entry{};
-        std::strcpy(entry.name, file_name);
+        if (!CopyFsEntryName(entry.name, sizeof(entry.name), file_name)) {
+            return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        }
         entry.type = FsDirEntryType_File;
         entry.file_size = size;
         m_entries.emplace_back(entry);
@@ -129,7 +171,9 @@ struct FsProxyVfs : haze::FileSystemProxyImpl {
             [new_name](const auto& e){ return !strcasecmp(new_name, e.name); });
         if (new_it != m_entries.end()) return KERNELRESULT(AlreadyExists);
 
-        std::strcpy(it->name, new_name);
+        if (!CopyFsEntryName(it->name, sizeof(it->name), new_name)) {
+            return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        }
         return 0;
     }
 
@@ -326,7 +370,7 @@ struct FsInstallProxy final : FsProxyVfs {
 
     bool MultiThreadTransfer(s64 /*size*/, bool read) override {
         (void)read;
-        // Allow libhaze's multithreaded transfer path for better upload throughput.
+        // Prefer throughput for install stream; write ordering is preserved by libhaze.
         return true;
     }
 };
@@ -334,9 +378,14 @@ struct FsInstallProxy final : FsProxyVfs {
 struct FsAlbumProxy final : haze::FileSystemProxyImpl {
     FsAlbumProxy() = default;
     ~FsAlbumProxy() {
+        std::lock_guard<std::mutex> lock(m_mutex);
         if (m_fs_open) {
             fsFsClose(&m_fs);
             m_fs_open = false;
+        }
+        if (m_sd_fs_open) {
+            fsFsClose(&m_sd_fs);
+            m_sd_fs_open = false;
         }
     }
 
@@ -346,6 +395,10 @@ struct FsAlbumProxy final : haze::FileSystemProxyImpl {
 
     const char* GetDisplayName() const override {
         return "Album (Screenshots & Videos)";
+    }
+
+    u16 GetAccessCapability() const override {
+        return static_cast<u16>(haze::PtpAccessCapability_ReadOnly);
     }
 
     Result GetTotalSpace(const char* /*path*/, s64* out) override {
@@ -358,82 +411,235 @@ struct FsAlbumProxy final : haze::FileSystemProxyImpl {
 
     Result GetEntryType(const char* path, FsDirEntryType* out_entry_type) override {
         if (!out_entry_type) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
-        const Result rc = EnsureFsOpen();
+        std::lock_guard<std::mutex> lock(m_mutex);
+        const Result rc = EnsureFsOpenLocked();
         if (R_FAILED(rc)) return rc;
         const auto fixed = FixPath(path);
         if (fixed.empty()) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
-        return fsFsGetEntryType(&m_fs, fixed.c_str(), out_entry_type);
+        Result out_rc = 0;
+        for (int attempt = 0; attempt < 10; ++attempt) {
+            out_rc = fsFsGetEntryType(&m_fs, fixed.c_str(), out_entry_type);
+            if (R_SUCCEEDED(out_rc)) {
+                break;
+            }
+            // The album backend can return occasional transient lookup failures under
+            // host-side parallel metadata probing; retry a couple of times.
+            svcSleepThread(10'000'000);
+        }
+        if (R_FAILED(out_rc)) {
+            FsDir dir{};
+            const Result dir_rc = fsFsOpenDirectory(&m_fs, fixed.c_str(), FsDirOpenMode_ReadDirs, &dir);
+            if (R_SUCCEEDED(dir_rc)) {
+                fsDirClose(&dir);
+                *out_entry_type = FsDirEntryType_Dir;
+                AlbumTrace("GetEntryType fallback-dir path='%s' fixed='%s' rc=0x%08x",
+                    path ? path : "(null)", fixed.c_str(), out_rc);
+                return 0;
+            }
+
+            FsFile file{};
+            const Result file_rc = fsFsOpenFile(&m_fs, fixed.c_str(), FsOpenMode_Read, &file);
+            if (R_SUCCEEDED(file_rc)) {
+                fsFileClose(&file);
+                *out_entry_type = FsDirEntryType_File;
+                AlbumTrace("GetEntryType fallback-file path='%s' fixed='%s' rc=0x%08x",
+                    path ? path : "(null)", fixed.c_str(), out_rc);
+                return 0;
+            }
+
+            const auto slash = fixed.find_last_of('/');
+            const auto dot = fixed.find_last_of('.');
+            const bool looks_like_file = (dot != std::string::npos) &&
+                                         (slash == std::string::npos || dot > slash + 1);
+            *out_entry_type = looks_like_file ? FsDirEntryType_File : FsDirEntryType_Dir;
+            AlbumTrace("GetEntryType fallback-heuristic path='%s' fixed='%s' rc=0x%08x inferred=%d",
+                path ? path : "(null)", fixed.c_str(), out_rc, static_cast<int>(*out_entry_type));
+            return 0;
+        }
+        AlbumTrace("GetEntryType path='%s' fixed='%s' rc=0x%08x type=%d",
+            path ? path : "(null)", fixed.c_str(), out_rc, R_SUCCEEDED(out_rc) ? static_cast<int>(*out_entry_type) : -1);
+        return out_rc;
     }
 
-    Result CreateFile(const char* /*path*/, s64 /*size*/, u32 /*option*/) override { return KERNELRESULT(NotImplemented); }
-    Result DeleteFile(const char* /*path*/) override { return KERNELRESULT(NotImplemented); }
-    Result RenameFile(const char* /*old_path*/, const char* /*new_path*/) override { return KERNELRESULT(NotImplemented); }
-    Result SetFileSize(FsFile* /*file*/, s64 /*size*/) override { return KERNELRESULT(NotImplemented); }
-    Result WriteFile(FsFile* /*file*/, s64 /*off*/, const void* /*buf*/, u64 /*write_size*/, u32 /*option*/) override { return KERNELRESULT(NotImplemented); }
-    Result CreateDirectory(const char* /*path*/) override { return KERNELRESULT(NotImplemented); }
-    Result DeleteDirectoryRecursively(const char* /*path*/) override { return KERNELRESULT(NotImplemented); }
-    Result RenameDirectory(const char* /*old_path*/, const char* /*new_path*/) override { return KERNELRESULT(NotImplemented); }
+    Result CreateFile(const char* /*path*/, s64 /*size*/, u32 /*option*/) override { return static_cast<Result>(haze::ResultOperationNotSupported::Value); }
+    Result DeleteFile(const char* /*path*/) override { return static_cast<Result>(haze::ResultOperationNotSupported::Value); }
+    Result RenameFile(const char* /*old_path*/, const char* /*new_path*/) override { return static_cast<Result>(haze::ResultOperationNotSupported::Value); }
+    Result SetFileSize(FsFile* /*file*/, s64 /*size*/) override { return static_cast<Result>(haze::ResultOperationNotSupported::Value); }
+    Result WriteFile(FsFile* /*file*/, s64 /*off*/, const void* /*buf*/, u64 /*write_size*/, u32 /*option*/) override { return static_cast<Result>(haze::ResultOperationNotSupported::Value); }
+    Result CreateDirectory(const char* /*path*/) override { return static_cast<Result>(haze::ResultOperationNotSupported::Value); }
+    Result DeleteDirectoryRecursively(const char* /*path*/) override { return static_cast<Result>(haze::ResultOperationNotSupported::Value); }
+    Result RenameDirectory(const char* /*old_path*/, const char* /*new_path*/) override { return static_cast<Result>(haze::ResultOperationNotSupported::Value); }
 
     Result OpenFile(const char* path, u32 mode, FsFile* out_file) override {
         if (!out_file) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
-        if ((mode & FsOpenMode_Write) || (mode & FsOpenMode_Append)) return KERNELRESULT(NotImplemented);
-        const Result rc = EnsureFsOpen();
+        if ((mode & FsOpenMode_Write) || (mode & FsOpenMode_Append)) return static_cast<Result>(haze::ResultOperationNotSupported::Value);
+        std::memset(out_file, 0, sizeof(*out_file));
+        std::lock_guard<std::mutex> lock(m_mutex);
+        const Result rc = EnsureFsOpenLocked();
         if (R_FAILED(rc)) return rc;
         const auto fixed = FixPath(path);
         if (fixed.empty()) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
-        return fsFsOpenFile(&m_fs, fixed.c_str(), FsOpenMode_Read, out_file);
+        Result out_rc = 0;
+        for (int attempt = 0; attempt < 8; ++attempt) {
+            out_rc = fsFsOpenFile(&m_fs, fixed.c_str(), FsOpenMode_Read, out_file);
+            if (R_SUCCEEDED(out_rc)) {
+                break;
+            }
+
+            // Try to recover from transient album backend faults by reopening once.
+            if (out_rc == 0x0000d401 && attempt == 3) {
+                fsFsClose(&m_fs);
+                m_fs_open = false;
+                const Result reopen_rc = EnsureFsOpenLocked();
+                AlbumTrace("OpenFile reopen attempt rc=0x%08x", reopen_rc);
+                if (R_FAILED(reopen_rc)) {
+                    break;
+                }
+            }
+            svcSleepThread(10'000'000);
+        }
+        if (R_FAILED(out_rc)) {
+            Result sd_rc = 0;
+            const std::string sd_path = ToSdAlbumPath(fixed);
+            if (!sd_path.empty()) {
+                sd_rc = OpenFileFromSdLocked(sd_path.c_str(), out_file);
+                if (R_SUCCEEDED(sd_rc)) {
+                    AlbumTrace("OpenFile fallback-sd path='%s' fixed='%s' sd='%s' rc=0x%08x",
+                        path ? path : "(null)", fixed.c_str(), sd_path.c_str(), sd_rc);
+                    return sd_rc;
+                }
+            } else {
+                sd_rc = MAKERESULT(Module_Libnx, LibnxError_BadInput);
+            }
+            AlbumTrace("OpenFile fallback-sd-failed path='%s' fixed='%s' sd='%s' rc=0x%08x",
+                path ? path : "(null)", fixed.c_str(), sd_path.empty() ? "(invalid)" : sd_path.c_str(), sd_rc);
+        }
+        AlbumTrace("OpenFile path='%s' fixed='%s' mode=0x%x rc=0x%08x",
+            path ? path : "(null)", fixed.c_str(), mode, out_rc);
+        return out_rc;
     }
 
     Result GetFileSize(FsFile* file, s64* out_size) override {
         if (!file || !out_size) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
-        return fsFileGetSize(file, out_size);
+        Result rc = 0;
+        for (int attempt = 0; attempt < 8; ++attempt) {
+            rc = fsFileGetSize(file, out_size);
+            if (R_SUCCEEDED(rc)) {
+                break;
+            }
+            svcSleepThread(5'000'000);
+        }
+        AlbumTrace("GetFileSize rc=0x%08x size=%lld",
+            rc, static_cast<long long>(R_SUCCEEDED(rc) ? *out_size : -1));
+        return rc;
     }
 
     Result ReadFile(FsFile* file, s64 off, void* buf, u64 read_size, u32 /*option*/, u64* out_bytes_read) override {
         if (!file || !buf || !out_bytes_read) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
-        return fsFileRead(file, off, buf, read_size, FsReadOption_None, out_bytes_read);
+        const Result rc = fsFileRead(file, off, buf, read_size, FsReadOption_None, out_bytes_read);
+        AlbumTrace("ReadFile off=%lld req=%llu rc=0x%08x got=%llu",
+            static_cast<long long>(off),
+            static_cast<unsigned long long>(read_size),
+            rc,
+            static_cast<unsigned long long>(R_SUCCEEDED(rc) ? *out_bytes_read : 0));
+        return rc;
     }
 
     void CloseFile(FsFile* file) override {
         if (file) {
             fsFileClose(file);
+            AlbumTrace("CloseFile");
         }
     }
 
     Result OpenDirectory(const char* path, u32 /*mode*/, FsDir* out_dir) override {
         if (!out_dir) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
-        const Result rc = EnsureFsOpen();
+        std::lock_guard<std::mutex> lock(m_mutex);
+        const Result rc = EnsureFsOpenLocked();
         if (R_FAILED(rc)) return rc;
         const auto fixed = FixPath(path);
         if (fixed.empty()) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
-        return fsFsOpenDirectory(&m_fs, fixed.c_str(),
-            FsDirOpenMode_ReadDirs | FsDirOpenMode_ReadFiles | FsDirOpenMode_NoFileSize, out_dir);
+        const Result out_rc = fsFsOpenDirectory(&m_fs, fixed.c_str(),
+            FsDirOpenMode_ReadDirs | FsDirOpenMode_ReadFiles, out_dir);
+        AlbumTrace("OpenDirectory path='%s' fixed='%s' rc=0x%08x",
+            path ? path : "(null)", fixed.c_str(), out_rc);
+        return out_rc;
     }
 
     Result ReadDirectory(FsDir* d, s64* out_total_entries, size_t max_entries, FsDirectoryEntry* buf) override {
         if (!d || !out_total_entries || !buf) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
-        return fsDirRead(d, out_total_entries, max_entries, buf);
+        const Result rc = fsDirRead(d, out_total_entries, max_entries, buf);
+        AlbumTrace("ReadDirectory max=%llu rc=0x%08x read=%lld",
+            static_cast<unsigned long long>(max_entries), rc,
+            static_cast<long long>(R_SUCCEEDED(rc) ? *out_total_entries : -1));
+        return rc;
     }
 
     Result GetDirectoryEntryCount(FsDir* d, s64* out_count) override {
         if (!d || !out_count) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
-        return fsDirGetEntryCount(d, out_count);
+        const Result rc = fsDirGetEntryCount(d, out_count);
+        AlbumTrace("GetDirectoryEntryCount rc=0x%08x count=%lld",
+            rc, static_cast<long long>(R_SUCCEEDED(rc) ? *out_count : -1));
+        return rc;
     }
 
     void CloseDirectory(FsDir* d) override {
         if (d) {
             fsDirClose(d);
+            AlbumTrace("CloseDirectory");
         }
     }
 
+    bool MultiThreadTransfer(s64 /*size*/, bool read) override {
+        /* Album reads are more reliable on this backend with conservative transfer mode. */
+        const bool allow = !read;
+        AlbumTrace("MultiThreadTransfer read=%d allow=%d", read ? 1 : 0, allow ? 1 : 0);
+        return allow;
+    }
+
 private:
-    Result EnsureFsOpen() {
+    Result EnsureFsOpenLocked() {
         if (!m_fs_open) {
             const Result rc = fsOpenImageDirectoryFileSystem(&m_fs, FsImageDirectoryId_Sd);
             if (R_FAILED(rc)) return rc;
             m_fs_open = true;
         }
         return 0;
+    }
+
+    Result EnsureSdFsOpenLocked() {
+        if (!m_sd_fs_open) {
+            const Result rc = fsOpenSdCardFileSystem(&m_sd_fs);
+            if (R_FAILED(rc)) return rc;
+            m_sd_fs_open = true;
+        }
+        return 0;
+    }
+
+    Result OpenFileFromSdLocked(const char* sd_path, FsFile* out_file) {
+        if (!sd_path || !out_file) return MAKERESULT(Module_Libnx, LibnxError_BadInput);
+        Result rc = EnsureSdFsOpenLocked();
+        if (R_FAILED(rc)) {
+            return rc;
+        }
+        for (int attempt = 0; attempt < 4; ++attempt) {
+            rc = fsFsOpenFile(&m_sd_fs, sd_path, FsOpenMode_Read, out_file);
+            if (R_SUCCEEDED(rc)) {
+                return rc;
+            }
+            svcSleepThread(5'000'000);
+        }
+        return rc;
+    }
+
+    static std::string ToSdAlbumPath(const std::string& fixed) {
+        if (fixed.empty() || fixed.find("..") != std::string::npos) {
+            return {};
+        }
+        if (fixed == "/") {
+            return "/Nintendo/Album";
+        }
+        return "/Nintendo/Album" + fixed;
     }
 
     static Result QuerySdSpace(s64* out_total, s64* out_free) {
@@ -460,6 +666,9 @@ private:
 
     FsFileSystem m_fs{};
     bool m_fs_open = false;
+    FsFileSystem m_sd_fs{};
+    bool m_sd_fs_open = false;
+    std::mutex m_mutex;
 };
 
 haze::FsEntries g_entries;
@@ -476,13 +685,24 @@ bool StartInstallServer(int storage_choice)
     if (g_running) return true;
 
     g_storage_choice = storage_choice;
+    std::remove(kAlbumTracePath);
+    g_album_trace_count.store(0, std::memory_order_relaxed);
     if (!g_awoo_suspended) {
         awoo_usbCommsExit();
         g_awoo_suspended = true;
     }
     if (!g_ncm_ready) {
-        if (R_SUCCEEDED(ncmInitialize())) {
+        const Result rc = ncmInitialize();
+        if (R_SUCCEEDED(rc)) {
             g_ncm_ready = true;
+        } else {
+            if (g_awoo_suspended) {
+                const Result resume_rc = awoo_usbCommsInitialize();
+                if (R_SUCCEEDED(resume_rc) || resume_rc == MAKERESULT(Module_Libnx, LibnxError_AlreadyInitialized)) {
+                    g_awoo_suspended = false;
+                }
+            }
+            return false;
         }
     }
     g_entries.clear();

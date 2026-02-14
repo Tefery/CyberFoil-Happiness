@@ -144,6 +144,10 @@ namespace haze {
             /* If it is, we're done. */
             R_SUCCEED_IF(entry_type == FsDirEntryType_Dir);
 
+            if (this->TryGetCachedObjectSize(obj, out_size)) {
+                R_SUCCEED();
+            }
+
             /* Otherwise, open as a file. */
             FsFile file;
             R_TRY(Fs(obj).OpenFile(obj->GetName(), FsOpenMode_Read, std::addressof(file)));
@@ -151,7 +155,9 @@ namespace haze {
             /* Ensure we maintain a clean state on exit. */
             ON_SCOPE_EXIT { Fs(obj).CloseFile(std::addressof(file)); };
 
-            R_RETURN(Fs(obj).GetFileSize(std::addressof(file), out_size));
+            R_TRY(Fs(obj).GetFileSize(std::addressof(file), out_size));
+            this->CacheObjectSize(obj, static_cast<u64>(*out_size));
+            R_SUCCEED();
         };
 
         /* Begin writing the requested object property. */
@@ -249,6 +255,10 @@ namespace haze {
             /* If it is, we're done. */
             R_SUCCEED_IF(entry_type == FsDirEntryType_Dir);
 
+            if (this->TryGetCachedObjectSize(obj, out_size)) {
+                R_SUCCEED();
+            }
+
             /* Otherwise, open as a file. */
             FsFile file;
             R_TRY(Fs(obj).OpenFile(obj->GetName(), FsOpenMode_Read, std::addressof(file)));
@@ -256,7 +266,9 @@ namespace haze {
             /* Ensure we maintain a clean state on exit. */
             ON_SCOPE_EXIT { Fs(obj).CloseFile(std::addressof(file)); };
 
-            R_RETURN(Fs(obj).GetFileSize(std::addressof(file), out_size));
+            R_TRY(Fs(obj).GetFileSize(std::addressof(file), out_size));
+            this->CacheObjectSize(obj, static_cast<u64>(*out_size));
+            R_SUCCEED();
         };
 
         /* Define helper for determining if the property should be included. */
@@ -449,6 +461,7 @@ namespace haze {
             R_TRY(Fs(newobj).CreateFile(newobj->GetName(), prop_list.size, flags));
             WriteCallbackFile(CallbackType_CreateFile, newobj->GetName());
             m_send_object_id = new_object_info.object_id;
+            this->CacheObjectSize(newobj, prop_list.size);
         }
 
         /* Save prop list and return success. */
@@ -528,10 +541,16 @@ namespace haze {
         }
 
         /* Unregister and free the old object. */
+        s64 cached_size = 0;
+        const bool had_cached_size = this->TryGetCachedObjectSize(obj, std::addressof(cached_size));
+        this->EraseCachedObjectSize(obj->GetName());
         m_object_database.DeleteObject(obj);
 
         /* Register the new object. */
         m_object_database.RegisterObject(newobj, object_id);
+        if (had_cached_size && cached_size >= 0) {
+            this->CacheObjectSize(newobj, static_cast<u64>(cached_size));
+        }
 
         /* Write the success response. */
         R_RETURN(this->WriteResponse(PtpResponseCode_Ok));

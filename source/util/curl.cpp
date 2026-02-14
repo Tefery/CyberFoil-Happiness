@@ -5,9 +5,13 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
+#include <system_error>
+#include <vector>
 #include "util/curl.hpp"
 #include "util/config.hpp"
 #include "util/error.hpp"
+#include "util/lang.hpp"
 #include "ui/instPage.hpp"
 
 static size_t writeDataFile(void *ptr, size_t size, size_t nmemb, void *stream) {
@@ -39,6 +43,58 @@ static std::string getUserAgent() {
     return "HappyFoil/" + inst::config::appVersion;
 }
 
+static void buildVersionAndRevision(std::string& outVersion, std::string& outRevision)
+{
+    const std::string raw = inst::config::appVersion;
+    outVersion = raw.empty() ? "0.0" : raw;
+    outRevision = "0";
+
+    const std::size_t firstDot = raw.find('.');
+    if (firstDot == std::string::npos)
+        return;
+
+    const std::size_t secondDot = raw.find('.', firstDot + 1);
+    if (secondDot == std::string::npos) {
+        outVersion = raw;
+        return;
+    }
+
+    outVersion = raw.substr(0, secondDot);
+    const std::string revisionToken = raw.substr(secondDot + 1);
+    if (revisionToken.empty())
+        return;
+
+    std::size_t digitsEnd = 0;
+    while (digitsEnd < revisionToken.size()) {
+        const char c = revisionToken[digitsEnd];
+        if (c < '0' || c > '9')
+            break;
+        digitsEnd++;
+    }
+    if (digitsEnd > 0)
+        outRevision = revisionToken.substr(0, digitsEnd);
+}
+
+static std::vector<std::string> buildShopHeaders()
+{
+    std::string themeHeader = "Theme: 0000000000000000000000000000000000000000000000000000000000000000";
+    std::string versionValue;
+    std::string revisionValue;
+    buildVersionAndRevision(versionValue, revisionValue);
+    std::string versionHeader = "Version: " + versionValue;
+    std::string revisionHeader = "Revision: " + revisionValue;
+    std::string languageHeader = "Language: " + Language::GetShopHeaderLanguage();
+    return {
+        themeHeader,
+        "UID: 0000000000000000000000000000000000000000000000000000000000000000",
+        versionHeader,
+        revisionHeader,
+        languageHeader,
+        "HAUTH: 0",
+        "UAUTH: 0"
+    };
+}
+
 size_t writeDataBuffer(char *ptr, size_t size, size_t nmemb, void *userdata) {
     std::ostringstream *stream = (std::ostringstream*)userdata;
     size_t count = size * nmemb;
@@ -57,60 +113,195 @@ int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_
     return 0;
 }
 
-namespace inst::curl {
-    bool downloadFile (const std::string ourUrl, const char *pagefilename, long timeout, bool writeProgress) {
-        CURL *curl_handle;
-        CURLcode result;
-        FILE *pagefile;
-        
-        curl_global_init(CURL_GLOBAL_ALL);
-        curl_handle = curl_easy_init();
-        
-        curl_easy_setopt(curl_handle, CURLOPT_URL, ourUrl.c_str());
-        curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
-        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, 0L);
-        std::string userAgent = getUserAgent();
-        curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, userAgent.c_str());
-        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYHOST, 0L);
+struct DownloadProgressContext {
+    const inst::curl::DownloadProgressCallback* cb = nullptr;
+    curl_off_t lastNow = -1;
+    curl_off_t lastTotal = -1;
+};
+
+int progress_callback_file(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t /*ultotal*/, curl_off_t /*ulnow*/) {
+    auto* ctx = static_cast<DownloadProgressContext*>(clientp);
+    if (ctx == nullptr || ctx->cb == nullptr || !(*ctx->cb)) {
+        return 0;
+    }
+
+    if (ctx->lastNow == dlnow && ctx->lastTotal == dltotal) {
+        return 0;
+    }
+    ctx->lastNow = dlnow;
+    ctx->lastTotal = dltotal;
+
+    const std::uint64_t now = (dlnow > 0) ? static_cast<std::uint64_t>(dlnow) : 0;
+    const std::uint64_t total = (dltotal > 0) ? static_cast<std::uint64_t>(dltotal) : 0;
+    (*ctx->cb)(now, total);
+    return 0;
+}
+
+static constexpr long kDefaultConnectTimeoutMs = 15000;
+static constexpr long kLowSpeedLimitBytesPerSec = 1;
+static constexpr long kLowSpeedTimeSeconds = 45;
+
+static bool ensureCurlGlobalInit() {
+    static std::once_flag initFlag;
+    static bool initOk = false;
+    std::call_once(initFlag, []() {
+        initOk = (curl_global_init(CURL_GLOBAL_ALL) == CURLE_OK);
+    });
+    return initOk;
+}
+
+static void removeFileIfExistsNoThrow(const char* path) {
+    if (path == nullptr || path[0] == '\0') {
+        return;
+    }
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+}
+
+static void applyCommonCurlOptions(CURL *curl_handle, const std::string& url, long timeout, bool writeProgress) {
+    curl_easy_setopt(curl_handle, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, 0L);
+    std::string userAgent = getUserAgent();
+    curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, userAgent.c_str());
+    curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYHOST, 0L);
+    curl_easy_setopt(curl_handle, CURLOPT_NOSIGNAL, 1L);
+
+    if (writeProgress) {
         curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 0L);
+        curl_easy_setopt(curl_handle, CURLOPT_XFERINFOFUNCTION, progress_callback);
+    } else {
+        curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
+    }
+
+    if (timeout > 0) {
         curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, timeout);
         curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS, timeout);
-        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataFile);
-        if (writeProgress) curl_easy_setopt(curl_handle, CURLOPT_XFERINFOFUNCTION, progress_callback);
-        
-        pagefile = fopen(pagefilename, "wb");
-        curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);
-        result = curl_easy_perform(curl_handle);
-        
-        curl_easy_cleanup(curl_handle);
-        curl_global_cleanup();
-        fclose(pagefile);
+    } else {
+        curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS, kDefaultConnectTimeoutMs);
+        curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_LIMIT, kLowSpeedLimitBytesPerSec);
+        curl_easy_setopt(curl_handle, CURLOPT_LOW_SPEED_TIME, kLowSpeedTimeSeconds);
+    }
+}
 
-        if (result == CURLE_OK) return true;
-        else {
-            LOG_DEBUG(curl_easy_strerror(result));
+namespace inst::curl {
+    bool downloadFile (const std::string ourUrl, const char *pagefilename, long timeout, bool writeProgress) {
+        if (!ensureCurlGlobalInit()) {
+            LOG_DEBUG("curl global init failed\n");
             return false;
         }
+
+        CURL *curl_handle = curl_easy_init();
+        if (curl_handle == nullptr) {
+            LOG_DEBUG("curl_easy_init failed\n");
+            return false;
+        }
+
+        applyCommonCurlOptions(curl_handle, ourUrl, timeout, writeProgress);
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataFile);
+        curl_easy_setopt(curl_handle, CURLOPT_FAILONERROR, 1L);
+
+        FILE *pagefile = fopen(pagefilename, "wb");
+        if (pagefile == nullptr) {
+            LOG_DEBUG("Failed to open download output file: %s\n", pagefilename);
+            curl_easy_cleanup(curl_handle);
+            return false;
+        }
+
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);
+        const CURLcode result = curl_easy_perform(curl_handle);
+        long responseCode = 0;
+        curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &responseCode);
+
+        fclose(pagefile);
+        curl_easy_cleanup(curl_handle);
+
+        const bool ok = (result == CURLE_OK) && (responseCode >= 200 && responseCode < 300);
+        if (ok)
+            return true;
+
+        removeFileIfExistsNoThrow(pagefilename);
+
+        LOG_DEBUG("downloadFile failed rc=%s http=%ld url=%s\n", curl_easy_strerror(result), responseCode, ourUrl.c_str());
+        return false;
+    }
+
+    bool downloadFileWithProgress(const std::string ourUrl, const char *pagefilename, long timeout, const DownloadProgressCallback& progressCb) {
+        if (!ensureCurlGlobalInit()) {
+            LOG_DEBUG("curl global init failed\n");
+            return false;
+        }
+
+        CURL *curl_handle = curl_easy_init();
+        if (curl_handle == nullptr) {
+            LOG_DEBUG("curl_easy_init failed\n");
+            return false;
+        }
+
+        applyCommonCurlOptions(curl_handle, ourUrl, timeout, false);
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataFile);
+        curl_easy_setopt(curl_handle, CURLOPT_FAILONERROR, 1L);
+        curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 0L);
+
+        DownloadProgressContext progressCtx{};
+        progressCtx.cb = &progressCb;
+        progressCtx.lastNow = -1;
+        progressCtx.lastTotal = -1;
+        curl_easy_setopt(curl_handle, CURLOPT_XFERINFOFUNCTION, progress_callback_file);
+        curl_easy_setopt(curl_handle, CURLOPT_XFERINFODATA, &progressCtx);
+
+        FILE *pagefile = fopen(pagefilename, "wb");
+        if (pagefile == nullptr) {
+            LOG_DEBUG("Failed to open download output file: %s\n", pagefilename);
+            curl_easy_cleanup(curl_handle);
+            return false;
+        }
+
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);
+        const CURLcode result = curl_easy_perform(curl_handle);
+        long responseCode = 0;
+        curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &responseCode);
+
+        fclose(pagefile);
+        curl_easy_cleanup(curl_handle);
+
+        const bool ok = (result == CURLE_OK) && (responseCode >= 200 && responseCode < 300);
+        if (ok) {
+            if (progressCb) {
+                progressCb(progressCtx.lastNow > 0 ? static_cast<std::uint64_t>(progressCtx.lastNow) : 0,
+                           progressCtx.lastTotal > 0 ? static_cast<std::uint64_t>(progressCtx.lastTotal) : 0);
+            }
+            return true;
+        }
+
+        removeFileIfExistsNoThrow(pagefilename);
+
+        LOG_DEBUG("downloadFileWithProgress failed rc=%s http=%ld url=%s\n", curl_easy_strerror(result), responseCode, ourUrl.c_str());
+        return false;
     }
 
     bool downloadFileWithAuth(const std::string ourUrl, const char *pagefilename, const std::string& user, const std::string& pass, long timeout) {
-        CURL *curl_handle;
-        CURLcode result;
-        FILE *pagefile;
+        if (!ensureCurlGlobalInit()) {
+            LOG_DEBUG("curl global init failed\n");
+            return false;
+        }
 
-        curl_global_init(CURL_GLOBAL_ALL);
-        curl_handle = curl_easy_init();
+        CURL *curl_handle = curl_easy_init();
+        if (curl_handle == nullptr) {
+            LOG_DEBUG("curl_easy_init failed\n");
+            return false;
+        }
 
-        curl_easy_setopt(curl_handle, CURLOPT_URL, ourUrl.c_str());
-        curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
-        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, 0L);
-        std::string userAgent = getUserAgent();
-        curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, userAgent.c_str());
-        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYHOST, 0L);
-        curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
-        curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, timeout);
-        curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS, timeout);
+        applyCommonCurlOptions(curl_handle, ourUrl, timeout, false);
         curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataFile);
+        curl_easy_setopt(curl_handle, CURLOPT_FAILONERROR, 1L);
+
+        struct curl_slist* headerList = nullptr;
+        const auto headers = buildShopHeaders();
+        for (const auto& header : headers)
+            headerList = curl_slist_append(headerList, header.c_str());
+        if (headerList)
+            curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, headerList);
 
         if (!user.empty() || !pass.empty()) {
             std::string authValue = user + ":" + pass;
@@ -118,41 +309,67 @@ namespace inst::curl {
             curl_easy_setopt(curl_handle, CURLOPT_USERPWD, authValue.c_str());
         }
 
-        pagefile = fopen(pagefilename, "wb");
-        curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);
-        result = curl_easy_perform(curl_handle);
-
-        curl_easy_cleanup(curl_handle);
-        curl_global_cleanup();
-        fclose(pagefile);
-
-        if (result == CURLE_OK) return true;
-        else {
-            LOG_DEBUG(curl_easy_strerror(result));
+        FILE *pagefile = fopen(pagefilename, "wb");
+        if (pagefile == nullptr) {
+            LOG_DEBUG("Failed to open download output file: %s\n", pagefilename);
+            curl_easy_cleanup(curl_handle);
             return false;
         }
+
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);
+        const CURLcode result = curl_easy_perform(curl_handle);
+        long responseCode = 0;
+        curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &responseCode);
+
+        fclose(pagefile);
+        if (headerList)
+            curl_slist_free_all(headerList);
+        curl_easy_cleanup(curl_handle);
+
+        const bool ok = (result == CURLE_OK) && (responseCode >= 200 && responseCode < 300);
+        if (ok)
+            return true;
+
+        removeFileIfExistsNoThrow(pagefilename);
+
+        LOG_DEBUG("downloadFileWithAuth failed rc=%s http=%ld url=%s\n", curl_easy_strerror(result), responseCode, ourUrl.c_str());
+        return false;
     }
 
     bool downloadImageWithAuth(const std::string ourUrl, const char *pagefilename, const std::string& user, const std::string& pass, long timeout) {
-        CURL *curl_handle;
-        CURLcode result;
-        FILE *pagefile;
+        if (!ensureCurlGlobalInit()) {
+            LOG_DEBUG("curl global init failed\n");
+            return false;
+        }
+
+        CURL *curl_handle = curl_easy_init();
+        if (curl_handle == nullptr) {
+            LOG_DEBUG("curl_easy_init failed\n");
+            return false;
+        }
+
+        applyCommonCurlOptions(curl_handle, ourUrl, timeout, false);
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataFile);
+        curl_easy_setopt(curl_handle, CURLOPT_FAILONERROR, 1L);
+
+        struct curl_slist* headerList = nullptr;
+        const auto headers = buildShopHeaders();
+        for (const auto& header : headers)
+            headerList = curl_slist_append(headerList, header.c_str());
+        if (headerList)
+            curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, headerList);
+
+        FILE *pagefile = fopen(pagefilename, "wb");
+        if (pagefile == nullptr) {
+            LOG_DEBUG("Failed to open image output file: %s\n", pagefilename);
+            if (headerList)
+                curl_slist_free_all(headerList);
+            curl_easy_cleanup(curl_handle);
+            return false;
+        }
+
         long responseCode = 0;
         char* contentType = nullptr;
-
-        curl_global_init(CURL_GLOBAL_ALL);
-        curl_handle = curl_easy_init();
-
-        curl_easy_setopt(curl_handle, CURLOPT_URL, ourUrl.c_str());
-        curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
-        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, 0L);
-        std::string userAgent = getUserAgent();
-        curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, userAgent.c_str());
-        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYHOST, 0L);
-        curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
-        curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, timeout);
-        curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS, timeout);
-        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataFile);
 
         if (!user.empty() || !pass.empty()) {
             std::string authValue = user + ":" + pass;
@@ -160,15 +377,15 @@ namespace inst::curl {
             curl_easy_setopt(curl_handle, CURLOPT_USERPWD, authValue.c_str());
         }
 
-        pagefile = fopen(pagefilename, "wb");
         curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);
-        result = curl_easy_perform(curl_handle);
+        const CURLcode result = curl_easy_perform(curl_handle);
         curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &responseCode);
         curl_easy_getinfo(curl_handle, CURLINFO_CONTENT_TYPE, &contentType);
 
-        curl_easy_cleanup(curl_handle);
-        curl_global_cleanup();
         fclose(pagefile);
+        if (headerList)
+            curl_slist_free_all(headerList);
+        curl_easy_cleanup(curl_handle);
 
         bool ok = (result == CURLE_OK) && (responseCode >= 200 && responseCode < 300);
         if (ok) {
@@ -177,46 +394,45 @@ namespace inst::curl {
                 typeOk = isLikelyImageFile(pagefilename);
             ok = typeOk;
         }
-        if (!ok && std::filesystem::exists(pagefilename))
-            std::filesystem::remove(pagefilename);
+        if (!ok)
+            removeFileIfExistsNoThrow(pagefilename);
         if (!ok)
             LOG_DEBUG(curl_easy_strerror(result));
         return ok;
     }
 
     std::string downloadToBuffer (const std::string ourUrl, int firstRange, int secondRange, long timeout) {
-        CURL *curl_handle;
-        CURLcode result;
+        if (!ensureCurlGlobalInit()) {
+            LOG_DEBUG("curl global init failed\n");
+            return "";
+        }
+
+        CURL *curl_handle = curl_easy_init();
+        if (curl_handle == nullptr) {
+            LOG_DEBUG("curl_easy_init failed\n");
+            return "";
+        }
+
         std::ostringstream stream;
-        
-        curl_global_init(CURL_GLOBAL_ALL);
-        curl_handle = curl_easy_init();
-        
-        curl_easy_setopt(curl_handle, CURLOPT_URL, ourUrl.c_str());
-        curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
-        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, 0L);
-        std::string userAgent = getUserAgent();
-        curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, userAgent.c_str());
-        curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYHOST, 0L);
-        curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 0L);
-        curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, timeout);
-        curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS, timeout);
+        applyCommonCurlOptions(curl_handle, ourUrl, timeout, false);
         curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, writeDataBuffer);
+        std::string ourRange;
         if (firstRange && secondRange) {
-            const char * ourRange = (std::to_string(firstRange) + "-" + std::to_string(secondRange)).c_str();
-            curl_easy_setopt(curl_handle, CURLOPT_RANGE, ourRange);
+            ourRange = std::to_string(firstRange) + "-" + std::to_string(secondRange);
+            curl_easy_setopt(curl_handle, CURLOPT_RANGE, ourRange.c_str());
         }
         
         curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &stream);
-        result = curl_easy_perform(curl_handle);
+        const CURLcode result = curl_easy_perform(curl_handle);
+        long responseCode = 0;
+        curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &responseCode);
         
         curl_easy_cleanup(curl_handle);
-        curl_global_cleanup();
 
-        if (result == CURLE_OK) return stream.str();
-        else {
-            LOG_DEBUG(curl_easy_strerror(result));
-            return "";
-        }
+        if ((result == CURLE_OK) && (responseCode >= 200 && responseCode < 300))
+            return stream.str();
+
+        LOG_DEBUG("downloadToBuffer failed rc=%s http=%ld url=%s\n", curl_easy_strerror(result), responseCode, ourUrl.c_str());
+        return "";
     }
 }

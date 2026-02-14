@@ -52,6 +52,9 @@ typedef void(*Callback)(const CallbackData* data);
 struct FileSystemProxyImpl {
     virtual const char* GetName() const = 0;
     virtual const char* GetDisplayName() const = 0;
+    /* PTP/MTP access capability:
+     * 0 = ReadWrite, 1 = ReadOnly, 2 = ReadOnlyWithObjectDeletion. */
+    virtual u16 GetAccessCapability() const { return 0; }
 
     virtual Result GetTotalSpace(const char *path, s64 *out) = 0;
     virtual Result GetFreeSpace(const char *path, s64 *out) = 0;

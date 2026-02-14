@@ -28,6 +28,7 @@ SOFTWARE.
 #include "util/config.hpp"
 #include "util/title_util.hpp"
 #include "install/nca.hpp"
+#include <limits>
 
 void append(std::vector<u8>& buffer, const u8* ptr, u64 sz)
 {
@@ -201,16 +202,29 @@ public:
           return true;
      }
 
-     NczHeader::SectionContext& section(u64 offset)
+     NczHeader::SectionContext* section(u64 offset)
      {
           for (u64 i = 0; i < sections.size(); i++)
           {
                if (offset >= sections[i]->offset && offset < sections[i]->offset + sections[i]->size)
                {
-                    return *sections[i];
+                    return sections[i];
                }
           }
-          return *sections[0];
+          return NULL;
+     }
+
+     u64 nextSectionOffset(u64 offset) const
+     {
+          u64 next = std::numeric_limits<u64>::max();
+          for (u64 i = 0; i < sections.size(); i++)
+          {
+               if (sections[i]->offset > offset && sections[i]->offset < next)
+               {
+                    next = sections[i]->offset;
+               }
+          }
+          return next;
      }
 
      bool encrypt(const void* ptr, u64 sz, u64 offset)
@@ -220,13 +234,31 @@ public:
 
           while (start < end)
           {
-               auto& s = section(offset);
+               auto* s = section(offset);
+               u64 chunk = sz;
 
-               u64 sectionEnd = s.offset + s.size;
+               if (s)
+               {
+                    const u64 sectionEnd = s->offset + s->size;
+                    if (sectionEnd > offset)
+                    {
+                         chunk = std::min<u64>(sz, sectionEnd - offset);
+                         s->encrypt((void*)start, chunk, offset);
+                    }
+               }
+               else
+               {
+                    const u64 next = nextSectionOffset(offset);
+                    if (next != std::numeric_limits<u64>::max() && next > offset)
+                    {
+                         chunk = std::min<u64>(sz, next - offset);
+                    }
+               }
 
-               u64 chunk = offset + sz > sectionEnd ? sectionEnd - offset : sz;
-
-               s.encrypt((void*)start, chunk, offset);
+               if (chunk == 0)
+               {
+                    return false;
+               }
 
                offset += chunk;
                start += chunk;

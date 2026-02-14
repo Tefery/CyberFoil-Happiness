@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <filesystem>
+#include <stdexcept>
 #include <switch.h>
 #include "ui/MainApplication.hpp"
 #include "ui/mainPage.hpp"
@@ -7,6 +9,7 @@
 #include "util/util.hpp"
 #include "util/config.hpp"
 #include "util/curl.hpp"
+#include "util/offline_db_update.hpp"
 #include "util/unzip.hpp"
 #include "util/lang.hpp"
 #include "ui/instPage.hpp"
@@ -20,6 +23,54 @@ namespace inst::ui {
 
     std::vector<std::string> languageStrings = {"English", "日本語", "Français", "Deutsch", "Italiano", "Español", "Português", "한국어", "Русский", "簡体中文","繁體中文"};
 
+    namespace {
+        bool IsActiveShop(const inst::config::ShopProfile& shop)
+        {
+            return inst::config::BuildShopUrl(shop) == inst::config::shopUrl &&
+                   shop.username == inst::config::shopUser &&
+                   shop.password == inst::config::shopPass;
+        }
+
+        std::string TrimString(const std::string& value)
+        {
+            if (value.empty())
+                return "";
+            std::size_t start = value.find_first_not_of(" \t\r\n");
+            if (start == std::string::npos)
+                return "";
+            std::size_t end = value.find_last_not_of(" \t\r\n");
+            return value.substr(start, (end - start) + 1);
+        }
+
+        std::string ActiveShopLabel(const std::vector<inst::config::ShopProfile>& shops)
+        {
+            for (const auto& shop : shops) {
+                if (!IsActiveShop(shop))
+                    continue;
+                if (shop.favourite)
+                    return "* " + shop.title;
+                return shop.title;
+            }
+
+            if (!inst::config::shopUrl.empty())
+                return inst::util::shortenString(inst::config::shopUrl, 42, false);
+            return "-";
+        }
+
+        std::vector<std::string> BuildShopChoices(const std::vector<inst::config::ShopProfile>& shops)
+        {
+            std::vector<std::string> labels;
+            labels.reserve(shops.size());
+            for (const auto& shop : shops) {
+                std::string label = (shop.favourite ? "* " : "") + shop.title;
+                if (IsActiveShop(shop))
+                    label += " (Active)";
+                labels.push_back(label);
+            }
+            return labels;
+        }
+    }
+
     optionsPage::optionsPage() : Layout::Layout() {
         if (inst::config::oledMode) {
             this->SetBackgroundColor(COLOR("#000000FF"));
@@ -31,17 +82,17 @@ namespace inst::ui {
         const auto topColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#170909FF");
         const auto infoColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
         const auto botColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
-        this->topRect = Rectangle::New(0, 0, 1280, 94, topColor);
-        this->infoRect = Rectangle::New(0, 95, 1280, 60, infoColor);
+        this->topRect = Rectangle::New(0, 0, 1280, 74, topColor);
+        this->infoRect = Rectangle::New(0, 75, 1280, 60, infoColor);
         this->botRect = Rectangle::New(0, 660, 1280, 60, botColor);
-        this->sideNavRect = Rectangle::New(20, 156, 260, 504, inst::config::oledMode ? COLOR("#FFFFFF18") : COLOR("#170909A0"), 14);
+        this->sideNavRect = Rectangle::New(0, 136, 300, 523, inst::config::oledMode ? COLOR("#FFFFFF18") : COLOR("#170909A0"));
         if (inst::config::gayMode) {
-            this->titleImage = Image::New(-113, 0, "romfs:/images/logo.png");
-            this->appVersionText = TextBlock::New(367, 49, "v" + inst::config::appVersion, 22);
+            this->titleImage = Image::New(-113, -8, "romfs:/images/logo.png");
+            this->appVersionText = TextBlock::New(367, 29, "v" + inst::config::appVersion, 22);
         }
         else {
-            this->titleImage = Image::New(0, 0, "romfs:/images/logo.png");
-            this->appVersionText = TextBlock::New(480, 49, "v" + inst::config::appVersion, 22);
+            this->titleImage = Image::New(0, -8, "romfs:/images/logo.png");
+            this->appVersionText = TextBlock::New(480, 29, "v" + inst::config::appVersion, 22);
         }
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
         this->timeText = TextBlock::New(0, 18, "--:--", 22);
@@ -67,13 +118,13 @@ namespace inst::ui {
         this->batteryOutline = Rectangle::New(0, 0, 24, 12, COLOR("#FFFFFF66"));
         this->batteryFill = Rectangle::New(0, 0, 0, 10, COLOR("#4CD964FF"));
         this->batteryCap = Rectangle::New(0, 0, 3, 6, COLOR("#FFFFFF66"));
-        this->pageInfoText = TextBlock::New(10, 109, "options.title"_lang, 30);
+        this->pageInfoText = TextBlock::New(10, 89, "options.title"_lang, 30);
         this->pageInfoText->SetColor(COLOR("#FFFFFFFF"));
         const std::string optionsHintText = " Select/Change    / Section     Back";
         this->butText = TextBlock::New(10, 678, optionsHintText, 20);
         this->butText->SetColor(COLOR("#FFFFFFFF"));
         this->bottomHintSegments = BuildBottomHintSegments(optionsHintText, 10, 20);
-        this->menu = pu::ui::elm::Menu::New(300, 156, 960, COLOR("#FFFFFF00"), 72, (506 / 72), 20);
+        this->menu = pu::ui::elm::Menu::New(301, 136, 979, COLOR("#FFFFFF00"), 72, (506 / 72), 20);
         if (inst::config::oledMode) {
             this->menu->SetOnFocusColor(COLOR("#FFFFFF33"));
             this->menu->SetScrollbarColor(COLOR("#FFFFFF66"));
@@ -107,14 +158,15 @@ namespace inst::ui {
         this->Add(this->butText);
         this->Add(this->pageInfoText);
         for (int i = 0; i < 3; i++) {
-            auto sectionHighlight = Rectangle::New(30, 172 + (i * 56), 240, 48, COLOR("#FFFFFF00"), 10);
+            auto sectionHighlight = Rectangle::New(30, 152 + (i * 56), 240, 48, COLOR("#FFFFFF00"), 10);
             this->sectionHighlights.push_back(sectionHighlight);
             this->Add(sectionHighlight);
-            auto sectionText = TextBlock::New(40, 190 + (i * 56), "", 26);
+            auto sectionText = TextBlock::New(40, 170 + (i * 56), "", 26);
             sectionText->SetColor(COLOR("#FFFFFFFF"));
             this->sectionTexts.push_back(sectionText);
             this->Add(sectionText);
         }
+        this->sectionMenuIndices.assign(this->sectionTexts.size(), 0);
         this->refreshOptions(true);
         this->Add(this->menu);
     }
@@ -222,16 +274,21 @@ namespace inst::ui {
         }
 
         if (this->selectedSection == 1) {
-            std::string shopUrlDisplay = inst::config::shopUrl.empty() ? "-" : inst::util::shortenString(inst::config::shopUrl, 42, false);
-            addItem("options.menu_items.shop_url"_lang + shopUrlDisplay, false, false);
-            std::string shopUserDisplay = inst::config::shopUser.empty() ? "-" : inst::util::shortenString(inst::config::shopUser, 42, false);
-            addItem("options.menu_items.shop_user"_lang + shopUserDisplay, false, false);
-            std::string shopPassDisplay = inst::config::shopPass.empty() ? "-" : "********";
-            addItem("options.menu_items.shop_pass"_lang + shopPassDisplay, false, false);
+            std::vector<inst::config::ShopProfile> shops = inst::config::LoadShops();
+            std::string dbVersion = inst::offline::dbupdate::GetInstalledVersion();
+            if (dbVersion.empty())
+                dbVersion = "not installed";
+            else
+                dbVersion = inst::util::shortenString(dbVersion, 24, false);
+            addItem("Active shop: " + inst::util::shortenString(ActiveShopLabel(shops), 42, false), false, false);
+            addItem("Memorized shops: " + std::to_string(shops.size()), false, false);
+            addItem("Add new shop", false, false);
             addItem("options.menu_items.shop_hide_installed"_lang, true, inst::config::shopHideInstalled);
             addItem("options.menu_items.shop_hide_installed_section"_lang, true, inst::config::shopHideInstalledSection);
             addItem("options.menu_items.shop_start_grid_mode"_lang, true, inst::config::shopStartGridMode);
             addItem("options.menu_items.shop_reset_icons"_lang, false, false);
+            addItem("Offline DB auto-check on startup", true, inst::config::offlineDbAutoCheckOnStartup);
+            addItem("Offline DB update (" + dbVersion + ")", false, false);
             return;
         }
 
@@ -247,6 +304,48 @@ namespace inst::ui {
         this->setSectionNavText();
         this->setSettingsMenuText();
         if (resetSelection) this->menu->SetSelectedIndex(0);
+    }
+
+    void optionsPage::rememberCurrentSectionMenuIndex() {
+        if (this->selectedSection < 0)
+            return;
+        if (this->selectedSection >= static_cast<int>(this->sectionMenuIndices.size()))
+            this->sectionMenuIndices.resize(this->sectionTexts.size(), 0);
+        int selected = this->menu->GetSelectedIndex();
+        if (selected < 0)
+            selected = 0;
+        this->sectionMenuIndices[this->selectedSection] = selected;
+    }
+
+    void optionsPage::restoreSelectedSectionMenuIndex() {
+        if (this->selectedSection < 0 || this->selectedSection >= static_cast<int>(this->sectionMenuIndices.size()))
+            return;
+        const int itemCount = static_cast<int>(this->menu->GetItems().size());
+        if (itemCount <= 0)
+            return;
+        int selected = this->sectionMenuIndices[this->selectedSection];
+        if (selected < 0)
+            selected = 0;
+        if (selected >= itemCount)
+            selected = itemCount - 1;
+        this->sectionMenuIndices[this->selectedSection] = selected;
+        this->menu->SetSelectedIndex(selected);
+    }
+
+    void optionsPage::setSelectedSectionAndRefresh(int newSection) {
+        if (this->sectionTexts.empty())
+            return;
+        const int sectionCount = static_cast<int>(this->sectionTexts.size());
+        if (newSection < 0)
+            newSection = sectionCount - 1;
+        if (newSection >= sectionCount)
+            newSection = 0;
+
+        this->rememberCurrentSectionMenuIndex();
+        this->selectedSection = newSection;
+        this->refreshOptions(false);
+        this->restoreSelectedSectionMenuIndex();
+        this->lockedMenuIndex = this->menu->GetSelectedIndex();
     }
 
     int optionsPage::getSectionFromTouch(int x, int y) const {
@@ -292,7 +391,6 @@ namespace inst::ui {
             mainApp->LoadLayout(mainApp->mainPage);
         }
 
-        const int sectionCount = static_cast<int>(this->sectionTexts.size());
         const bool leftPressed = (Down & (HidNpadButton_Left | HidNpadButton_StickLLeft)) != 0;
         const bool rightPressed = (Down & (HidNpadButton_Right | HidNpadButton_StickLRight)) != 0;
         const bool upPressed = (Down & (HidNpadButton_Up | HidNpadButton_StickLUp)) != 0;
@@ -300,43 +398,34 @@ namespace inst::ui {
 
         if (leftPressed && !this->tabsFocused) {
             this->tabsFocused = true;
+            this->rememberCurrentSectionMenuIndex();
             this->lockedMenuIndex = this->menu->GetSelectedIndex();
             this->setSectionNavText();
         } else if (rightPressed && this->tabsFocused) {
             this->tabsFocused = false;
+            this->restoreSelectedSectionMenuIndex();
             this->setSectionNavText();
         }
 
         if (Down & HidNpadButton_L) {
             this->tabsFocused = true;
-            this->selectedSection--;
-            if (this->selectedSection < 0) this->selectedSection = sectionCount - 1;
-            this->refreshOptions(true);
-            this->lockedMenuIndex = this->menu->GetSelectedIndex();
+            this->setSelectedSectionAndRefresh(this->selectedSection - 1);
         }
         if (Down & HidNpadButton_R) {
             this->tabsFocused = true;
-            this->selectedSection++;
-            if (this->selectedSection >= sectionCount) this->selectedSection = 0;
-            this->refreshOptions(true);
-            this->lockedMenuIndex = this->menu->GetSelectedIndex();
+            this->setSelectedSectionAndRefresh(this->selectedSection + 1);
         }
 
         if (this->tabsFocused) {
             if (upPressed && !downPressed) {
-                this->selectedSection--;
-                if (this->selectedSection < 0) this->selectedSection = sectionCount - 1;
-                this->refreshOptions(true);
-                this->lockedMenuIndex = this->menu->GetSelectedIndex();
+                this->setSelectedSectionAndRefresh(this->selectedSection - 1);
             } else if (downPressed) {
-                this->selectedSection++;
-                if (this->selectedSection >= sectionCount) this->selectedSection = 0;
-                this->refreshOptions(true);
-                this->lockedMenuIndex = this->menu->GetSelectedIndex();
+                this->setSelectedSectionAndRefresh(this->selectedSection + 1);
             }
             this->menu->SetSelectedIndex(this->lockedMenuIndex);
         } else {
             this->lockedMenuIndex = this->menu->GetSelectedIndex();
+            this->rememberCurrentSectionMenuIndex();
         }
 
         bool touchSelect = false;
@@ -365,14 +454,13 @@ namespace inst::ui {
                     this->tabsFocused = true;
                     int touchedSection = this->getSectionFromTouch(this->touchStartX, this->touchStartY);
                     if (touchedSection >= 0 && touchedSection != this->selectedSection) {
-                        this->selectedSection = touchedSection;
-                        this->refreshOptions(true);
-                        this->lockedMenuIndex = this->menu->GetSelectedIndex();
+                        this->setSelectedSectionAndRefresh(touchedSection);
                     } else {
                         this->setSectionNavText();
                     }
                 } else if (this->touchRegion == 2) {
                     this->tabsFocused = false;
+                    this->restoreSelectedSectionMenuIndex();
                     this->setSectionNavText();
                     touchSelect = true;
                 }
@@ -382,12 +470,15 @@ namespace inst::ui {
             this->touchRegion = 0;
         }
 
+        bool tabAcceptOnly = false;
         if ((Down & HidNpadButton_A) && this->tabsFocused) {
             this->tabsFocused = false;
+            this->restoreSelectedSectionMenuIndex();
             this->setSectionNavText();
+            tabAcceptOnly = true;
         }
 
-        if (((Down & HidNpadButton_A) && !this->tabsFocused) || touchSelect) {
+        if ((((Down & HidNpadButton_A) && !this->tabsFocused) && !tabAcceptOnly) || touchSelect) {
             std::string keyboardResult;
             int rc;
             std::vector<std::string> downloadUrl;
@@ -398,7 +489,7 @@ namespace inst::ui {
                 if ((selectedIndex < 0) || (selectedIndex >= static_cast<int>(sizeof(kGeneralMap) / sizeof(kGeneralMap[0])))) return;
                 selectedIndex = kGeneralMap[selectedIndex];
             } else if (this->selectedSection == 1) {
-                static const int kShopMap[] = {9, 10, 11, 12, 13, 19, 14};
+                static const int kShopMap[] = {9, 20, 21, 12, 13, 19, 14, 23, 22};
                 if ((selectedIndex < 0) || (selectedIndex >= static_cast<int>(sizeof(kShopMap) / sizeof(kShopMap[0])))) return;
                 selectedIndex = kShopMap[selectedIndex];
             } else {
@@ -508,26 +599,275 @@ namespace inst::ui {
                     inst::config::setConfig();
                     this->refreshOptions();
                     break;
-                case 9:
-                    keyboardResult = inst::util::softwareKeyboard("options.shop.url_hint"_lang, inst::config::shopUrl.c_str(), 200);
-                    if (keyboardResult.size() > 0) {
-                        inst::config::shopUrl = keyboardResult;
-                        inst::config::setConfig();
+                case 9: {
+                    std::vector<inst::config::ShopProfile> shops = inst::config::LoadShops();
+                    if (shops.empty()) {
+                        inst::ui::mainApp->CreateShowDialog("Active shop", "No memorized shops found. Add one first.", {"common.ok"_lang}, true);
+                        break;
+                    }
+                    std::vector<std::string> choices = BuildShopChoices(shops);
+                    int selectedShop = inst::ui::mainApp->CreateShowDialog("Active shop", "Choose which memorized shop to use.", choices, false);
+                    if (selectedShop < 0 || selectedShop >= static_cast<int>(shops.size()))
+                        break;
+                    if (inst::config::SetActiveShop(shops[selectedShop], true))
                         this->refreshOptions();
+                    break;
+                }
+                case 20: {
+                    std::vector<inst::config::ShopProfile> shops = inst::config::LoadShops();
+                    if (shops.empty()) {
+                        inst::ui::mainApp->CreateShowDialog("Memorized shops", "No memorized shops found.", {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    std::vector<std::string> choices = BuildShopChoices(shops);
+                    int selectedShop = inst::ui::mainApp->CreateShowDialog("Memorized shops", "Select one to manage.", choices, false);
+                    if (selectedShop < 0 || selectedShop >= static_cast<int>(shops.size()))
+                        break;
+
+                    auto selected = shops[selectedShop];
+                    std::string favouriteLabel = selected.favourite ? "Unset favourite" : "Set favourite";
+                    int action = inst::ui::mainApp->CreateShowDialog(
+                        selected.title,
+                        "Choose an action for this shop.",
+                        {"Use this shop", "Edit shop", favouriteLabel, "Delete shop", "Cancel"},
+                        false
+                    );
+
+                    if (action == 0) {
+                        if (inst::config::SetActiveShop(selected, true))
+                            this->refreshOptions();
+                    } else if (action == 1) {
+                        const bool wasActive = IsActiveShop(selected);
+                        inst::config::ShopProfile edited = selected;
+
+                        std::string shopTitle = TrimString(inst::util::softwareKeyboard("Enter shop title (required)", edited.title, 80));
+                        if (shopTitle.empty()) {
+                            inst::ui::mainApp->CreateShowDialog("Invalid shop", "Title is required.", {"common.ok"_lang}, true);
+                            break;
+                        }
+
+                        int protocolChoice = inst::ui::mainApp->CreateShowDialog("Shop protocol", "Choose the protocol used by this shop.", {"HTTP", "HTTPS"}, false);
+                        if (protocolChoice < 0)
+                            break;
+                        edited.protocol = (protocolChoice == 1) ? "https" : "http";
+
+                        std::string shopHost = TrimString(inst::util::softwareKeyboard("Enter shop host or IP", edited.host, 200));
+                        if (shopHost.empty()) {
+                            inst::ui::mainApp->CreateShowDialog("Invalid shop", "Host is required.", {"common.ok"_lang}, true);
+                            break;
+                        }
+                        if (shopHost.rfind("http://", 0) == 0)
+                            shopHost = shopHost.substr(7);
+                        else if (shopHost.rfind("https://", 0) == 0)
+                            shopHost = shopHost.substr(8);
+                        std::size_t pathPos = shopHost.find('/');
+                        if (pathPos != std::string::npos)
+                            shopHost = shopHost.substr(0, pathPos);
+                        shopHost = TrimString(shopHost);
+
+                        int defaultPort = inst::config::DefaultPortForProtocol(edited.protocol);
+                        int currentPort = edited.port;
+                        if (currentPort <= 0 || currentPort > 65535)
+                            currentPort = defaultPort;
+                        int shopPort = currentPort;
+
+                        std::string defaultPortLabel = "Use default (" + std::to_string(defaultPort) + ")";
+                        std::string keepPortLabel = "Keep current (" + std::to_string(currentPort) + ")";
+                        int portMode = inst::ui::mainApp->CreateShowDialog("Shop port", "Pick which port to use.", {defaultPortLabel, "Custom", keepPortLabel}, false);
+                        if (portMode < 0)
+                            break;
+                        if (portMode == 0) {
+                            shopPort = defaultPort;
+                        } else if (portMode == 1) {
+                            std::string currentPortText = std::to_string(currentPort);
+                            std::string portText = TrimString(inst::util::softwareKeyboard("Enter shop port (1-65535)", currentPortText, 6));
+                            if (portText.empty()) {
+                                inst::ui::mainApp->CreateShowDialog("Invalid port", "Port is required in custom mode.", {"common.ok"_lang}, true);
+                                break;
+                            }
+                            try {
+                                int parsedPort = std::stoi(portText);
+                                if (parsedPort <= 0 || parsedPort > 65535)
+                                    throw std::out_of_range("port");
+                                shopPort = parsedPort;
+                            } catch (...) {
+                                inst::ui::mainApp->CreateShowDialog("Invalid port", "Port must be between 1 and 65535.", {"common.ok"_lang}, true);
+                                break;
+                            }
+                        }
+
+                        std::size_t hostColon = shopHost.rfind(':');
+                        if (hostColon != std::string::npos && shopHost.find(':') == hostColon) {
+                            std::string hostPart = TrimString(shopHost.substr(0, hostColon));
+                            std::string inlinePort = TrimString(shopHost.substr(hostColon + 1));
+                            if (!hostPart.empty() && !inlinePort.empty()) {
+                                try {
+                                    int parsedPort = std::stoi(inlinePort);
+                                    if (parsedPort > 0 && parsedPort <= 65535) {
+                                        shopHost = hostPart;
+                                        if (portMode == 0)
+                                            shopPort = parsedPort;
+                                    }
+                                } catch (...) {
+                                    inst::ui::mainApp->CreateShowDialog("Invalid host", "Host contains an invalid inline port.", {"common.ok"_lang}, true);
+                                    break;
+                                }
+                            } else {
+                                inst::ui::mainApp->CreateShowDialog("Invalid host", "Host format is invalid.", {"common.ok"_lang}, true);
+                                break;
+                            }
+                        }
+
+                        if (shopHost.empty()) {
+                            inst::ui::mainApp->CreateShowDialog("Invalid shop", "Host is required.", {"common.ok"_lang}, true);
+                            break;
+                        }
+
+                        std::string shopUser = inst::util::softwareKeyboard("options.shop.user_hint"_lang, edited.username, 100);
+                        std::string shopPass = inst::util::softwareKeyboard("options.shop.pass_hint"_lang, edited.password, 100);
+
+                        edited.title = shopTitle;
+                        edited.host = shopHost;
+                        edited.port = shopPort;
+                        edited.username = shopUser;
+                        edited.password = shopPass;
+
+                        std::string error;
+                        if (!inst::config::SaveShop(edited, &error)) {
+                            inst::ui::mainApp->CreateShowDialog("Failed to save shop", error.empty() ? "Unknown error." : error, {"common.ok"_lang}, true);
+                            break;
+                        }
+
+                        if (wasActive)
+                            inst::config::SetActiveShop(edited, true);
+                        this->refreshOptions();
+                    } else if (action == 2) {
+                        selected.favourite = !selected.favourite;
+                        std::string error;
+                        if (!inst::config::SaveShop(selected, &error))
+                            inst::ui::mainApp->CreateShowDialog("Failed to save shop", error.empty() ? "Unknown error." : error, {"common.ok"_lang}, true);
+                        else
+                            this->refreshOptions();
+                    } else if (action == 3) {
+                        int confirmDelete = inst::ui::mainApp->CreateShowDialog("Delete shop?", "This cannot be undone.", {"Delete", "common.cancel"_lang}, false);
+                        if (confirmDelete == 0) {
+                            if (!inst::config::DeleteShop(selected.fileName)) {
+                                inst::ui::mainApp->CreateShowDialog("Failed to delete shop", "Could not remove the shop file.", {"common.ok"_lang}, true);
+                                break;
+                            }
+                            if (IsActiveShop(selected)) {
+                                inst::config::shopUrl.clear();
+                                inst::config::shopUser.clear();
+                                inst::config::shopPass.clear();
+                                inst::config::setConfig();
+                            }
+                            this->refreshOptions();
+                        }
                     }
                     break;
-                case 10:
-                    keyboardResult = inst::util::softwareKeyboard("options.shop.user_hint"_lang, inst::config::shopUser.c_str(), 100);
-                    inst::config::shopUser = keyboardResult;
-                    inst::config::setConfig();
+                }
+                case 21: {
+                    std::string shopTitle = TrimString(inst::util::softwareKeyboard("Enter shop title (required)", "", 80));
+                    if (shopTitle.empty()) {
+                        inst::ui::mainApp->CreateShowDialog("Invalid shop", "Title is required.", {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    int protocolChoice = inst::ui::mainApp->CreateShowDialog("Shop protocol", "Choose the protocol used by this shop.", {"HTTP", "HTTPS"}, false);
+                    if (protocolChoice < 0)
+                        break;
+                    const std::string shopProtocol = (protocolChoice == 1) ? "https" : "http";
+
+                    std::string shopHost = TrimString(inst::util::softwareKeyboard("Enter shop host or IP", "", 200));
+                    if (shopHost.empty()) {
+                        inst::ui::mainApp->CreateShowDialog("Invalid shop", "Host is required.", {"common.ok"_lang}, true);
+                        break;
+                    }
+                    if (shopHost.rfind("http://", 0) == 0)
+                        shopHost = shopHost.substr(7);
+                    else if (shopHost.rfind("https://", 0) == 0)
+                        shopHost = shopHost.substr(8);
+                    std::size_t pathPos = shopHost.find('/');
+                    if (pathPos != std::string::npos)
+                        shopHost = shopHost.substr(0, pathPos);
+                    shopHost = TrimString(shopHost);
+
+                    const int defaultPort = inst::config::DefaultPortForProtocol(shopProtocol);
+                    int shopPort = defaultPort;
+                    const std::string useDefaultPortLabel = "Use default (" + std::to_string(defaultPort) + ")";
+                    int portMode = inst::ui::mainApp->CreateShowDialog("Shop port", "Pick which port to use.", {useDefaultPortLabel, "Custom"}, false);
+                    if (portMode < 0)
+                        break;
+                    if (portMode == 1) {
+                        std::string portText = TrimString(inst::util::softwareKeyboard("Enter shop port (1-65535)", std::to_string(defaultPort), 6));
+                        if (portText.empty()) {
+                            inst::ui::mainApp->CreateShowDialog("Invalid port", "Port is required in custom mode.", {"common.ok"_lang}, true);
+                            break;
+                        }
+                        try {
+                            int parsedPort = std::stoi(portText);
+                            if (parsedPort <= 0 || parsedPort > 65535)
+                                throw std::out_of_range("port");
+                            shopPort = parsedPort;
+                        } catch (...) {
+                            inst::ui::mainApp->CreateShowDialog("Invalid port", "Port must be between 1 and 65535.", {"common.ok"_lang}, true);
+                            break;
+                        }
+                    }
+
+                    std::size_t hostColon = shopHost.rfind(':');
+                    if (hostColon != std::string::npos && shopHost.find(':') == hostColon) {
+                        std::string hostPart = TrimString(shopHost.substr(0, hostColon));
+                        std::string inlinePort = TrimString(shopHost.substr(hostColon + 1));
+                        if (!hostPart.empty() && !inlinePort.empty()) {
+                            try {
+                                int parsedPort = std::stoi(inlinePort);
+                                if (parsedPort > 0 && parsedPort <= 65535) {
+                                    shopHost = hostPart;
+                                    if (portMode == 0)
+                                        shopPort = parsedPort;
+                                }
+                            } catch (...) {
+                                inst::ui::mainApp->CreateShowDialog("Invalid host", "Host contains an invalid inline port.", {"common.ok"_lang}, true);
+                                break;
+                            }
+                        } else {
+                            inst::ui::mainApp->CreateShowDialog("Invalid host", "Host format is invalid.", {"common.ok"_lang}, true);
+                            break;
+                        }
+                    }
+
+                    if (shopHost.empty()) {
+                        inst::ui::mainApp->CreateShowDialog("Invalid shop", "Host is required.", {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    std::string shopUser = inst::util::softwareKeyboard("options.shop.user_hint"_lang, "", 100);
+                    std::string shopPass = inst::util::softwareKeyboard("options.shop.pass_hint"_lang, "", 100);
+                    int favouriteChoice = inst::ui::mainApp->CreateShowDialog("Favourite shop", "Keep this shop at the top of the list?", {"common.no"_lang, "common.yes"_lang}, false);
+                    if (favouriteChoice < 0)
+                        break;
+
+                    inst::config::ShopProfile newShop;
+                    newShop.title = shopTitle;
+                    newShop.protocol = shopProtocol;
+                    newShop.host = shopHost;
+                    newShop.port = shopPort;
+                    newShop.username = shopUser;
+                    newShop.password = shopPass;
+                    newShop.favourite = (favouriteChoice == 1);
+
+                    std::string error;
+                    if (!inst::config::SaveShop(newShop, &error)) {
+                        inst::ui::mainApp->CreateShowDialog("Failed to save shop", error.empty() ? "Unknown error." : error, {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    inst::config::SetActiveShop(newShop, true);
                     this->refreshOptions();
                     break;
-                case 11:
-                    keyboardResult = inst::util::softwareKeyboard("options.shop.pass_hint"_lang, inst::config::shopPass.c_str(), 100);
-                    inst::config::shopPass = keyboardResult;
-                    inst::config::setConfig();
-                    this->refreshOptions();
-                    break;
+                }
                 case 12:
                     inst::config::shopHideInstalled = !inst::config::shopHideInstalled;
                     inst::config::setConfig();
@@ -546,6 +886,70 @@ namespace inst::ui {
                         }
                     }
                     break;
+                case 23:
+                    inst::config::offlineDbAutoCheckOnStartup = !inst::config::offlineDbAutoCheckOnStartup;
+                    inst::config::setConfig();
+                    this->refreshOptions();
+                    break;
+                case 22: {
+                    if (inst::util::getIPAddress() == "1.0.0.127") {
+                        inst::ui::mainApp->CreateShowDialog("main.net.title"_lang, "main.net.desc"_lang, {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    const std::string manifestUrl = inst::config::offlineDbManifestUrl;
+                    if (manifestUrl.empty()) {
+                        inst::ui::mainApp->CreateShowDialog("Offline DB update", "Manifest URL is empty. Set offlineDbManifestUrl in config.json.", {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    const auto check = inst::offline::dbupdate::CheckForUpdate(manifestUrl);
+                    if (!check.success) {
+                        inst::ui::mainApp->CreateShowDialog("Offline DB update", "Check failed:\n" + check.error, {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    if (!check.updateAvailable) {
+                        std::string body = "Offline DB is up to date.";
+                        if (!check.remoteVersion.empty())
+                            body += "\nVersion: " + check.remoteVersion;
+                        inst::ui::mainApp->CreateShowDialog("Offline DB update", body, {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    std::string prompt = "A new offline DB is available.";
+                    if (!check.localVersion.empty())
+                        prompt += "\nCurrent: " + check.localVersion;
+                    if (!check.remoteVersion.empty())
+                        prompt += "\nLatest: " + check.remoteVersion;
+                    prompt += "\n\nDownload and install now?";
+                    int applyNow = inst::ui::mainApp->CreateShowDialog("Offline DB update", prompt, {"Update", "common.cancel"_lang}, false);
+                    if (applyNow != 0)
+                        break;
+
+                    inst::ui::instPage::loadInstallScreen();
+                    inst::ui::instPage::setTopInstInfoText("Updating Offline DB");
+                    inst::ui::instPage::setInstInfoText("Preparing...");
+                    inst::ui::instPage::setInstBarPerc(0);
+                    const auto apply = inst::offline::dbupdate::ApplyUpdate(manifestUrl, false,
+                        [](const std::string& stage, double percent) {
+                            inst::ui::instPage::setInstInfoText(stage);
+                            inst::ui::instPage::setInstBarPerc(percent);
+                        });
+                    mainApp->LoadLayout(mainApp->optionspage);
+
+                    if (!apply.success) {
+                        inst::ui::mainApp->CreateShowDialog("Offline DB update", "Update failed:\n" + apply.error, {"common.ok"_lang}, true);
+                        break;
+                    }
+
+                    this->refreshOptions();
+                    std::string done = apply.updated ? "Offline DB updated successfully." : "Offline DB is already up to date.";
+                    if (!apply.version.empty())
+                        done += "\nVersion: " + apply.version;
+                    inst::ui::mainApp->CreateShowDialog("Offline DB update", done, {"common.ok"_lang}, true);
+                    break;
+                }
                 case 19:
                     inst::config::shopStartGridMode = !inst::config::shopStartGridMode;
                     inst::config::setConfig();

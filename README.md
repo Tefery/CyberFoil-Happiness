@@ -1,8 +1,9 @@
 # 💖HappyFoil💖
 ![GitHub all releases downloads](https://img.shields.io/github/downloads/Tefery/HappyFoil/total)
 ![GitHub latest release downloads](https://img.shields.io/github/downloads/Tefery/HappyFoil/latest/total)
+[![CyberFoil Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/gGy7hWxJeP)
 
-## Version: 1.3.11.H
+## Version: 1.4.0.H
 
 ## Buy him a Coffee at kofi -> https://ko-fi.com/cyberhazard
 
@@ -20,7 +21,8 @@ A NSP, NSZ, XCI, & XCZ Installer with basic eShop support for Nintendo Switch
 - Installs NSP/NSZ/XCI/XCZ files over MTP (USB file transfer)
 - Verifies NCAs by header signature before they're installed
 - Installs and manages the latest signature patches quickly and easily
-- Ownfoil-compatible eShop with sections, search, and cover art previews
+- Built-in eShop with sections, search, and cover art previews
+- Save Sync in eShop: browse console/server saves, upload with notes, download specific backup versions, and delete server backups
 - OLED mode for pure-black backgrounds
 - Forked from CyberFoil [Luketanti CyberFoil](https://github.com/luketanti/CyberFoil)
 - Based on [Adubbz Tinfoil](https://github.com/Adubbz/Tinfoil)
@@ -31,13 +33,11 @@ Because Tinfoil is no longer being supported and not updated for the new firmwar
 
 If you want to do other things like manage installed tickets, titles, and user accounts, check out [Goldleaf](https://github.com/XorTroll/Goldleaf)!
 
-## Ownfoil eShop
-HappyFoil supports an Ownfoil-compatible eShop with sections, search, and cover art previews.
-
-Ownfoil fork that has been enhanced to work with this -> [Ownfoil](https://github.com/luketanti/ownfoil)
+## eShop
+HappyFoil supports an eShop with sections, search, and cover art previews.
 
 Setup:
-- Run Ownfoil and note its host/port (example: `http://192.168.1.2:8465`).
+- Run your shop backend and note its host/port (example: `http://192.168.1.2:8465`).
 - In HappyFoil settings, set Shop URL, Username, and Password (optional).
 - If your shop is private, make sure credentials are correct.
 
@@ -57,12 +57,44 @@ Install flow:
 - HappyFoil can prompt to include available updates for selected titles.
 
 Notes:
-- Encrypted Ownfoil responses are not supported.
+- Encrypted shop responses are not supported.
 - The Installed section lists content already on the Switch and cannot be installed from.
 - The shop list is cached for faster startup (5-minute TTL). Use X to refresh.
 
+Save Sync:
+- Available for normal (non-legacy fallback) eShop sections when the account has backup access.
+- Shows local console saves and remote server backups in a dedicated `Saves` section.
+- Upload supports version notes.
+- Download/delete of remote backups supports per-version selection with an in-page selector layout.
+- Save operations refresh only the saves section; they do not trigger a full shop reload.
 
-New in 1.3.11:
+Offline metadata/icons (no online lookups):
+- HappyFoil can use local title metadata and local icons from `sdmc:/switch/HappyFoil/offline_db/`.
+- Generate that folder from CyberFoil-DB artefacts with:
+  `python tools/export_offline_db.py --source-dir <path-to-CyberFoil-DB-artefacts> --output-dir <folder>/offline_db`
+- Or pass explicit files:
+  `python tools/export_offline_db.py --icon-db <path>/icon.db --titles-json <path>/titles.US.en.json --output-dir <folder>/offline_db`
+- To generate an update manifest for GitHub Releases, include:
+  `--manifest-base-url https://github.com/<owner>/<repo>/releases/latest/download`
+- The exporter writes `offline_db_manifest.json` with version, size, and sha256 for `titles.pack` and `icons.pack`.
+- Copy the generated `offline_db` directory to `sdmc:/switch/CyberFoil/offline_db/`.
+- Runtime files used by CyberFoil:
+  `titles.pack`, `icons.pack`, and optional local `manifest.json`.
+- `icons.pack` is read directly in-memory at runtime (no extracted icon cache files needed).
+- In Settings -> Shop, use `Offline DB update (...)` to check/download newer pack versions from the manifest URL.
+- In Settings -> Shop, `Offline DB auto-check on startup` controls whether CyberFoil checks this manifest at app launch.
+- During Offline DB download, the install screen now shows live transfer progress and speed (`MB/s`) to avoid looking frozen on large files.
+- Offline DB updater debug log is written to: `sdmc:/switch/CyberFoil/offline_db_update.log`.
+
+
+New in 1.4.0:
+- Added Offline DB binary runtime support (`titles.pack` + `icons.pack`) so title metadata/icons can be used locally without online lookups.
+- Added Offline DB updater with manifest validation (size + sha256) and atomic replace/rollback behavior.
+- Added startup Offline DB auto-check option (Settings -> Shop).
+- Added Offline DB update telemetry on install screen (live percent + transferred MB + MB/s).
+- Added Offline DB update file logging (`sdmc:/switch/CyberFoil/offline_db_update.log`) for troubleshooting.
+- Improved Offline DB update reliability and crash resistance for large downloads/hash verification.
+- Improved HTTP/cURL transfer stability for long downloads and better failure handling.
 - MTP installs now work reliably across repeated sessions.
 - MTP completion plays the success sound.
 - MTP install progress now shows spinner/status with MiB/GiB transfer info.
@@ -98,7 +130,7 @@ Screenshots:
  - Improve MTP robustness and host compatibility
 - Add support for switching between multiple shops
 - Preload title images and banners to cache for a faster UI experience
-- Create a beginner-friendly video tutorial for the complete setup (CyberFoil and Ownfoil)
+- Create a beginner-friendly video tutorial for the complete setup (CyberFoil and shop backend)
 
 
 

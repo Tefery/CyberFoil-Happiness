@@ -43,6 +43,7 @@ namespace inst::ui {
                 case 0xE0E5: return HidNpadButton_R;
                 case 0xE0EF: return HidNpadButton_Plus;
                 case 0xE0F0: return HidNpadButton_Minus;
+                case 0xE085: return HidNpadButton_ZL;
                 case 0xE086: return HidNpadButton_ZR;
                 default: return 0;
             }

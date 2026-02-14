@@ -22,6 +22,8 @@
 #include <haze/ptp_object_database.hpp>
 #include <haze/ptp_responder_types.hpp>
 #include <optional>
+#include <string>
+#include <unordered_map>
 
 namespace haze {
 
@@ -47,10 +49,11 @@ namespace haze {
             u32 m_send_object_id;
             std::optional<ObjectPropList> m_send_prop_list;
             bool m_session_open;
+            std::unordered_map<std::string, u64> m_cached_object_sizes;
 
             PtpObjectDatabase m_object_database;
         public:
-            constexpr explicit PtpResponder(Callback callback = nullptr) : m_callback{callback}, m_usb_server(), m_fs_entries(), m_request_header(), m_object_heap(), m_buffers(), m_send_object_id(), m_session_open(), m_object_database() { /* ... */ }
+            explicit PtpResponder(Callback callback = nullptr) : m_callback{callback}, m_usb_server(), m_fs_entries(), m_request_header(), m_object_heap(), m_buffers(), m_send_object_id(), m_session_open(), m_cached_object_sizes(), m_object_database() { /* ... */ }
 
             Result Initialize(EventReactor *reactor, PtpObjectHeap *object_heap, const FsEntries& entries, u16 vid, u16 pid);
             void Finalize();
@@ -109,6 +112,11 @@ namespace haze {
             void WriteCallbackFile(CallbackType type, const char* name);
             void WriteCallbackRename(CallbackType type, const char* name, const char* newname);
             void WriteCallbackProgress(CallbackType type, s64 offset, s64 size);
+
+            void CacheObjectSizeByName(const char* name, u64 size);
+            void CacheObjectSize(const PtpObject* obj, u64 size);
+            bool TryGetCachedObjectSize(const PtpObject* obj, s64* out_size) const;
+            void EraseCachedObjectSize(const char* name);
     };
 
 }

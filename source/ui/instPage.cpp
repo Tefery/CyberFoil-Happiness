@@ -27,16 +27,16 @@ namespace inst::ui {
         const auto topColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#170909FF");
         const auto infoColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
         const auto botColor = inst::config::oledMode ? COLOR("#000000FF") : COLOR("#17090980");
-        this->topRect = Rectangle::New(0, 0, 1280, 94, topColor);
-        this->infoRect = Rectangle::New(0, 95, 1280, 60, infoColor);
-        this->botRect = Rectangle::New(0, 659, 1280, 61, botColor);
+        this->topRect = Rectangle::New(0, 0, 1280, 74, topColor);
+        this->infoRect = Rectangle::New(0, 75, 1280, 60, infoColor);
+        this->botRect = Rectangle::New(0, 660, 1280, 60, botColor);
         if (inst::config::gayMode) {
-            this->titleImage = Image::New(-113, 0, "romfs:/images/logo.png");
-            this->appVersionText = TextBlock::New(367, 49, "v" + inst::config::appVersion, 22);
+            this->titleImage = Image::New(-113, -8, "romfs:/images/logo.png");
+            this->appVersionText = TextBlock::New(367, 29, "v" + inst::config::appVersion, 22);
         }
         else {
-            this->titleImage = Image::New(0, 0, "romfs:/images/logo.png");
-            this->appVersionText = TextBlock::New(480, 49, "v" + inst::config::appVersion, 22);
+            this->titleImage = Image::New(0, -8, "romfs:/images/logo.png");
+            this->appVersionText = TextBlock::New(480, 29, "v" + inst::config::appVersion, 22);
         }
         this->appVersionText->SetColor(COLOR("#FFFFFFFF"));
         this->timeText = TextBlock::New(0, 18, "--:--", 22);
@@ -62,7 +62,7 @@ namespace inst::ui {
         this->batteryOutline = Rectangle::New(0, 0, 24, 12, COLOR("#FFFFFF66"));
         this->batteryFill = Rectangle::New(0, 0, 0, 10, COLOR("#4CD964FF"));
         this->batteryCap = Rectangle::New(0, 0, 3, 6, COLOR("#FFFFFF66"));
-        this->pageInfoText = TextBlock::New(10, 109, "", 30);
+        this->pageInfoText = TextBlock::New(10, 89, "", 30);
         this->pageInfoText->SetColor(COLOR("#FFFFFFFF"));
         this->installInfoText = TextBlock::New(15, 568, "", 22);
         this->installInfoText->SetColor(COLOR("#FFFFFFFF"));
@@ -176,6 +176,21 @@ namespace inst::ui {
             return;
         }
         mainApp->instpage->installIconImage->SetImage(imagePath);
+        mainApp->instpage->installIconImage->SetX(kInstallIconX);
+        mainApp->instpage->installIconImage->SetY(kInstallIconY);
+        mainApp->instpage->installIconImage->SetWidth(kInstallIconSize);
+        mainApp->instpage->installIconImage->SetHeight(kInstallIconSize);
+        mainApp->instpage->installIconImage->SetVisible(true);
+        mainApp->instpage->awooImage->SetVisible(false);
+        mainApp->CallForRender();
+    }
+
+    void instPage::setInstallIconData(const void* imageData, std::uint32_t imageSize){
+        if (imageData == nullptr || imageSize == 0) {
+            clearInstallIcon();
+            return;
+        }
+        mainApp->instpage->installIconImage->SetJpegImage(const_cast<void*>(imageData), static_cast<s32>(imageSize));
         mainApp->instpage->installIconImage->SetX(kInstallIconX);
         mainApp->instpage->installIconImage->SetY(kInstallIconY);
         mainApp->instpage->installIconImage->SetWidth(kInstallIconSize);

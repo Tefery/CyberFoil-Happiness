@@ -128,6 +128,12 @@ namespace haze {
         storage_info.free_space_in_bytes  = free_space;
         storage_info.free_space_in_images = 0;
         storage_info.storage_description = it->impl->GetDisplayName();
+        {
+            const u16 cap = it->impl->GetAccessCapability();
+            if (cap <= static_cast<u16>(PtpAccessCapability_ReadOnlyWithObjectDeletion)) {
+                storage_info.access_capability = static_cast<PtpAccessCapability>(cap);
+            }
+        }
 
         /* Write the storage info data. */
         R_TRY(db.WriteVariableLengthData(m_request_header, [&] () {
@@ -178,35 +184,43 @@ namespace haze {
         /* Ensure we maintain a clean state on exit. */
         ON_SCOPE_EXIT { Fs(obj).CloseDirectory(std::addressof(dir)); };
 
-        /* Count how many entries are in the directory. */
-        s64 entry_count = 0;
-        R_TRY(Fs(obj).GetDirectoryEntryCount(std::addressof(dir), std::addressof(entry_count)));
-
-        /* Begin writing. */
-        R_TRY(db.AddDataHeader(m_request_header, sizeof(u32) + (entry_count * sizeof(u32))));
-        R_TRY(db.Add(static_cast<u32>(entry_count)));
-
-        /* Enumerate the directory, writing results to the data builder as we progress. */
-        /* TODO: How should we handle the directory contents changing during enumeration? */
-        /* Is this even feasible to handle? */
+        /* Enumerate first, then emit header once we know exact handle count.
+         * This avoids relying on GetDirectoryEntryCount() behavior across all fs backends. */
+        std::vector<u32> handles;
+        handles.reserve(256);
         while (true) {
             /* Get the next batch. */
             s64 read_count = 0;
             R_TRY(Fs(obj).ReadDirectory(std::addressof(dir), std::addressof(read_count), DirectoryReadSize, m_buffers->file_system_entry_buffer));
 
-            /* Write to output. */
+            /* Build handle list. */
             for (s64 i = 0; i < read_count; i++) {
-                const char *name = m_buffers->file_system_entry_buffer[i].name;
+                const auto &entry = m_buffers->file_system_entry_buffer[i];
+                const char *name = entry.name;
                 u32 handle;
 
                 R_TRY(m_object_database.CreateAndRegisterObjectId(obj->GetName(), name, obj->GetObjectId(), obj->GetStorageId(), std::addressof(handle)));
-                R_TRY(db.Add(handle));
+                handles.push_back(handle);
+
+                if (entry.type == FsDirEntryType_File && entry.file_size >= 0) {
+                    auto * const child = m_object_database.GetObjectById(handle);
+                    if (child != nullptr) {
+                        this->CacheObjectSize(child, static_cast<u64>(entry.file_size));
+                    }
+                }
             }
 
             /* If we read fewer than the batch size, we're done. */
             if (read_count < DirectoryReadSize) {
                 break;
             }
+        }
+
+        /* Begin writing. */
+        R_TRY(db.AddDataHeader(m_request_header, sizeof(u32) + (handles.size() * sizeof(u32))));
+        R_TRY(db.Add(static_cast<u32>(handles.size())));
+        for (const auto handle : handles) {
+            R_TRY(db.Add(handle));
         }
 
         /* Flush the data response. */
@@ -248,13 +262,15 @@ namespace haze {
             /* Get the size, if we are requesting info about a file. */
             s64 size = 0;
             if (entry_type == FsDirEntryType_File) {
-                FsFile file;
-                R_TRY(Fs(obj).OpenFile(obj->GetName(), FsOpenMode_Read, std::addressof(file)));
+                if (!this->TryGetCachedObjectSize(obj, std::addressof(size))) {
+                    FsFile file;
+                    /* Ensure we maintain a clean state on exit. */
+                    R_TRY(Fs(obj).OpenFile(obj->GetName(), FsOpenMode_Read, std::addressof(file)));
+                    ON_SCOPE_EXIT { Fs(obj).CloseFile(std::addressof(file)); };
 
-                /* Ensure we maintain a clean state on exit. */
-                ON_SCOPE_EXIT { Fs(obj).CloseFile(std::addressof(file)); };
-
-                R_TRY(Fs(obj).GetFileSize(std::addressof(file), std::addressof(size)));
+                    R_TRY(Fs(obj).GetFileSize(std::addressof(file), std::addressof(size)));
+                    this->CacheObjectSize(obj, static_cast<u64>(size));
+                }
             }
 
             object_info.filename               = std::strrchr(obj->GetName(), '/') + 1;
@@ -326,6 +342,7 @@ namespace haze {
         /* Get the file's size. */
         s64 file_size = 0;
         R_TRY(Fs(obj).GetFileSize(std::addressof(file), std::addressof(file_size)));
+        this->CacheObjectSize(obj, static_cast<u64>(file_size));
 
         /* Send the header and file size. */
         R_TRY(db.AddDataHeader(m_request_header, file_size));
@@ -335,7 +352,7 @@ namespace haze {
 
         auto mode = sphaira::thread::Mode::MultiThreaded;
         if (!Fs(obj).MultiThreadTransfer(file_size, true)) {
-            mode = sphaira::thread::Mode::SingleThreadedIfSmaller;
+            mode = sphaira::thread::Mode::SingleThreaded;
         }
 
         R_TRY(sphaira::thread::Transfer(file_size,
@@ -435,6 +452,7 @@ namespace haze {
             R_TRY(Fs(obj).CreateFile(obj->GetName(), 0, 0));
             WriteCallbackFile(CallbackType_CreateFile, obj->GetName());
             m_send_object_id = new_object_info.object_id;
+            this->CacheObjectSize(obj, static_cast<u64>(info.object_compressed_size));
         }
 
         /* Write the success response. */
@@ -472,8 +490,9 @@ namespace haze {
             }
         };
 
-        /* Dummy file size for the threaded transfer. */
-        auto file_size = 4_GB;
+        /* Fallback size when host does not provide object size metadata.
+         * Must be comfortably above common install file sizes to avoid early truncation. */
+        auto file_size = 128_GB;
         u64 offset = 0;
 
         if (m_send_prop_list) {
@@ -544,6 +563,7 @@ namespace haze {
             R_TRY(Fs(obj).SetFileSize(std::addressof(file), offset));
             file_size = offset;
         }
+        this->CacheObjectSize(obj, static_cast<u64>(file_size));
 
         /* Ensure file close/finalize happens before acknowledging success to host. */
         WriteCallbackFile(CallbackType_WriteEnd, obj->GetName());
@@ -585,6 +605,7 @@ namespace haze {
         }
 
         /* Remove the object from the database. */
+        this->EraseCachedObjectSize(obj->GetName());
         m_object_database.DeleteObject(obj);
 
         /* Write the success response. */

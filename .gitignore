@@ -8,4 +8,6 @@ AGENTS.md
 MakeRelease.bat
 logs/
 *.lst
+scripts
+*.zip
 
