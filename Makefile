@@ -53,7 +53,7 @@ INCLUDES	:=	include include/ui include/data include/install include/nx include/n
 				$(PLUTONIUM_INCLUDE_SWITCH) $(PLUTONIUM_INCLUDE_OUTPUT) $(PLUTONIUM_INCLUDE_SOURCE) external/libhaze/include
 APP_TITLE	:=	CyberFoil
 APP_AUTHOR	:=	luketanti
-APP_VERSION	:=	1.4.0-DEV
+APP_VERSION	:=	1.4.0
 ICON		:=	romfs/images/icon.jpg
 ROMFS		:=	romfs
 

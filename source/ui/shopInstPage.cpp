@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <sstream>
+#include <SDL2/SDL.h>
 #include <switch.h>
 #include "ui/MainApplication.hpp"
 #include "ui/shopInstPage.hpp"
@@ -34,7 +35,124 @@ namespace {
     constexpr int kGridStartX = (1280 - kGridWidth) / 2;
     constexpr int kGridStartY = 120;
     constexpr int kGridItemsPerPage = kGridCols * kGridRows;
+    constexpr int kListMarqueeStartDelayMs = 2000;
+    constexpr int kListMarqueeFadeDurationMs = 260;
+    constexpr int kListMarqueeSpeedPxPerSec = 72;
+    constexpr int kListMarqueeWindowCharStepPx = 10;
+    constexpr int kListMarqueePhasePause = 0;
+    constexpr int kListMarqueePhaseScroll = 1;
+    constexpr int kListMarqueePhaseFadeOut = 2;
+    constexpr int kListMarqueePhaseFadeIn = 3;
+
+    class MarqueeClipElement : public pu::ui::elm::Element
+    {
+        public:
+            MarqueeClipElement(bool beginClip, bool* enabled, int* clipX, int* clipY, int* clipW, int* clipH)
+                : beginClip(beginClip), enabled(enabled), clipX(clipX), clipY(clipY), clipW(clipW), clipH(clipH)
+            {}
+
+            static pu::ui::elm::Element::Ref New(bool beginClip, bool* enabled, int* clipX, int* clipY, int* clipW, int* clipH)
+            {
+                return std::make_shared<MarqueeClipElement>(beginClip, enabled, clipX, clipY, clipW, clipH);
+            }
+
+            s32 GetX() override { return 0; }
+            s32 GetY() override { return 0; }
+            s32 GetWidth() override { return 0; }
+            s32 GetHeight() override { return 0; }
+
+            void OnRender(pu::ui::render::Renderer::Ref &Drawer, s32 X, s32 Y) override
+            {
+                (void)Drawer;
+                (void)X;
+                (void)Y;
+                if (this->beginClip) {
+                    if (!this->enabled || !(*this->enabled) || !this->clipW || !this->clipH || (*this->clipW <= 0) || (*this->clipH <= 0))
+                        return;
+                    SDL_Rect rect = { *this->clipX, *this->clipY, *this->clipW, *this->clipH };
+                    SDL_RenderSetClipRect(pu::ui::render::GetMainRenderer(), &rect);
+                    return;
+                }
+                SDL_RenderSetClipRect(pu::ui::render::GetMainRenderer(), NULL);
+            }
+
+            void OnInput(u64 Down, u64 Up, u64 Held, pu::ui::Touch Pos) override
+            {
+                (void)Down;
+                (void)Up;
+                (void)Held;
+                (void)Pos;
+            }
+
+        private:
+            bool beginClip = true;
+            bool* enabled = nullptr;
+            int* clipX = nullptr;
+            int* clipY = nullptr;
+            int* clipW = nullptr;
+            int* clipH = nullptr;
+    };
+
     bool TryParseHexU64(const std::string& hex, std::uint64_t& out);
+
+    int ComputeListNameLimit(const std::string& suffix)
+    {
+        int nameLimit = 56;
+        if (!suffix.empty()) {
+            int maxSuffix = static_cast<int>(suffix.size()) + 1;
+            if (nameLimit > maxSuffix)
+                nameLimit -= maxSuffix;
+        }
+        if (nameLimit < 8)
+            nameLimit = 8;
+        return nameLimit;
+    }
+
+    pu::ui::Color BlendOverOpaque(const pu::ui::Color& base, const pu::ui::Color& overlay)
+    {
+        const int a = static_cast<int>(overlay.A);
+        const int invA = 255 - a;
+        pu::ui::Color out;
+        out.R = static_cast<u8>((static_cast<int>(overlay.R) * a + static_cast<int>(base.R) * invA) / 255);
+        out.G = static_cast<u8>((static_cast<int>(overlay.G) * a + static_cast<int>(base.G) * invA) / 255);
+        out.B = static_cast<u8>((static_cast<int>(overlay.B) * a + static_cast<int>(base.B) * invA) / 255);
+        out.A = 255;
+        return out;
+    }
+
+    bool ShouldUseDarkText(const pu::ui::Color& bg)
+    {
+        const int luma = (static_cast<int>(bg.R) * 299) + (static_cast<int>(bg.G) * 587) + (static_cast<int>(bg.B) * 114);
+        return luma >= (1000 * 150);
+    }
+
+    std::string NormalizeSingleLineTitle(const std::string& title)
+    {
+        if (title.empty())
+            return std::string();
+
+        std::string out;
+        out.reserve(title.size());
+        bool previousWasSpace = false;
+        for (char c : title) {
+            const bool isWhitespace = (c == ' ' || c == '\t' || c == '\r' || c == '\n');
+            if (isWhitespace) {
+                if (!out.empty() && !previousWasSpace)
+                    out.push_back(' ');
+                previousWasSpace = true;
+                continue;
+            }
+            out.push_back(c);
+            previousWasSpace = false;
+        }
+        std::size_t start = 0;
+        while (start < out.size() && out[start] == ' ')
+            start++;
+        std::size_t end = out.size();
+        while (end > start && out[end - 1] == ' ')
+            end--;
+        return out.substr(start, end - start);
+    }
 
     std::string NormalizeHex(std::string hex)
     {
@@ -535,6 +653,7 @@ namespace {
             return std::string();
         if (text.empty())
             return std::string();
+
         const std::size_t window = static_cast<std::size_t>(windowChars);
         if (text.size() <= window)
             return text;
@@ -756,9 +875,20 @@ namespace inst::ui {
         this->imageLoadingText->SetVisible(false);
         this->listMarqueeMaskRect = Rectangle::New(0, 0, 0, 0, this->menu->GetOnFocusColor());
         this->listMarqueeMaskRect->SetVisible(false);
+        this->listMarqueeTintRect = Rectangle::New(0, 0, 0, 0, this->menu->GetOnFocusColor());
+        this->listMarqueeTintRect->SetVisible(false);
         this->listMarqueeOverlayText = TextBlock::New(0, 0, "", 22);
         this->listMarqueeOverlayText->SetColor(COLOR("#FFFFFFFF"));
+        this->listMarqueeOverlayText->SetText("Ag");
+        this->listMarqueeSingleLineHeight = this->listMarqueeOverlayText->GetTextHeight();
+        if (this->listMarqueeSingleLineHeight <= 0)
+            this->listMarqueeSingleLineHeight = 1;
+        this->listMarqueeOverlayText->SetText("");
         this->listMarqueeOverlayText->SetVisible(false);
+        this->listMarqueeClipBegin = MarqueeClipElement::New(true, &this->listMarqueeClipEnabled, &this->listMarqueeClipX, &this->listMarqueeClipY, &this->listMarqueeClipW, &this->listMarqueeClipH);
+        this->listMarqueeClipEnd = MarqueeClipElement::New(false, &this->listMarqueeClipEnabled, &this->listMarqueeClipX, &this->listMarqueeClipY, &this->listMarqueeClipW, &this->listMarqueeClipH);
+        this->listMarqueeFadeRect = Rectangle::New(0, 0, 0, 0, COLOR("#00000000"));
+        this->listMarqueeFadeRect->SetVisible(false);
         this->debugText = TextBlock::New(10, 620, "", 18);
         this->debugText->SetColor(COLOR("#FFFFFFFF"));
         this->debugText->SetVisible(false);
@@ -845,7 +975,11 @@ namespace inst::ui {
         this->Add(this->gridTitleText);
         this->Add(this->imageLoadingText);
         this->Add(this->listMarqueeMaskRect);
+        this->Add(this->listMarqueeTintRect);
+        this->Add(this->listMarqueeClipBegin);
         this->Add(this->listMarqueeOverlayText);
+        this->Add(this->listMarqueeClipEnd);
+        this->Add(this->listMarqueeFadeRect);
         this->Add(this->debugText);
         this->Add(this->emptySectionText);
         this->Add(this->descriptionRect);
@@ -940,43 +1074,53 @@ namespace inst::ui {
 
     std::string shopInstPage::buildListMenuLabel(const shopInstStuff::ShopItem& item) const
     {
+        const std::string normalizedName = NormalizeSingleLineTitle(item.name);
         std::string sizeText = FormatSizeText(item.size);
         std::string suffix = sizeText.empty() ? "" : (" [" + sizeText + "]");
-        int nameLimit = 56;
-        if (!suffix.empty()) {
-            int maxSuffix = static_cast<int>(suffix.size()) + 1;
-            if (nameLimit > maxSuffix)
-                nameLimit -= maxSuffix;
-        }
-        if (nameLimit < 8)
-            nameLimit = 8;
+        int nameLimit = ComputeListNameLimit(suffix);
 
-        return inst::util::shortenString(item.name, nameLimit, true) + suffix;
+        return inst::util::shortenString(normalizedName, nameLimit, true) + suffix;
     }
 
     void shopInstPage::updateListMarquee(bool force)
     {
-        if (this->shopGridMode || !this->menu->IsVisible()) {
+        auto hideMarquee = [&]() {
             this->listMarqueeMaskRect->SetVisible(false);
+            this->listMarqueeTintRect->SetVisible(false);
             this->listMarqueeOverlayText->SetVisible(false);
+            this->listMarqueeClipEnabled = false;
+            this->listMarqueeFadeRect->SetVisible(false);
+            this->listMarqueeFadeAlpha = 0;
+            this->listMarqueePhase = kListMarqueePhasePause;
+            this->listMarqueeWindowMode = false;
+            this->listMarqueeWindowChars = 0;
+            this->listMarqueeWindowCharOffset = 0;
+            this->listMarqueeFullLabel.clear();
+        };
+
+        if (this->shopGridMode || !this->menu->IsVisible()) {
+            hideMarquee();
             this->listPrevSelectedIndex = -1;
             return;
         }
         auto& items = this->menu->GetItems();
         if (items.empty() || this->visibleItems.empty()) {
-            this->listMarqueeMaskRect->SetVisible(false);
-            this->listMarqueeOverlayText->SetVisible(false);
+            hideMarquee();
             this->listPrevSelectedIndex = -1;
             return;
         }
 
         int selectedIndex = this->menu->GetSelectedIndex();
         if (selectedIndex < 0 || selectedIndex >= static_cast<int>(this->visibleItems.size())) {
-            this->listMarqueeMaskRect->SetVisible(false);
-            this->listMarqueeOverlayText->SetVisible(false);
+            hideMarquee();
             this->listPrevSelectedIndex = -1;
             return;
         }
+
+        const u64 now = armGetSystemTick();
+        const u64 freq = armGetSystemTickFreq();
+        const u64 startDelayTicks = (freq * kListMarqueeStartDelayMs) / 1000;
+        const u64 fadeDurationTicks = (freq * kListMarqueeFadeDurationMs) / 1000;
 
         const int itemCount = static_cast<int>(items.size());
         int visibleCount = this->menu->GetNumberOfItemsToShow();
@@ -1007,65 +1151,31 @@ namespace inst::ui {
             this->listVisibleTopIndex = maxTopIndex;
         this->listPrevSelectedIndex = selectedIndex;
 
-        const u64 now = armGetSystemTick();
-        const u64 freq = armGetSystemTickFreq();
-        const u64 stepTicks = (freq * 110) / 1000;
-        const u64 edgePauseTicks = (freq * 700) / 1000;
-
-        if (this->listMarqueeIndex != selectedIndex) {
-            this->listMarqueeIndex = selectedIndex;
-            this->listMarqueeOffset = 0;
-            this->listMarqueeLastTick = now;
-            this->listMarqueePauseUntilTick = now + edgePauseTicks;
-            force = true;
-        }
-
         const auto& item = this->visibleItems[static_cast<std::size_t>(selectedIndex)];
+        const std::string normalizedName = NormalizeSingleLineTitle(item.name);
         std::string sizeText = FormatSizeText(item.size);
         std::string suffix = sizeText.empty() ? "" : (" [" + sizeText + "]");
-        int nameLimit = 56;
-        if (!suffix.empty()) {
-            int maxSuffix = static_cast<int>(suffix.size()) + 1;
-            if (nameLimit > maxSuffix)
-                nameLimit -= maxSuffix;
-        }
-        if (nameLimit < 8)
-            nameLimit = 8;
+        int nameLimit = ComputeListNameLimit(suffix);
 
-        const bool shouldScroll = item.name.size() > static_cast<std::size_t>(nameLimit);
+        const bool shouldScroll = normalizedName.size() > static_cast<std::size_t>(nameLimit);
         if (!shouldScroll) {
-            this->listMarqueeMaskRect->SetVisible(false);
-            this->listMarqueeOverlayText->SetVisible(false);
+            hideMarquee();
             this->listMarqueeOffset = 0;
+            this->listMarqueeMaxOffset = 0;
+            this->listMarqueeSpeedRemainder = 0;
             return;
-        }
-        if (shouldScroll && now >= this->listMarqueePauseUntilTick && (force || (now - this->listMarqueeLastTick) >= stepTicks)) {
-            const std::size_t cycle = item.name.size() + 3;
-            if (cycle > 0) {
-                this->listMarqueeOffset = (this->listMarqueeOffset + 1) % cycle;
-                if (this->listMarqueeOffset == 0)
-                    this->listMarqueePauseUntilTick = now + edgePauseTicks;
-            }
-            this->listMarqueeLastTick = now;
-            force = true;
-        } else if (!shouldScroll && this->listMarqueeOffset != 0) {
-            this->listMarqueeOffset = 0;
-            force = true;
         }
 
         int row = selectedIndex - this->listVisibleTopIndex;
         if (row < 0 || row >= visibleCount) {
-            this->listMarqueeMaskRect->SetVisible(false);
-            this->listMarqueeOverlayText->SetVisible(false);
+            hideMarquee();
             return;
         }
 
-        std::string label = BuildMarqueeWindow(item.name, this->listMarqueeOffset, nameLimit) + suffix;
-        this->listMarqueeOverlayText->SetText(label);
         const int itemHeight = this->menu->GetItemSize();
         const int menuX = this->menu->GetProcessedX();
         const int menuW = this->menu->GetWidth();
-        const int textY = this->menu->GetProcessedY() + (row * itemHeight) + ((itemHeight - this->listMarqueeOverlayText->GetTextHeight()) / 2);
+        const int rowY = this->menu->GetProcessedY() + (row * itemHeight);
         int textX = menuX + 25;
         if (!this->isInstalledSection() && !this->isSaveSyncSection())
             textX = menuX + 76;
@@ -1077,15 +1187,201 @@ namespace inst::ui {
         if (maskRight < textX)
             maskRight = textX;
         int maskWidth = maskRight - textX;
-        this->listMarqueeMaskRect->SetColor(this->menu->GetOnFocusColor());
+
+        if (maskWidth <= 0) {
+            hideMarquee();
+            return;
+        }
+
+        std::string label = normalizedName + suffix;
+        if (this->listMarqueeIndex != selectedIndex || force || this->listMarqueeFullLabel != label) {
+            this->listMarqueeIndex = selectedIndex;
+            this->listMarqueeOffset = 0;
+            this->listMarqueeMaxOffset = 0;
+            this->listMarqueeLastTick = now;
+            this->listMarqueePauseUntilTick = now + startDelayTicks;
+            this->listMarqueeSpeedRemainder = 0;
+            this->listMarqueeFadeStartTick = 0;
+            this->listMarqueePhase = kListMarqueePhasePause;
+            this->listMarqueeFadeAlpha = 0;
+            this->listMarqueeWindowMode = false;
+            this->listMarqueeWindowChars = 0;
+            this->listMarqueeWindowCharOffset = 0;
+            this->listMarqueeFullLabel = label;
+            this->listMarqueeOverlayText->SetText(label);
+
+            int oneLineHeight = this->listMarqueeSingleLineHeight;
+            if (oneLineHeight <= 0)
+                oneLineHeight = itemHeight;
+            const int wrapThreshold = oneLineHeight + 2;
+            if (this->listMarqueeOverlayText->GetTextHeight() > wrapThreshold) {
+                this->listMarqueeWindowMode = true;
+                int windowChars = 120;
+                if (windowChars > static_cast<int>(label.size()))
+                    windowChars = static_cast<int>(label.size());
+                if (windowChars < 4)
+                    windowChars = 4;
+                this->listMarqueeOverlayText->SetText(BuildMarqueeWindow(label, 0, windowChars));
+                while (this->listMarqueeOverlayText->GetTextHeight() > wrapThreshold && windowChars > 4) {
+                    windowChars -= 4;
+                    this->listMarqueeOverlayText->SetText(BuildMarqueeWindow(label, 0, windowChars));
+                }
+                this->listMarqueeWindowChars = windowChars;
+            }
+        }
+
+        if (this->listMarqueeWindowMode) {
+            int cycleChars = static_cast<int>(this->listMarqueeFullLabel.size()) + 3;
+            if (cycleChars < 0)
+                cycleChars = 0;
+            this->listMarqueeMaxOffset = cycleChars * kListMarqueeWindowCharStepPx;
+        } else {
+            this->listMarqueeMaxOffset = this->listMarqueeOverlayText->GetTextWidth() - maskWidth;
+            if (this->listMarqueeMaxOffset < 0)
+                this->listMarqueeMaxOffset = 0;
+        }
+
+        if (this->listMarqueeMaxOffset > 0) {
+            switch (this->listMarqueePhase) {
+                case kListMarqueePhasePause:
+                    this->listMarqueeFadeAlpha = 0;
+                    if (now >= this->listMarqueePauseUntilTick) {
+                        this->listMarqueePhase = kListMarqueePhaseScroll;
+                        this->listMarqueeLastTick = now;
+                        this->listMarqueeSpeedRemainder = 0;
+                    }
+                    break;
+                case kListMarqueePhaseScroll: {
+                    if (now > this->listMarqueeLastTick) {
+                        const u64 elapsedTicks = now - this->listMarqueeLastTick;
+                        unsigned long long scaled = (static_cast<unsigned long long>(elapsedTicks) * static_cast<unsigned long long>(kListMarqueeSpeedPxPerSec)) + static_cast<unsigned long long>(this->listMarqueeSpeedRemainder);
+                        const int advance = static_cast<int>(scaled / static_cast<unsigned long long>(freq));
+                        this->listMarqueeSpeedRemainder = static_cast<u64>(scaled % static_cast<unsigned long long>(freq));
+                        this->listMarqueeLastTick = now;
+                        if (advance > 0) {
+                            this->listMarqueeOffset += advance;
+                            if (this->listMarqueeOffset >= this->listMarqueeMaxOffset) {
+                                this->listMarqueeOffset = this->listMarqueeMaxOffset;
+                                this->listMarqueePhase = kListMarqueePhaseFadeOut;
+                                this->listMarqueeFadeStartTick = now;
+                                this->listMarqueeFadeAlpha = 0;
+                            }
+                        }
+                    }
+                    break;
+                }
+                case kListMarqueePhaseFadeOut: {
+                    if (fadeDurationTicks == 0) {
+                        this->listMarqueeFadeAlpha = 255;
+                        this->listMarqueeOffset = 0;
+                        this->listMarqueePhase = kListMarqueePhaseFadeIn;
+                        this->listMarqueeFadeStartTick = now;
+                    } else {
+                        const u64 fadeElapsed = (now > this->listMarqueeFadeStartTick) ? (now - this->listMarqueeFadeStartTick) : 0;
+                        if (fadeElapsed >= fadeDurationTicks) {
+                            this->listMarqueeFadeAlpha = 255;
+                            this->listMarqueeOffset = 0;
+                            this->listMarqueePhase = kListMarqueePhaseFadeIn;
+                            this->listMarqueeFadeStartTick = now;
+                        } else {
+                            this->listMarqueeFadeAlpha = static_cast<int>((fadeElapsed * 255ULL) / fadeDurationTicks);
+                        }
+                    }
+                    break;
+                }
+                case kListMarqueePhaseFadeIn: {
+                    if (fadeDurationTicks == 0) {
+                        this->listMarqueeFadeAlpha = 0;
+                        this->listMarqueePhase = kListMarqueePhasePause;
+                        this->listMarqueePauseUntilTick = now + startDelayTicks;
+                        this->listMarqueeLastTick = now;
+                    } else {
+                        const u64 fadeElapsed = (now > this->listMarqueeFadeStartTick) ? (now - this->listMarqueeFadeStartTick) : 0;
+                        if (fadeElapsed >= fadeDurationTicks) {
+                            this->listMarqueeFadeAlpha = 0;
+                            this->listMarqueePhase = kListMarqueePhasePause;
+                            this->listMarqueePauseUntilTick = now + startDelayTicks;
+                            this->listMarqueeLastTick = now;
+                        } else {
+                            this->listMarqueeFadeAlpha = 255 - static_cast<int>((fadeElapsed * 255ULL) / fadeDurationTicks);
+                        }
+                    }
+                    break;
+                }
+                default:
+                    this->listMarqueePhase = kListMarqueePhasePause;
+                    this->listMarqueeFadeAlpha = 0;
+                    this->listMarqueePauseUntilTick = now + startDelayTicks;
+                    this->listMarqueeLastTick = now;
+                    this->listMarqueeSpeedRemainder = 0;
+                    break;
+            }
+        } else {
+            this->listMarqueeOffset = 0;
+            this->listMarqueeFadeAlpha = 0;
+            this->listMarqueePhase = kListMarqueePhasePause;
+            this->listMarqueeSpeedRemainder = 0;
+        }
+
+        if (this->listMarqueeOffset < 0)
+            this->listMarqueeOffset = 0;
+        if (this->listMarqueeOffset > this->listMarqueeMaxOffset)
+            this->listMarqueeOffset = this->listMarqueeMaxOffset;
+
+        int drawOffsetPx = this->listMarqueeOffset;
+        if (this->listMarqueeWindowMode) {
+            std::size_t offsetChars = static_cast<std::size_t>(this->listMarqueeOffset / kListMarqueeWindowCharStepPx);
+            if (offsetChars != this->listMarqueeWindowCharOffset || force) {
+                this->listMarqueeWindowCharOffset = offsetChars;
+                this->listMarqueeOverlayText->SetText(BuildMarqueeWindow(this->listMarqueeFullLabel, offsetChars, this->listMarqueeWindowChars));
+            }
+            drawOffsetPx = this->listMarqueeOffset % kListMarqueeWindowCharStepPx;
+        }
+
+        int textY = rowY + ((itemHeight - this->listMarqueeOverlayText->GetTextHeight()) / 2);
+        pu::ui::Color marqueeBaseColor = this->menu->GetColor();
+        marqueeBaseColor.A = 255;
+        const pu::ui::Color marqueeHighlightColor = COLOR("#303030FF");
+        const pu::ui::Color marqueeResolvedColor = BlendOverOpaque(marqueeBaseColor, marqueeHighlightColor);
+        pu::ui::Color marqueeTextColor = ShouldUseDarkText(marqueeResolvedColor) ? COLOR("#000000FF") : COLOR("#FFFFFFFF");
+        const pu::ui::Color currentMarqueeTextColor = this->listMarqueeOverlayText->GetColor();
+        if (currentMarqueeTextColor.R != marqueeTextColor.R || currentMarqueeTextColor.G != marqueeTextColor.G
+            || currentMarqueeTextColor.B != marqueeTextColor.B || currentMarqueeTextColor.A != marqueeTextColor.A) {
+            this->listMarqueeOverlayText->SetColor(marqueeTextColor);
+        }
+        this->listMarqueeMaskRect->SetColor(marqueeBaseColor);
         this->listMarqueeMaskRect->SetX(textX);
-        this->listMarqueeMaskRect->SetY(this->menu->GetProcessedY() + (row * itemHeight));
+        this->listMarqueeMaskRect->SetY(rowY);
         this->listMarqueeMaskRect->SetWidth(maskWidth);
         this->listMarqueeMaskRect->SetHeight(itemHeight);
         this->listMarqueeMaskRect->SetVisible(true);
-        this->listMarqueeOverlayText->SetX(textX);
+        this->listMarqueeTintRect->SetColor(marqueeHighlightColor);
+        this->listMarqueeTintRect->SetX(textX);
+        this->listMarqueeTintRect->SetY(rowY);
+        this->listMarqueeTintRect->SetWidth(maskWidth);
+        this->listMarqueeTintRect->SetHeight(itemHeight);
+        this->listMarqueeTintRect->SetVisible(true);
+        this->listMarqueeClipEnabled = true;
+        this->listMarqueeClipX = textX;
+        this->listMarqueeClipY = rowY;
+        this->listMarqueeClipW = maskWidth;
+        this->listMarqueeClipH = itemHeight;
+        this->listMarqueeOverlayText->SetX(textX - drawOffsetPx);
         this->listMarqueeOverlayText->SetY(textY);
         this->listMarqueeOverlayText->SetVisible(true);
+
+        if (this->listMarqueeFadeAlpha > 0) {
+            pu::ui::Color fadeColor = marqueeResolvedColor;
+            fadeColor.A = static_cast<u8>(this->listMarqueeFadeAlpha);
+            this->listMarqueeFadeRect->SetColor(fadeColor);
+            this->listMarqueeFadeRect->SetX(textX);
+            this->listMarqueeFadeRect->SetY(rowY);
+            this->listMarqueeFadeRect->SetWidth(maskWidth);
+            this->listMarqueeFadeRect->SetHeight(itemHeight);
+            this->listMarqueeFadeRect->SetVisible(true);
+        } else {
+            this->listMarqueeFadeRect->SetVisible(false);
+        }
     }
 
     void shopInstPage::updateButtonsText() {
@@ -2260,11 +2556,13 @@ namespace inst::ui {
     }
 
     void shopInstPage::drawMenuItems(bool clearItems) {
-        const int selectedIndexBefore = this->menu->GetSelectedIndex();
         if (clearItems) this->selectedItems.clear();
         this->emptySectionText->SetVisible(false);
         this->listMarqueeMaskRect->SetVisible(false);
+        this->listMarqueeTintRect->SetVisible(false);
         this->listMarqueeOverlayText->SetVisible(false);
+        this->listMarqueeClipEnabled = false;
+        this->listMarqueeFadeRect->SetVisible(false);
         this->menu->ClearItems();
         this->visibleItems.clear();
         const auto& items = this->getCurrentItems();
@@ -2299,7 +2597,10 @@ namespace inst::ui {
             this->previewImage->SetVisible(false);
             this->emptySectionText->SetVisible(false);
             this->listMarqueeMaskRect->SetVisible(false);
+            this->listMarqueeTintRect->SetVisible(false);
             this->listMarqueeOverlayText->SetVisible(false);
+            this->listMarqueeClipEnabled = false;
+            this->listMarqueeFadeRect->SetVisible(false);
             if (this->gridSelectedIndex >= (int)this->visibleItems.size())
                 this->gridSelectedIndex = 0;
             this->updateInstalledGrid();
@@ -2309,7 +2610,10 @@ namespace inst::ui {
 
         if (this->shopGridMode) {
             this->listMarqueeMaskRect->SetVisible(false);
+            this->listMarqueeTintRect->SetVisible(false);
             this->listMarqueeOverlayText->SetVisible(false);
+            this->listMarqueeClipEnabled = false;
+            this->listMarqueeFadeRect->SetVisible(false);
             this->updateShopGrid();
             this->updateDescriptionPanel();
             return;
@@ -2328,20 +2632,6 @@ namespace inst::ui {
         for (std::size_t i = 0; i < this->visibleItems.size(); i++) {
             const auto& item = this->visibleItems[i];
             std::string itm = this->buildListMenuLabel(item);
-            if (static_cast<int>(i) == selectedIndexBefore) {
-                std::string sizeText = FormatSizeText(item.size);
-                std::string suffix = sizeText.empty() ? "" : (" [" + sizeText + "]");
-                int nameLimit = 56;
-                if (!suffix.empty()) {
-                    int maxSuffix = static_cast<int>(suffix.size()) + 1;
-                    if (nameLimit > maxSuffix)
-                        nameLimit -= maxSuffix;
-                }
-                if (nameLimit < 8)
-                    nameLimit = 8;
-                if (item.name.size() > static_cast<std::size_t>(nameLimit))
-                    itm.clear();
-            }
             auto entry = pu::ui::elm::MenuItem::New(itm);
             entry->SetColor(COLOR("#FFFFFFFF"));
             if (!installedSection && !saveSyncSection) {
@@ -2359,20 +2649,31 @@ namespace inst::ui {
         if (!this->menu->GetItems().empty()) {
             int sel = this->menu->GetSelectedIndex();
             if (sel < 0 || sel >= (int)this->menu->GetItems().size())
-                this->menu->SetSelectedIndex(0);
+                sel = 0;
+            this->menu->SetSelectedIndex(sel);
         }
         this->listMarqueeIndex = -1;
         this->listVisibleTopIndex = 0;
         this->listPrevSelectedIndex = -1;
         this->listRenderedSelectedIndex = this->menu->GetSelectedIndex();
         this->listMarqueeOffset = 0;
+        this->listMarqueeMaxOffset = 0;
         this->listMarqueeLastTick = 0;
         this->listMarqueePauseUntilTick = 0;
+        this->listMarqueeSpeedRemainder = 0;
+        this->listMarqueeFadeStartTick = 0;
+        this->listMarqueePhase = kListMarqueePhasePause;
+        this->listMarqueeFadeAlpha = 0;
         this->updateListMarquee(true);
         this->updateDescriptionPanel();
     }
 
     void shopInstPage::updateInstalledGrid() {
+        this->listMarqueeMaskRect->SetVisible(false);
+        this->listMarqueeTintRect->SetVisible(false);
+        this->listMarqueeOverlayText->SetVisible(false);
+        this->listMarqueeClipEnabled = false;
+        this->listMarqueeFadeRect->SetVisible(false);
         if (!this->isInstalledSection() || !this->shopGridMode) {
             for (auto& img : this->gridImages)
                 img->SetVisible(false);
@@ -2490,6 +2791,11 @@ namespace inst::ui {
     }
 
     void shopInstPage::updateShopGrid() {
+        this->listMarqueeMaskRect->SetVisible(false);
+        this->listMarqueeTintRect->SetVisible(false);
+        this->listMarqueeOverlayText->SetVisible(false);
+        this->listMarqueeClipEnabled = false;
+        this->listMarqueeFadeRect->SetVisible(false);
         if (!this->shopGridMode || this->visibleItems.empty()) {
             for (auto& img : this->gridImages)
                 img->SetVisible(false);
@@ -3185,6 +3491,11 @@ namespace inst::ui {
             this->touchActive = false;
             this->touchMoved = false;
             if (this->shopGridMode) {
+                this->listMarqueeMaskRect->SetVisible(false);
+                this->listMarqueeTintRect->SetVisible(false);
+                this->listMarqueeOverlayText->SetVisible(false);
+                this->listMarqueeClipEnabled = false;
+                this->listMarqueeFadeRect->SetVisible(false);
                 this->shopGridIndex = this->menu->GetSelectedIndex();
                 if (this->shopGridIndex < 0)
                     this->shopGridIndex = 0;
@@ -3578,8 +3889,8 @@ namespace inst::ui {
             }
         } else {
             const int currentSelectedIndex = this->menu->GetSelectedIndex();
-            if (currentSelectedIndex != this->listRenderedSelectedIndex) {
-                this->drawMenuItems(false);
+            if (currentSelectedIndex != this->listRenderedSelectedIndex && !this->menu->GetItems().empty()) {
+                this->listRenderedSelectedIndex = currentSelectedIndex;
             }
             this->updatePreview();
             this->updateShopGrid();
